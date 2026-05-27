@@ -680,7 +680,7 @@
       border: 1px solid var(--cyan);
       padding: 4px 10px;
       border-radius: 12px;
-      font-size: 0.7rem;
+      font-size: 0.71rem;
       font-weight: bold;
       cursor: pointer;
       transition: all 0.2s;
@@ -895,7 +895,7 @@
           <button class="btn accent" id="btn-fetch-lyrics" style="padding: 4px 8px; font-size: 0.55rem;">FETCH</button>
         </div>
         <div id="lyrics-container" class="cyber-input" style="box-shadow: inset 0 20px 20px -20px #03010a, inset 0 -20px 20px -20px #03010a; border: 1px solid rgba(147, 51, 234, 0.2);">
-          <div class="lyric-line" style="opacity:1;">>> AWAITING LYRIC FETCH...</div>
+          <div class="lyric-line" style="opacity:1;">&gt;&gt; AWAITING LYRIC FETCH...</div>
           <div class="lyric-line" style="font-size:0.75rem; color:var(--dim); opacity:0.8;">Enter Track + Artist to pull true timestamps.</div>
         </div>
       </div>
@@ -1061,13 +1061,6 @@ document.getElementById('btn-toggle-metro').addEventListener('click', (e) => {
     if (isMetroPlaying && !metroFollowSong) loopStandaloneMetro(); else clearTimeout(standaloneMetroTimer);
 });
 
-document.getElementById('btn-metro-sync').addEventListener('click', (e) => {
-    metroFollowSong = !metroFollowSong;
-    e.target.classList.toggle('accent', metroFollowSong);
-    if (metroFollowSong) clearTimeout(standaloneMetroTimer);
-    else if (isMetroPlaying) loopStandaloneMetro();
-});
-
 document.getElementById('btn-tap-metro').addEventListener('click', () => {
     const now = Date.now(); tapTimes.push(now);
     if (tapTimes.length > 4) tapTimes.shift();
@@ -1159,7 +1152,7 @@ const fmt = (s) => { if (!s || isNaN(s)) return '0:00'; const m = Math.floor(s /
 document.getElementById('dropzone').addEventListener('click', () => document.getElementById('file-input').click());
 document.getElementById('dropzone').addEventListener('dragover', (e) => e.preventDefault());
 document.getElementById('dropzone').addEventListener('drop', (e) => { e.preventDefault(); if(e.dataTransfer.files[0]) initMediaPipeline(e.dataTransfer.files[0]); });
-document.getElementById('file-input').addEventListener('change', (e) => { if(e.target.files[0]) initMediaPipeline(e.target.files[0]); });
+document.getElementById('file-input').addEventListener('change', (e) => { if(e.target.files[0]) initMediaPipeline(file_input.files[0]); });
 
 async function initMediaPipeline(file) {
   document.getElementById('landing-gate').style.display = 'none'; 
