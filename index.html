@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en')">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -9,10 +9,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
   
-  <script src="https://unpkg.com/wavesurfer.js@7/dist/wavesurfer.min.js"></script>
-  <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/regions.min.js"></script>
-  <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/timeline.min.js"></script>
-  <script src="https://unpkg.com/wavesurfer.js@7/dist/plugins/hover.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/7.7.7/wavesurfer.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/7.7.7/plugins/regions.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/7.7.7/plugins/timeline.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/7.7.7/plugins/hover.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tsparticles@2/tsparticles.bundle.min.js"></script>
   
   <style>
@@ -1152,13 +1152,14 @@ const fmt = (s) => { if (!s || isNaN(s)) return '0:00'; const m = Math.floor(s /
 document.getElementById('dropzone').addEventListener('click', () => document.getElementById('file-input').click());
 document.getElementById('dropzone').addEventListener('dragover', (e) => e.preventDefault());
 document.getElementById('dropzone').addEventListener('drop', (e) => { e.preventDefault(); if(e.dataTransfer.files[0]) initMediaPipeline(e.dataTransfer.files[0]); });
-document.getElementById('file-input').addEventListener('change', (e) => { if(e.target.files[0]) initMediaPipeline(file_input.files[0]); });
+document.getElementById('file-input').addEventListener('change', (e) => { if(e.target.files[0]) initMediaPipeline(e.target.files[0]); });
 
 async function initMediaPipeline(file) {
   document.getElementById('landing-gate').style.display = 'none'; 
   document.getElementById('main-dashboard').style.display = 'grid';
   if (file.type.startsWith('video/') || file.name.endsWith('.mp4')) { isVideoMediaMode = true; }
   
+  // Updated Plugin Initialization Methods for clean compilation under WaveSurfer v7 CDN distributions on GitHub Pages
   if (isVideoMediaMode) {
     vDeckContainer.style.display = 'flex'; 
     vNode.src = URL.createObjectURL(file); 
