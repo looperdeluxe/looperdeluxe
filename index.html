@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en')">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -969,6 +969,7 @@ let standaloneMetroTimer = null;
 
 let isAutoStepChords = false; let currentChordIndex = 0; let lastStepBeatCount = 0;
 window.lyricData = []; window.lastActiveLyric = -1;
+let sequencedChordsData = []; // Multi-dimensional storage for independent custom chord shapes
 
 const tabLyrics = document.getElementById('btn-tab-lyrics'); 
 const tabChords = document.getElementById('btn-tab-chords'); 
@@ -1061,6 +1062,12 @@ document.getElementById('btn-toggle-metro').addEventListener('click', (e) => {
     if (isMetroPlaying && !metroFollowSong) loopStandaloneMetro(); else clearTimeout(standaloneMetroTimer);
 });
 
+document.getElementById('btn-metro-sync').addEventListener('click', () => {
+    metroFollowSong = !metroFollowSong;
+    document.getElementById('btn-metro-sync').classList.toggle('accent', metroFollowSong);
+    if (!metroFollowSong && isMetroPlaying) loopStandaloneMetro(); else clearTimeout(standaloneMetroTimer);
+});
+
 document.getElementById('btn-tap-metro').addEventListener('click', () => {
     const now = Date.now(); tapTimes.push(now);
     if (tapTimes.length > 4) tapTimes.shift();
@@ -1077,14 +1084,30 @@ document.getElementById('btn-fetch-lyrics').addEventListener('click', async () =
   const container = document.getElementById('lyrics-container');
   
   if (!artist || !song) { container.innerHTML = "<div class='lyric-line' style='opacity:1;'>>> AWAITING INPUT</div>"; return; }
-  container.innerHTML = "<div class='lyric-line active-lyric'>>> FETCHING TRUE TIMESTAMPS...</div>";
+  container.innerHTML = "<div class='lyric-line active-lyric'>>> RECONCILING LRCLIB DATABASE SYSTEM...</div>";
   window.lyricData = []; window.lastActiveLyric = -1;
 
-  try {
-    const res = await fetch(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(song)}`);
-    if (!res.ok) throw new Error("Lyrics not found");
+  async function fetchFromEndpoint(url) {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Endpoint returned error structural fault");
     const data = await res.json();
-    if(!data.syncedLyrics) throw new Error("No Synced Format available");
+    return data;
+  }
+
+  try {
+    let data;
+    try {
+      data = await fetchFromEndpoint(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(song)}`);
+    } catch(primaryErr) {
+      const searchData = await fetchFromEndpoint(`https://lrclib.net/api/search?q=${encodeURIComponent(artist + " " + song)}`);
+      if(searchData && searchData.length > 0) {
+        data = searchData[0];
+      } else {
+        throw new Error("No tracking lines inside alternative database list matrix");
+      }
+    }
+
+    if(!data || !data.syncedLyrics) throw new Error("No Synced Format available");
     
     const lines = data.syncedLyrics.split('\n'); container.innerHTML = '';
     lines.forEach((line) => {
@@ -1104,7 +1127,7 @@ document.getElementById('btn-fetch-lyrics').addEventListener('click', async () =
     });
     if(window.lyricData.length === 0) throw new Error("Parse Fail");
   } catch (err) {
-    container.innerHTML = "<div class='lyric-line' style='opacity:1;'>>> SYNCED LYRICS NOT FOUND: Try a different track or spelling.</div>";
+    container.innerHTML = "<div class='lyric-line' style='opacity:1; color:#ef4444;'>>> SYNCED LYRICS NOT FOUND: Try a different track or spelling.</div>";
   }
 });
 
@@ -1159,7 +1182,6 @@ async function initMediaPipeline(file) {
   document.getElementById('main-dashboard').style.display = 'grid';
   if (file.type.startsWith('video/') || file.name.endsWith('.mp4')) { isVideoMediaMode = true; }
   
-  // Updated Plugin Initialization Methods for clean compilation under WaveSurfer v7 CDN distributions on GitHub Pages
   if (isVideoMediaMode) {
     vDeckContainer.style.display = 'flex'; 
     vNode.src = URL.createObjectURL(file); 
@@ -1260,7 +1282,10 @@ async function initMediaPipeline(file) {
 
     if (window.lyricData.length > 0) {
         let activeIdx = -1;
-        for(let i=0; i<window.lyricData.length; i++) { if(t >= window.lyricData[i].time - 0.2) activeIdx = i; else break; }
+        // Absolute Zero-Delay Sync Engine Match Matrix
+        for(let i=0; i<window.lyricData.length; i++) { 
+            if(t >= window.lyricData[i].time) activeIdx = i; else break; 
+        }
         if(activeIdx !== -1) manualLyricSync(activeIdx);
     }
 
@@ -1304,7 +1329,7 @@ function advanceAutoChordSequencer() {
         pills.forEach((p, pIdx) => {
           if(pIdx === currentChordIndex) {
             p.classList.add('active');
-            autoSelectChordShape(p.innerText);
+            autoLoadSavedPillShapeData(pIdx);
           } else {
             p.classList.remove('active');
           }
@@ -1321,7 +1346,7 @@ function trigReset() {
         currentChordIndex = 0;
         const pills = document.querySelectorAll('.chord-pill');
         pills.forEach((p, idx) => {
-            if(idx === 0) { p.classList.add('active'); autoSelectChordShape(p.innerText); }
+            if(idx === 0) { p.classList.add('active'); autoLoadSavedPillShapeData(idx); }
             else p.classList.remove('active');
         });
     }
@@ -1352,25 +1377,55 @@ const fCanvas = document.getElementById('fretboard-vector'); const fCtx = fCanva
 function initFretboardCanvasDimensions() { if (!viewChords.classList.contains('active') || !fCanvas.parentElement) return; const rect = fCanvas.parentElement.getBoundingClientRect(); fCanvas.width = rect.width; fCanvas.height = rect.height; renderManualFretboard(); }
 window.addEventListener('resize', initFretboardCanvasDimensions);
 
-document.getElementById('chord-root').addEventListener('change', renderManualFretboard); 
-document.getElementById('chord-type').addEventListener('change', renderManualFretboard);
+// Event hooks to update independent active matrix pill data on the fly
+document.getElementById('chord-root').addEventListener('change', () => { saveCurrentSelectorStateToActivePill(); renderManualFretboard(); }); 
+document.getElementById('chord-type').addEventListener('change', () => { saveCurrentSelectorStateToActivePill(); renderManualFretboard(); });
 
 const rootMapOffsets = {"C":0, "C#":1, "D":2, "Eb":3, "E":4, "F":5, "F#":6, "G":7, "Ab":8, "A":9, "Bb":10, "B":11};
 
 document.getElementById('btn-build-prog').addEventListener('click', () => {
   const progStr = document.getElementById('input-progression').value; const rack = document.getElementById('progression-rack'); rack.innerHTML = '';
   const chords = progStr.split(' ').filter(c => c.trim() !== '');
+  
+  sequencedChordsData = []; // Clear independent object stack
+  
   chords.forEach((chordStr, idx) => {
+    // Generate individual chord shape metadata settings context block
+    let initialRoot = chordStr.replace(/m|min|maj|7/g, '');
+    if (rootMapOffsets[initialRoot] === undefined) initialRoot = "G";
+    let initialType = (chordStr.includes('m') || chordStr.includes('min')) ? 'E-Min' : 'E-Maj';
+    
+    sequencedChordsData.push({
+        rawName: chordStr,
+        root: initialRoot,
+        shape: initialType
+    });
+
     const pill = document.createElement('div'); pill.className = 'chord-pill'; pill.innerText = chordStr;
     pill.onclick = () => { 
       document.querySelectorAll('.chord-pill').forEach(p => p.classList.remove('active')); 
       pill.classList.add('active'); 
-      autoSelectChordShape(chordStr); 
-      currentChordIndex = idx; 
+      currentChordIndex = idx;
+      autoLoadSavedPillShapeData(idx);
     };
     rack.appendChild(pill); if(idx === 0) pill.click();
   });
 });
+
+function autoLoadSavedPillShapeData(idx) {
+    if(!sequencedChordsData[idx]) return;
+    const cData = sequencedChordsData[idx];
+    document.getElementById('chord-root').value = cData.root;
+    document.getElementById('chord-type').value = cData.shape;
+    renderManualFretboard();
+}
+
+function saveCurrentSelectorStateToActivePill() {
+    if(sequencedChordsData[currentChordIndex]) {
+        sequencedChordsData[currentChordIndex].root = document.getElementById('chord-root').value;
+        sequencedChordsData[currentChordIndex].shape = document.getElementById('chord-type').value;
+    }
+}
 
 document.getElementById('btn-auto-chord').addEventListener('click', (e) => { 
   isAutoStepChords = !isAutoStepChords; 
@@ -1385,19 +1440,6 @@ document.getElementById('btn-auto-chord').addEventListener('click', (e) => {
       e.target.style.color = "#22c55e";
   }
 });
-
-function autoSelectChordShape(chordStr) {
-  let root = chordStr.replace(/m|min|maj|7/g, ''); if (rootMapOffsets[root] === undefined) return; 
-  let typeSelect = document.getElementById('chord-type'); let rootSelect = document.getElementById('chord-root');
-  rootSelect.value = root;
-  
-  if (chordStr.includes('m') || chordStr.includes('min')) {
-    typeSelect.value = 'E-Min';
-  } else {
-    typeSelect.value = 'E-Maj';
-  }
-  renderManualFretboard();
-}
 
 function calculateBarreNodes(root, shapeType) {
   let nodes = [];
