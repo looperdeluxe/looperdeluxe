@@ -1,4 +1,4 @@
-Music Looper & Practice Deck
+**Music Looper & Practice Deck**
 
 ### _Your All-in-One Practice Machine for Guitarists or any other Musicians._
 
