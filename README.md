@@ -63,7 +63,6 @@ Master these essential hotkeys for instant productivity:
 | Key | Action |
 | :------- | :--------------------------- |
 | `I` | Set Loop In Point |
- (2/3)
 | `O` | Set Loop Out Point |
 | `L` | Toggle Active A/B Loop |
 | `Space` | Play / Pause |
