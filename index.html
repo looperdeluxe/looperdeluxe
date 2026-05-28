@@ -348,6 +348,86 @@
       transform: scaleX(-1);
     }
 
+    /* Webcam Drawer & Controls styling */
+    .cam-drawer-toggle {
+      background: rgba(20, 10, 35, 0.9);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.75rem;
+      color: var(--cyan);
+      user-select: none;
+      transition: all 0.2s ease;
+    }
+    .cam-drawer-toggle:hover {
+      border-color: var(--cyan);
+      box-shadow: 0 0 10px rgba(192, 132, 252, 0.2);
+    }
+    .cam-arrow {
+      font-size: 1rem;
+      transition: transform 0.3s ease;
+    }
+    .cam-arrow.open {
+      transform: rotate(90deg);
+    }
+    #cam-drawer-content {
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+      background: rgba(15, 7, 30, 0.85);
+      border: 1px solid var(--border);
+      border-top: none;
+      border-radius: 0 0 var(--radius) var(--radius);
+      padding: 12px;
+      margin-top: -6px;
+    }
+    .webcam-preview-container {
+      width: 100%;
+      height: 220px;
+      background: #05020c;
+      border: 1px solid rgba(147, 51, 234, 0.3);
+      border-radius: 6px;
+      position: relative;
+      overflow: hidden;
+    }
+    #webcam-node, #playback-node {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    #playback-node {
+      display: none;
+      background: #000;
+    }
+    .cam-hud-overlay {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      background: rgba(0,0,0,0.7);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.6rem;
+      font-weight: bold;
+      color: #ef4444;
+      display: none;
+      align-items: center;
+      gap: 4px;
+      font-family: 'Orbitron', sans-serif;
+    }
+    .cam-hud-overlay .blink-dot {
+      width: 6px;
+      height: 6px;
+      background: #ef4444;
+      border-radius: 50%;
+      animation: pulseBlink 1s infinite alternate;
+    }
+    @keyframes pulseBlink { from { opacity: 0.2; } to { opacity: 1; } }
+
     .deck-toggle-bar {
       display: flex;
       gap: 6px;
@@ -811,6 +891,23 @@
         <video id="video-player-node" playsinline></video>
       </div>
 
+      <div class="cam-drawer-toggle" id="webcam-drawer-bar">
+        <span>📸 PRACTICE PERFORMANCE RECORDER</span>
+        <span class="cam-arrow" id="drawer-arrow-icon">➔</span>
+      </div>
+      <div id="cam-drawer-content">
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+          <button class="btn accent" id="btn-start-cam">🎥 ACCESS CAM</button>
+          <button class="btn danger" id="btn-rec-cam" disabled>⏺ RECORD STAGE</button>
+          <button class="btn" id="btn-watch-playback" disabled>👀 WATCH PLAYBACK</button>
+        </div>
+        <div class="webcam-preview-container">
+          <div class="cam-hud-overlay" id="rec-hud"><div class="blink-dot"></div>REC</div>
+          <video id="webcam-node" autoplay muted playsinline></video>
+          <video id="playback-node" controls playsinline></video>
+        </div>
+      </div>
+
       <div class="panel" id="waveform-panel-container">
         <button class="btn accent" id="btn-toggle-sidebar" style="position:absolute; top:12px; right:12px; z-index:10; font-size:0.6rem; padding: 4px 8px;">◨ TOGGLE SIDEBAR</button>
         <div class="panel-title">WAVEFORM INTERACTIVE PERFORMANCE MATRIX</div>
@@ -856,7 +953,7 @@
             <button class="btn accent" id="btn-tap-metro" style="padding:6px; font-size:0.6rem;">🥁 TAP CLICK SPEED</button>
             <div style="display:flex; gap:4px;">
               <button class="btn" id="btn-toggle-metro" style="padding:6px; font-size:0.6rem; flex:1;">▶ METRONOME</button>
-              <button class="btn" id="btn-metro-sync" style="padding:6px; font-size:0.6rem; flex:1;">🔗 SYNC TO TRACK</button>
+              <button class="btn" id="btn-metro-sync" style="padding:6px; font-size:0.6rem; flex:1; color:#a78bfa; border-color:rgba(147,51,234,0.4);">🔗 SYNC TO TRACK</button>
             </div>
             <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
               <span style="font-size:0.6rem; color:var(--dim)">VOL</span>
@@ -969,7 +1066,12 @@ let standaloneMetroTimer = null;
 
 let isAutoStepChords = false; let currentChordIndex = 0; let lastStepBeatCount = 0;
 window.lyricData = []; window.lastActiveLyric = -1;
-let sequencedChordsData = []; // Multi-dimensional storage for independent custom chord shapes
+
+// Webcam and Media Recording variables
+let camStream = null;
+let mediaRecorder = null;
+let recordedChunks = [];
+let isRecording = false;
 
 const tabLyrics = document.getElementById('btn-tab-lyrics'); 
 const tabChords = document.getElementById('btn-tab-chords'); 
@@ -1032,6 +1134,90 @@ document.getElementById('btn-pip').addEventListener('click', async () => {
   }
 });
 
+// Webcam Expandable Drawer Toggle Logic
+const webcamBar = document.getElementById('webcam-drawer-bar');
+const camDrawerContent = document.getElementById('cam-drawer-content');
+const drawerArrowIcon = document.getElementById('drawer-arrow-icon');
+
+webcamBar.addEventListener('click', () => {
+  if (camDrawerContent.style.display === 'flex') {
+    camDrawerContent.style.display = 'none';
+    drawerArrowIcon.classList.remove('open');
+  } else {
+    camDrawerContent.style.display = 'flex';
+    drawerArrowIcon.classList.add('open');
+  }
+});
+
+// Full Recording & Playback Implementations
+const btnStartCam = document.getElementById('btn-start-cam');
+const btnRecCam = document.getElementById('btn-rec-cam');
+const btnWatchPlayback = document.getElementById('btn-watch-playback');
+const webcamNode = document.getElementById('webcam-node');
+const playbackNode = document.getElementById('playback-node');
+const recHud = document.getElementById('rec-hud');
+
+btnStartCam.addEventListener('click', async () => {
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    webcamNode.srcObject = camStream;
+    btnRecCam.disabled = false;
+    btnStartCam.innerText = "✓ CAM ACTIVE";
+    btnStartCam.classList.remove('accent');
+  } catch (err) {
+    alert("Could not access webcam: " + err.message);
+  }
+});
+
+btnRecCam.addEventListener('click', () => {
+  if (!isRecording) {
+    // Start Recording Action
+    recordedChunks = [];
+    playbackNode.style.display = 'none';
+    webcamNode.style.display = 'block';
+    
+    let options = { mimeType: 'video/webm;codecs=vp9' };
+    if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+      options = { mimeType: 'video/webm' };
+    }
+    
+    mediaRecorder = new MediaRecorder(camStream, options);
+    mediaRecorder.ondataavailable = (e) => {
+      if (e.data.size > 0) recordedChunks.push(e.data);
+    };
+    
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(recordedChunks, { type: 'video/webm' });
+      playbackNode.src = URL.createObjectURL(blob);
+      btnWatchPlayback.disabled = false;
+    };
+    
+    mediaRecorder.start(200);
+    isRecording = true;
+    btnRecCam.innerText = "⏹ STOP RECORD";
+    btnRecCam.classList.add('active');
+    recHud.style.display = 'flex';
+  } else {
+    // Stop Recording Action
+    mediaRecorder.stop();
+    isRecording = false;
+    btnRecCam.innerText = "⏺ RECORD STAGE";
+    btnRecCam.classList.remove('active');
+    recHud.style.display = 'none';
+  }
+});
+
+btnWatchPlayback.addEventListener('click', () => {
+  // If track video file is playing, pause it to let user focus on webcam playback review
+  if (ws && ws.isPlaying()) {
+    ws.pause();
+  }
+  
+  webcamNode.style.display = 'none';
+  playbackNode.style.display = 'block';
+  playbackNode.play();
+});
+
 function triggerMetroTick() {
     const light = document.getElementById('metro-tick-light');
     light.classList.add('flash-tick');
@@ -1062,10 +1248,24 @@ document.getElementById('btn-toggle-metro').addEventListener('click', (e) => {
     if (isMetroPlaying && !metroFollowSong) loopStandaloneMetro(); else clearTimeout(standaloneMetroTimer);
 });
 
-document.getElementById('btn-metro-sync').addEventListener('click', () => {
-    metroFollowSong = !metroFollowSong;
-    document.getElementById('btn-metro-sync').classList.toggle('accent', metroFollowSong);
-    if (!metroFollowSong && isMetroPlaying) loopStandaloneMetro(); else clearTimeout(standaloneMetroTimer);
+// Functional Sync-To-Track Downbeat Toggle Logic
+const btnMetroSync = document.getElementById('btn-metro-sync');
+btnMetroSync.addEventListener('click', () => {
+  metroFollowSong = !metroFollowSong;
+  if (metroFollowSong) {
+    btnMetroSync.classList.add('active');
+    btnMetroSync.innerText = "🔗 SYNCED ON";
+    btnMetroSync.style.borderColor = "#ffffff";
+    btnMetroSync.style.color = "#ffffff";
+    // Clear out standard standalone intervals so downbeat telemetry takes over driving the ticks
+    clearTimeout(standaloneMetroTimer);
+  } else {
+    btnMetroSync.classList.remove('active');
+    btnMetroSync.innerText = "🔗 SYNC TO TRACK";
+    btnMetroSync.style.borderColor = "rgba(147,51,234,0.4)";
+    btnMetroSync.style.color = "#a78bfa";
+    if (isMetroPlaying) loopStandaloneMetro();
+  }
 });
 
 document.getElementById('btn-tap-metro').addEventListener('click', () => {
@@ -1079,55 +1279,97 @@ document.getElementById('btn-tap-metro').addEventListener('click', () => {
 });
 
 document.getElementById('btn-fetch-lyrics').addEventListener('click', async () => {
-  const artist = document.getElementById('input-lyric-artist').value.trim();
-  const song = document.getElementById('input-lyric-song').value.trim();
+  const artistInput = document.getElementById('input-lyric-artist').value.trim();
+  const songInput = document.getElementById('input-lyric-song').value.trim();
   const container = document.getElementById('lyrics-container');
   
-  if (!artist || !song) { container.innerHTML = "<div class='lyric-line' style='opacity:1;'>>> AWAITING INPUT</div>"; return; }
-  container.innerHTML = "<div class='lyric-line active-lyric'>>> RECONCILING LRCLIB DATABASE SYSTEM...</div>";
-  window.lyricData = []; window.lastActiveLyric = -1;
+  if (!artistInput || !songInput) { 
+    container.innerHTML = "<div class='lyric-line' style='opacity:1;'>>> AWAITING INPUT</div>"; 
+    return; 
+  }
+  
+  container.innerHTML = "<div class='lyric-line active-lyric'>>> INITIATING FUZZY ENGINE SEARCH...</div>";
+  window.lyricData = []; 
+  window.lastActiveLyric = -1;
 
-  async function fetchFromEndpoint(url) {
-    const res = await fetch(url);
-    if (!res.ok) throw new Error("Endpoint returned error structural fault");
-    const data = await res.json();
-    return data;
+  // FUZZY SANITIZATION: Strip out trailing video/audio tags that break search indexes
+  const sanitize = (str) => {
+    return str
+      .replace(/\s*[\(\[][^)]*([vV]ideo|[aA]udio|[lL]ive|[rR]emaster|[oO]fficial|HD|HQ|Mix|Edit)[\s\S]*?[\)\]]/gi, '')
+      .replace(/\s*-\s*(Live|Remastered|Studio|Single\s*Version|Radio\s*Edit).*$/gi, '')
+      .trim();
+  };
+
+  const artist = sanitize(artistInput);
+  const song = sanitize(songInput);
+
+  async function parseAndRender(data) {
+    if (!data) return false;
+    let lyricsText = "";
+    if (data.syncedLyrics && data.syncedLyrics.trim().length > 0) {
+      lyricsText = data.syncedLyrics;
+    } else if (data.plainLyrics && data.plainLyrics.trim().length > 0) {
+      const lines = data.plainLyrics.split('\n').filter(l => l.trim().length > 0);
+      const totalDuration = ws ? ws.getDuration() : 180;
+      const step = totalDuration / Math.max(lines.length, 1);
+      lyricsText = lines.map((line, i) => {
+        const totalSec = i * step;
+        const m = Math.floor(totalSec / 60).toString().padStart(2, '0');
+        const s = Math.floor(totalSec % 60).toString().padStart(2, '0');
+        const ms = Math.floor((totalSec % 1) * 100).toString().padStart(2, '0');
+        return `[${m}:${s}.${ms}] ${line}`;
+      }).join('\n');
+    } else {
+      return false;
+    }
+
+    const lines = lyricsText.split('\n'); 
+    container.innerHTML = '';
+    
+    lines.forEach((line) => {
+      const matchLine = line.match(/\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)/);
+      if (matchLine) {
+        const m = parseInt(matchLine[1]); 
+        const s = parseInt(matchLine[2]); 
+        const ms = parseInt(matchLine[3].padEnd(3, '0'));
+        const time = (m * 60) + s + (ms / 1000);
+        const text = matchLine[4].trim();
+        if (text) {
+          window.lyricData.push({ time, text });
+          const d = document.createElement('div');
+          d.className = 'lyric-line'; 
+          d.innerText = text;
+          d.onclick = () => { if(ws) ws.setTime(time); manualLyricSync(window.lyricData.length - 1); };
+          container.appendChild(d);
+        }
+      }
+    });
+    return window.lyricData.length > 0;
   }
 
   try {
-    let data;
-    try {
-      data = await fetchFromEndpoint(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(song)}`);
-    } catch(primaryErr) {
-      const searchData = await fetchFromEndpoint(`https://lrclib.net/api/search?q=${encodeURIComponent(artist + " " + song)}`);
-      if(searchData && searchData.length > 0) {
-        data = searchData[0];
-      } else {
-        throw new Error("No tracking lines inside alternative database list matrix");
-      }
+    // TIER 1: Cleaned Direct Fetch Request
+    const res = await fetch(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(song)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (await parseAndRender(data)) return;
     }
 
-    if(!data || !data.syncedLyrics) throw new Error("No Synced Format available");
-    
-    const lines = data.syncedLyrics.split('\n'); container.innerHTML = '';
-    lines.forEach((line) => {
-        const match = line.match(/\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)/);
-        if(match) {
-            const m = parseInt(match[1]); const s = parseInt(match[2]); const ms = parseInt(match[3].padEnd(3, '0'));
-            const time = (m * 60) + s + (ms / 1000);
-            const text = match[4].trim();
-            if(text) {
-                window.lyricData.push({ time, text });
-                const d = document.createElement('div');
-                d.className = 'lyric-line'; d.innerText = text;
-                d.onclick = () => { if(ws) ws.setTime(time); manualLyricSync(window.lyricData.length - 1); };
-                container.appendChild(d);
-            }
-        }
-    });
-    if(window.lyricData.length === 0) throw new Error("Parse Fail");
+    // TIER 2: Deep Multi-Candidate Fuzzy Match Lookup
+    container.innerHTML = "<div class='lyric-line active-lyric'>>> TIER 1 MISSED. RUNNING MULTI-CANDIDATE FUZZY MATCH...</div>";
+    const searchRes = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(song)}&artist_name=${encodeURIComponent(artist)}`);
+    if (searchRes.ok) {
+      const results = await searchRes.json();
+      if (results && results.length > 0) {
+        const bestMatch = results.find(r => r.syncedLyrics && r.syncedLyrics.trim().length > 0) || 
+                          results.find(r => r.plainLyrics && r.plainLyrics.trim().length > 0) || 
+                          results[0];
+        if (await parseAndRender(bestMatch)) return;
+      }
+    }
+    throw new Error("No match found");
   } catch (err) {
-    container.innerHTML = "<div class='lyric-line' style='opacity:1; color:#ef4444;'>>> SYNCED LYRICS NOT FOUND: Try a different track or spelling.</div>";
+    container.innerHTML = "<div class='lyric-line' style='opacity:1;'>>> ✕ NO LYRIC MATCH FOUND: Verify spelling or use alternate track keywords.</div>";
   }
 });
 
@@ -1144,6 +1386,7 @@ function manualLyricSync(idx) {
     }
 }
 
+// Exclusive Interface Gate Commands Switching Logic
 document.getElementById('matrix-engine-switch').addEventListener('click', () => {
   const switchBox = document.getElementById('matrix-engine-switch');
   const optAudio = document.getElementById('opt-audio');
@@ -1155,14 +1398,18 @@ document.getElementById('matrix-engine-switch').addEventListener('click', () => 
     switchBox.classList.remove('video-active');
     optAudio.classList.add('active');
     optVideo.classList.remove('active');
-    infoAudio.classList.add('active-hud');
-    infoVideo.classList.remove('active-hud');
+    
+    // Swap Visibility Cleanly
+    infoAudio.style.display = "block";
+    infoVideo.style.display = "none";
   } else {
     switchBox.classList.add('video-active');
     optAudio.classList.remove('active');
     optVideo.classList.add('active');
-    infoAudio.classList.remove('active-hud');
-    infoVideo.classList.add('active-hud');
+    
+    // Swap Visibility Cleanly
+    infoAudio.style.display = "none";
+    infoVideo.style.display = "block";
   }
 });
 
@@ -1258,16 +1505,20 @@ async function initMediaPipeline(file) {
     const bpm = parseFloat(document.getElementById('input-metro-bpm').value) || 120;
     const beatInterval = 60 / bpm;
     const offset = parseFloat(document.getElementById('input-metro-offset').value) || 0;
-    let currentBeatTotal = 0;
     
+    // Track-accurate Math Telemetry downbeat calculator
+    let currentBeatTotal = 0;
     if (t >= offset) {
         currentBeatTotal = Math.floor((t - offset) / beatInterval);
     }
 
+    // Precise live Downbeat execution handler
     if (isMetroPlaying && metroFollowSong && ws.isPlaying()) {
         if (t >= offset) {
             const lastBeat = Math.floor((lastTickTime - offset) / beatInterval);
-            if (currentBeatTotal > lastBeat) triggerMetroTick();
+            if (currentBeatTotal > lastBeat) {
+                triggerMetroTick();
+            }
         }
     }
     
@@ -1282,10 +1533,7 @@ async function initMediaPipeline(file) {
 
     if (window.lyricData.length > 0) {
         let activeIdx = -1;
-        // Absolute Zero-Delay Sync Engine Match Matrix
-        for(let i=0; i<window.lyricData.length; i++) { 
-            if(t >= window.lyricData[i].time) activeIdx = i; else break; 
-        }
+        for(let i=0; i<window.lyricData.length; i++) { if(t >= window.lyricData[i].time - 0.2) activeIdx = i; else break; }
         if(activeIdx !== -1) manualLyricSync(activeIdx);
     }
 
@@ -1327,10 +1575,7 @@ function advanceAutoChordSequencer() {
     if (pills.length > 0) {
         currentChordIndex = (currentChordIndex + 1) % pills.length;
         pills.forEach((p, pIdx) => {
-          if(pIdx === currentChordIndex) {
-            p.classList.add('active');
-            autoLoadSavedPillShapeData(pIdx);
-          } else {
+          if(pIdx === currentChordIndex) { p.classList.add('active'); p.click(); } else {
             p.classList.remove('active');
           }
         });
@@ -1346,7 +1591,7 @@ function trigReset() {
         currentChordIndex = 0;
         const pills = document.querySelectorAll('.chord-pill');
         pills.forEach((p, idx) => {
-            if(idx === 0) { p.classList.add('active'); autoLoadSavedPillShapeData(idx); }
+            if(idx === 0) { p.classList.add('active'); autoSelectChordShape(p.innerText); }
             else p.classList.remove('active');
         });
     }
@@ -1377,55 +1622,45 @@ const fCanvas = document.getElementById('fretboard-vector'); const fCtx = fCanva
 function initFretboardCanvasDimensions() { if (!viewChords.classList.contains('active') || !fCanvas.parentElement) return; const rect = fCanvas.parentElement.getBoundingClientRect(); fCanvas.width = rect.width; fCanvas.height = rect.height; renderManualFretboard(); }
 window.addEventListener('resize', initFretboardCanvasDimensions);
 
-// Event hooks to update independent active matrix pill data on the fly
-document.getElementById('chord-root').addEventListener('change', () => { saveCurrentSelectorStateToActivePill(); renderManualFretboard(); }); 
-document.getElementById('chord-type').addEventListener('change', () => { saveCurrentSelectorStateToActivePill(); renderManualFretboard(); });
+ 
+document.getElementById('chord-root').addEventListener('change', () => {
+  const activePill = document.querySelector('.chord-pill.active');
+  if (activePill) activePill.setAttribute('data-saved-root', document.getElementById('chord-root').value);
+  renderManualFretboard();
+});
+document.getElementById('chord-type').addEventListener('change', () => {
+  const activePill = document.querySelector('.chord-pill.active');
+  if (activePill) activePill.setAttribute('data-saved-type', document.getElementById('chord-type').value);
+  renderManualFretboard();
+});
 
 const rootMapOffsets = {"C":0, "C#":1, "D":2, "Eb":3, "E":4, "F":5, "F#":6, "G":7, "Ab":8, "A":9, "Bb":10, "B":11};
 
 document.getElementById('btn-build-prog').addEventListener('click', () => {
   const progStr = document.getElementById('input-progression').value; const rack = document.getElementById('progression-rack'); rack.innerHTML = '';
   const chords = progStr.split(' ').filter(c => c.trim() !== '');
-  
-  sequencedChordsData = []; // Clear independent object stack
-  
-  chords.forEach((chordStr, idx) => {
-    // Generate individual chord shape metadata settings context block
-    let initialRoot = chordStr.replace(/m|min|maj|7/g, '');
-    if (rootMapOffsets[initialRoot] === undefined) initialRoot = "G";
-    let initialType = (chordStr.includes('m') || chordStr.includes('min')) ? 'E-Min' : 'E-Maj';
+    chords.forEach((chordStr, idx) => {
+    const pill = document.createElement('div'); 
+    pill.className = 'chord-pill'; 
+    pill.innerText = chordStr;
     
-    sequencedChordsData.push({
-        rawName: chordStr,
-        root: initialRoot,
-        shape: initialType
-    });
+    let rootSeed = chordStr.replace(/m|min|maj|7/g, '');
+    let typeSeed = (chordStr.includes('m') || chordStr.includes('min')) ? 'E-Min' : 'E-Maj';
+    pill.setAttribute('data-saved-root', rootSeed);
+    pill.setAttribute('data-saved-type', typeSeed);
 
-    const pill = document.createElement('div'); pill.className = 'chord-pill'; pill.innerText = chordStr;
     pill.onclick = () => { 
       document.querySelectorAll('.chord-pill').forEach(p => p.classList.remove('active')); 
       pill.classList.add('active'); 
-      currentChordIndex = idx;
-      autoLoadSavedPillShapeData(idx);
+      currentChordIndex = idx; 
+      
+      document.getElementById('chord-root').value = pill.getAttribute('data-saved-root');
+      document.getElementById('chord-type').value = pill.getAttribute('data-saved-type');
+      renderManualFretboard();
     };
     rack.appendChild(pill); if(idx === 0) pill.click();
   });
 });
-
-function autoLoadSavedPillShapeData(idx) {
-    if(!sequencedChordsData[idx]) return;
-    const cData = sequencedChordsData[idx];
-    document.getElementById('chord-root').value = cData.root;
-    document.getElementById('chord-type').value = cData.shape;
-    renderManualFretboard();
-}
-
-function saveCurrentSelectorStateToActivePill() {
-    if(sequencedChordsData[currentChordIndex]) {
-        sequencedChordsData[currentChordIndex].root = document.getElementById('chord-root').value;
-        sequencedChordsData[currentChordIndex].shape = document.getElementById('chord-type').value;
-    }
-}
 
 document.getElementById('btn-auto-chord').addEventListener('click', (e) => { 
   isAutoStepChords = !isAutoStepChords; 
@@ -1440,6 +1675,19 @@ document.getElementById('btn-auto-chord').addEventListener('click', (e) => {
       e.target.style.color = "#22c55e";
   }
 });
+
+function autoSelectChordShape(chordStr) {
+  let root = chordStr.replace(/m|min|maj|7/g, ''); if (rootMapOffsets[root] === undefined) return; 
+  let typeSelect = document.getElementById('chord-type'); let rootSelect = document.getElementById('chord-root');
+  rootSelect.value = root;
+  
+  if (chordStr.includes('m') || chordStr.includes('min')) {
+    typeSelect.value = 'E-Min';
+  } else {
+    typeSelect.value = 'E-Maj';
+  }
+  renderManualFretboard();
+}
 
 function calculateBarreNodes(root, shapeType) {
   let nodes = [];
