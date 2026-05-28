@@ -1,6 +1,6 @@
 **Music Looper & Practice Deck**
 
-### _Your All-in-One Practice Machine for Guitarists or any other Musicians._
+### _Your All-in-One Practice Machine for Guitarists or any other Musician._
 
 ---
 
