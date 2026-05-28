@@ -56,7 +56,7 @@ This application is built for performance and a distinct aesthetic:
 
 ---
 
-## **🔥 Hotkeys Cheatsheet: Accelerate Your Workflow**
+## **🔥 Hotkey Cheatsheet: Accelerate Your Workflow**
 
 Master these essential hotkeys for instant productivity:
 
