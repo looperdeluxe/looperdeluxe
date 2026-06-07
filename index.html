@@ -1249,6 +1249,10 @@
               <button id="stage-instrument" title="Switch between guitar chord shapes and the bass root note (the foundational bassline)" style="font-size:0.58rem; background:rgba(124,58,237,0.18); border:1px solid rgba(192,132,252,0.5); border-radius:5px; color:#f0abfc; padding:2px 8px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap;">🎸 GUITAR</button>
             </div>
             <span id="chord-source-badge" class="auto" title="Where these chords came from">⚠ AUTO-DETECTED · FIRST PASS</span>
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <button id="btn-getchords" onclick="getStreamingChords()" title="Get auto-detected chords for the playing Spotify/YouTube song (analyzes it once, then cached for everyone)" style="font-size:0.58rem; background:rgba(34,197,94,0.18); border:1px solid rgba(34,197,94,0.6); border-radius:5px; color:#4ade80; padding:3px 10px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap;">🎸 GET CHORDS</button>
+              <span id="chordget-status" style="font-size:0.5rem; color:var(--dim); max-width:320px;"></span>
+            </div>
             <div style="display:flex; align-items:center; gap:5px;">
               <span style="font-size:0.5rem; color:var(--dim);" title="Slide to align lyrics with the vocal (LRCLIB timing vs your audio)">LYRIC SYNC</span>
               <input type="range" id="slider-lyric-offset" min="-30" max="30" step="0.1" value="0" style="width:110px;">
@@ -2135,6 +2139,59 @@ document.getElementById('dropzone').addEventListener('click', () => document.get
 document.getElementById('dropzone').addEventListener('dragover', (e) => e.preventDefault());
 document.getElementById('dropzone').addEventListener('drop', (e) => { e.preventDefault(); if(e.dataTransfer.files[0]) { window.__ytVideoId = null; initMediaPipeline(e.dataTransfer.files[0]); } });
 document.getElementById('file-input').addEventListener('change', (e) => { if(e.target.files[0]) { window.__ytVideoId = null; initMediaPipeline(e.target.files[0]); } });
+
+// ===== AUTO-CHORDS for streaming songs (Spotify/YouTube) — analyze the song's audio once, cache forever. =====
+// Spotify audio is DRM-locked, so we don't touch it; we analyze a non-DRM copy (the captured tab audio / preview)
+// and scroll chords synced to playTime(). A song analyzed once is cached on the engine for everyone.
+function currentSongInfo() {
+  // Returns {key, title, artist} for whatever is playing, so chords cache across Spotify/YouTube versions.
+  let title = '', artist = '';
+  if (playSource === 'spotify' && window.__spNowTrack) { title = window.__spNowTrack.name || ''; artist = (window.__spNowTrack.artists || []).map(a => a.name).join(' ') || ''; }
+  else if (playSource === 'youtube') { title = (window.__ytTitle || '').replace(/\(.*?official.*?\)|\[.*?\]|official video|lyrics?/ig, '').trim(); }
+  const norm = (title + ' ' + artist).toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  return { key: 'song::' + norm, title, artist, ok: !!norm };
+}
+let __chordRec = null;
+async function getStreamingChords() {
+  const st = document.getElementById('chordget-status'); const btn = document.getElementById('btn-getchords');
+  const info = currentSongInfo();
+  if (!info.ok) { if (st) st.textContent = 'Play a song first (search a Spotify/YouTube song), then get its chords.'; return; }
+  // 1) CACHE-FIRST: if anyone analyzed this song before, load full chords instantly.
+  if (LOOPER_API) {
+    try { const cr = await fetch(LOOPER_API + '/analysis?v=' + encodeURIComponent(info.key)); if (cr.ok) { const a = await cr.json(); if (a && a.ticks && a.ticks.length > 4 && a.chords) { applyMap(a); window.__stageDirty = true; if (st) st.textContent = '🔒 Full chords loaded (cached).'; return; } } } catch (e) {}
+  }
+  // 2) Otherwise CAPTURE the tab audio (non-DRM) and analyze the whole song once.
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { if (st) st.innerHTML = 'Full-song chords need <b>Chrome or Edge on desktop</b> the first time (it caches after).'; return; }
+  let stream;
+  try { stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true, preferCurrentTab: true }); }
+  catch (e) { if (st) st.textContent = 'Capture cancelled.'; return; }
+  const aTracks = stream.getAudioTracks(); stream.getVideoTracks().forEach(t => t.stop());
+  if (!aTracks.length) { aTracks.forEach(t => t.stop()); if (st) st.innerHTML = '⚠ No audio shared — re-try and <b>tick "Share tab audio"</b> in the popup.'; return; }
+  const rec = new MediaRecorder(new MediaStream(aTracks)); const chunks = [];
+  __chordRec = rec;
+  rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  rec.onstop = async () => {
+    aTracks.forEach(t => t.stop());
+    if (btn) { btn.textContent = '🎸 GET CHORDS'; btn.onclick = getStreamingChords; }
+    if (st) st.textContent = '🥁 Analyzing the full song…';
+    try {
+      const buf = await new Blob(chunks).arrayBuffer();
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      const audioBuf = await ac.decodeAudioData(buf);
+      const map = await analyzeViaWorker(audioBuf);
+      if (map && map.ticks && map.ticks.length > 4) {
+        applyMap(map); window.__stageDirty = true;
+        if (st) st.textContent = '✅ Full chords ready — scrolling in time. (Nudge the offset slider if they\'re early/late.)';
+        if (LOOPER_API) fetch(LOOPER_API + '/analysis?v=' + encodeURIComponent(info.key), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ticks: map.ticks, bpm: map.bpm, confidence: map.confidence, chords: map.chords, key: map.key }) }).catch(() => {});
+      } else if (st) st.textContent = '⚠ Couldn\'t detect chords clearly — try again with the song from the start.';
+    } catch (e) { if (st) st.textContent = '⚠ Could not analyze the captured audio (' + (e.message || e) + ').'; }
+  };
+  rec.start();
+  if (btn) { btn.textContent = '⏹ STOP & ANALYZE'; btn.onclick = () => { try { if (rec.state === 'recording') rec.stop(); } catch (e) {} }; }
+  if (st) st.innerHTML = '🎧 Listening… <b>restart the song from the beginning</b>, let it play through, then hit STOP (auto-stops at the end).';
+  const dur = playDuration();
+  if (dur > 5) setTimeout(() => { try { if (rec.state === 'recording') rec.stop(); } catch (e) {} }, (dur + 3) * 1000);
+}
 
 async function initMediaPipeline(file) {
   playSource = 'file';
@@ -3848,6 +3905,7 @@ async function spotifyPlay(uri, isContext) {
 }
 function updateSpotifyNowPlaying(state) {
   const tr = state.track_window && state.track_window.current_track; if (!tr) return;
+  window.__spNowTrack = tr;   // remember the playing track so Get Chords can identify the song
   document.getElementById('sp-nowplaying').style.display = 'flex';
   document.getElementById('sp-np-title').textContent = tr.name;
   document.getElementById('sp-np-artist').textContent = tr.artists.map(a => a.name).join(', ');
