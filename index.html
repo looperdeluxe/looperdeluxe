@@ -2333,7 +2333,12 @@ async function initMediaPipeline(file) {
     }
   });
 
-  document.getElementById('scrubber').addEventListener('input', (e) => { if(ws) { ws.setTime(parseFloat(e.target.value)); } });
+  document.getElementById('scrubber').addEventListener('input', (e) => {
+    const v = parseFloat(e.target.value);
+    if (playSource === 'youtube') { if (ytPlayer && ytPlayer.seekTo) ytPlayer.seekTo(v, true); return; }
+    if (playSource === 'spotify') { if (window.spPlayer && spPlayer.seek) spPlayer.seek(v * 1000); return; }
+    if(ws) ws.setTime(v);
+  });
   regionsPlugin.on('region-updated', (r) => { if(r === activeRegion) updateLbls(); });
   document.getElementById('slider-tempo').addEventListener('input', updateTempo);
   renderLoopBank();
@@ -2392,12 +2397,18 @@ function doCountIn(cb) {
   setTimeout(() => { if (cd) cd.style.display = 'none'; cb(); }, (start - audioCtx.currentTime + 4 * beat) * 1000);
 }
 document.getElementById('btn-play').addEventListener('click', () => {
+  if (playSource === 'youtube') { if (!ytPlayer || !ytPlayer.getPlayerState) return; (ytPlayer.getPlayerState() === 1 ? ytPlayer.pauseVideo() : ytPlayer.playVideo()); return; }
+  if (playSource === 'spotify') { if (window.spPlayer && spPlayer.togglePlay) spPlayer.togglePlay(); return; }
   if (!ws) return;
   if (ws.isPlaying()) { ws.pause(); return; }
   const startPlay = () => { ws.play(); setTimeout(updateTempo, 10); };
   if (window.countInOn) doCountIn(startPlay); else startPlay();
 });
-document.getElementById('btn-stop').addEventListener('click', () => { if(!ws) return; ws.stop(); });
+document.getElementById('btn-stop').addEventListener('click', () => {
+  if (playSource === 'youtube') { if (ytPlayer) { try { ytPlayer.pauseVideo(); ytPlayer.seekTo(0, true); } catch (e) {} } return; }
+  if (playSource === 'spotify') { if (window.spPlayer && spPlayer.pause) spPlayer.pause(); return; }
+  if(!ws) return; ws.stop();
+});
 // ===== Loop quantize-to-bars: snap IN/OUT to the nearest bar line so loops are musically cohesive. =====
 window.quantizeLoops = (localStorage.getItem('looperQuantize') !== '0');   // default ON
 // Bar boundaries = every 4 beats from the downbeat (accentOffset), extrapolated past the last beat to song end.
@@ -2421,12 +2432,21 @@ function snapToBar(t) {
   for (const bt of bars) { const d = Math.abs(bt - t); if (d < bestD) { bestD = d; best = bt; } }
   return Math.max(0, best);
 }
-document.getElementById('btn-set-a').addEventListener('click', () => { if(ws&&activeRegion){ const s=snapToBar(ws.getCurrentTime()); if(s<activeRegion.end){ activeRegion.setOptions({start:s}); updateLbls(); } }});
-document.getElementById('btn-set-b').addEventListener('click', () => { if(ws&&activeRegion){ const e=snapToBar(ws.getCurrentTime()); if(e>activeRegion.start){ activeRegion.setOptions({end:e}); updateLbls(); } }});
+document.getElementById('btn-set-a').addEventListener('click', () => {
+  if (playSource === 'youtube') { if (ytPlayer && ytPlayer.getCurrentTime) { ytLoopA = snapToBar(ytPlayer.getCurrentTime() || 0); const e = document.getElementById('lbl-a'); if (e) e.textContent = fmt(ytLoopA); if (ytLoopB > ytLoopA) ytLoopOn = true; } return; }
+  if(ws&&activeRegion){ const s=snapToBar(ws.getCurrentTime()); if(s<activeRegion.end){ activeRegion.setOptions({start:s}); updateLbls(); } }
+});
+document.getElementById('btn-set-b').addEventListener('click', () => {
+  if (playSource === 'youtube') { if (ytPlayer && ytPlayer.getCurrentTime) { ytLoopB = snapToBar(ytPlayer.getCurrentTime() || 0); const e = document.getElementById('lbl-b'); if (e) e.textContent = fmt(ytLoopB); if (ytLoopB > ytLoopA) ytLoopOn = true; } return; }
+  if(ws&&activeRegion){ const e=snapToBar(ws.getCurrentTime()); if(e>activeRegion.start){ activeRegion.setOptions({end:e}); updateLbls(); } }
+});
 (function(){ const b=document.getElementById('btn-snap-bars'); if(!b) return; const paint=()=>{ b.textContent = window.quantizeLoops ? '⧉ SNAP: BARS' : '⧉ SNAP: OFF'; b.className = window.quantizeLoops ? 'btn accent' : 'btn'; }; paint(); b.addEventListener('click', ()=>{ window.quantizeLoops = !window.quantizeLoops; localStorage.setItem('looperQuantize', window.quantizeLoops ? '1' : '0'); paint(); }); })();
 
 const btnToggleLoop = document.getElementById('btn-toggle-loop');
-btnToggleLoop.addEventListener('click', () => { loopModeActive = !loopModeActive; btnToggleLoop.className = loopModeActive ? "btn accent" : "btn danger"; btnToggleLoop.innerText = loopModeActive ? "⟳ LOOP ON" : "✕ LOOP OFF"; });
+btnToggleLoop.addEventListener('click', () => {
+  if (playSource === 'youtube') { ytLoopOn = !ytLoopOn; btnToggleLoop.className = ytLoopOn ? "btn accent" : "btn danger"; btnToggleLoop.innerText = ytLoopOn ? "⟳ LOOP ON" : "✕ LOOP OFF"; return; }
+  loopModeActive = !loopModeActive; btnToggleLoop.className = loopModeActive ? "btn accent" : "btn danger"; btnToggleLoop.innerText = loopModeActive ? "⟳ LOOP ON" : "✕ LOOP OFF";
+});
 
 document.addEventListener('keydown', (e) => { const t = document.activeElement.tagName.toLowerCase(); if (t === 'input' || t === 'textarea' || t === 'select') return; if (e.key.toLowerCase() === 'i') document.getElementById('btn-set-a').click(); if (e.key.toLowerCase() === 'o') document.getElementById('btn-set-b').click(); if (e.key.toLowerCase() === 'l') document.getElementById('btn-toggle-loop').click(); if (e.code === 'Space') { e.preventDefault(); document.getElementById('btn-play').click(); } });
 
