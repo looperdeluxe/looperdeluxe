@@ -1442,6 +1442,10 @@ const playbackNode = document.getElementById('playback-node');
 const recHud = document.getElementById('rec-hud');
 
 btnStartCam.addEventListener('click', async () => {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    alert('📷 Camera/mic need a secure page (https). looperdeluxe.com is finishing its HTTPS setup — try again in a few minutes once the 🔒 lock shows.');
+    return;
+  }
   try {
     camStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
     webcamNode.srcObject = camStream;
