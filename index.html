@@ -952,15 +952,36 @@
       #particles { position: fixed; }
     }
     @media (max-width: 600px) {
-      #app-container { padding: 7px; }
+      #app-container { padding: 8px; }
       .panel { padding: 11px; }
-      .transport, .transport-left { flex-wrap: wrap; gap: 6px; }
+      /* transport: wrap + bigger tap targets */
+      .transport, .transport-left { flex-wrap: wrap; gap: 8px; }
+      .transport .btn, .transport-left .btn { padding: 9px 12px; font-size: 0.68rem; }
       .deck-toggle-bar { flex-wrap: wrap; }
+      .deck-toggle-bar .btn { flex: 1 1 30%; }
       .instruction-grid-2x2 { grid-template-columns: 1fr; }  /* command cards stack 1-per-row */
       .stage-now canvas { max-width: 100%; height: auto; }
       .slider-container { min-width: 0; }
+      /* landing: stack the 3 picks, readable headings */
       #lbl-gate-primary { font-size: 1.05rem; }
+      #lbl-gate-sub { font-size: 0.74rem; }
       .landing-pick-row { grid-template-columns: 1fr; }
+      .landing-pick { min-height: 58px; }
+      /* the stage/lyrics column needs real height + readable chords on a phone */
+      .workspace-right { min-height: 72vh; }
+      #stage-now-name { font-size: 1.5rem; }
+      /* sliders/scrubber easy to grab with a thumb */
+      input[type="range"] { height: 22px; }
+      /* nothing should ever spill sideways */
+      body, #app-container { overflow-x: hidden; }
+      .panel, .box-instruction { max-width: 100%; }
+    }
+    @media (max-width: 430px) {
+      /* small phones — tighten further so it never crowds */
+      #lbl-gate-primary { font-size: 0.95rem; }
+      .deck-toggle-bar .btn { flex: 1 1 45%; font-size: 0.6rem; }
+      #stage-now-name { font-size: 1.3rem; }
+      .panel-title { font-size: 0.62rem; }
     }
   </style>
   <link rel="icon" type="image/png" href="favicon.png">
@@ -996,8 +1017,8 @@
 
   <div id="landing-gate">
     <div id="dropzone">
-      <p id="lbl-gate-primary" style="font-size: 1.3rem; color: #fff; font-family: 'Orbitron', sans-serif; letter-spacing: 0.08em; margin-bottom: 4px;">🌌 INITIALIZE AUDIO MATRIX</p>
-      <p id="lbl-gate-sub" style="color: var(--dim); font-size: 0.85rem;">Drag & drop an MP3, WAV, or MP4 track here to map wavelengths</p>
+      <p id="lbl-gate-primary" style="font-size: 1.3rem; color: #fff; font-family: 'Orbitron', sans-serif; letter-spacing: 0.08em; margin-bottom: 4px;">🌌 START A SONG</p>
+      <p id="lbl-gate-sub" style="color: var(--dim); font-size: 0.85rem;"><b style="color:#f0abfc;">① Drop a file here</b> (MP3 / WAV / MP4) &nbsp;—&nbsp; or &nbsp;<b style="color:#ff4b4b;">② YouTube</b> / <b style="color:#1DB954;">③ Spotify</b> below. You get chords, loops &amp; lyrics either way.</p>
       <input type="file" id="file-input" accept="audio/*,video/*" />
     </div>
     <div class="landing-pick-row">
