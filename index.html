@@ -2160,7 +2160,10 @@ async function getStreamingChords() {
   if (LOOPER_API) {
     try { const cr = await fetch(LOOPER_API + '/analysis?v=' + encodeURIComponent(info.key)); if (cr.ok) { const a = await cr.json(); if (a && a.ticks && a.ticks.length > 4 && a.chords) { applyMap(a); window.__stageDirty = true; if (st) st.textContent = '🔒 Full chords loaded (cached).'; return; } } } catch (e) {}
   }
-  // 2) Otherwise CAPTURE the tab audio (non-DRM) and analyze the whole song once.
+  // Spotify audio is DRM → capture would record SILENCE. So Spotify is cache-only: it gets chords once the
+  // same song has been analyzed via YouTube (or a file). Guide the user there.
+  if (playSource === 'spotify') { if (st) st.innerHTML = '🎵 This song isn\'t analyzed yet. Play the <b>YouTube</b> version of it and hit Get Chords there once — then it\'ll be cached here too (Spotify\'s audio is locked, so we analyze a free copy).'; return; }
+  // 2) Otherwise (YouTube/file) CAPTURE the tab audio (non-DRM) and analyze the whole song once.
   if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { if (st) st.innerHTML = 'Full-song chords need <b>Chrome or Edge on desktop</b> the first time (it caches after).'; return; }
   let stream;
   try { stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true, preferCurrentTab: true }); }
