@@ -975,6 +975,10 @@
       /* nothing should ever spill sideways */
       body, #app-container { overflow-x: hidden; }
       .panel, .box-instruction { max-width: 100%; }
+      /* TOGGLE SIDEBAR is meaningless on a single-column phone layout (nothing to toggle) → hide it so it can't get cut off */
+      #btn-toggle-sidebar { display: none; }
+      /* keep the EXIT button fully on-screen */
+      #waveform-panel-container > div[style*="position:absolute"] { right: 8px; top: 8px; }
     }
     @media (max-width: 430px) {
       /* small phones — tighten further so it never crowds */
