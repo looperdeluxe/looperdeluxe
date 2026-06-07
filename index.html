@@ -3736,16 +3736,19 @@ function startYouTubeLoop() {
 }
 function stopYouTubeLoop() { if (ytRAF) cancelAnimationFrame(ytRAF); ytRAF = null; }
 async function spotifySearch(q) {
-  const t = await spotifyToken(); if (!t || !q) return;
-  const url = 'https://api.spotify.com/v1/search?type=track&market=from_token&limit=20&q=' + encodeURIComponent(q);
+  let t = await spotifyToken(); if (!t || !q) return;
+  const url = 'https://api.spotify.com/v1/search?type=track&limit=24&q=' + encodeURIComponent(q);   // no market=from_token (deprecated → 400s)
   let r = await fetch(url, { headers: { Authorization: 'Bearer ' + t } });
+  if (r.status === 401) {                       // token rejected → force a refresh and retry once
+    if (await spotifyRefresh()) { t = localStorage.getItem('sp_token'); r = await fetch(url, { headers: { Authorization: 'Bearer ' + t } }); }
+  }
   if (r.status === 429) {
     const wait = Math.min((+r.headers.get('retry-after') || 1) * 1000, 3000);
     document.getElementById('sp-results').innerHTML = '<div style="color:var(--dim)">Spotify is busy — retrying…</div>';
     await new Promise(rr => setTimeout(rr, wait));
     r = await fetch(url, { headers: { Authorization: 'Bearer ' + t } });
   }
-  if (!r.ok) { document.getElementById('sp-results').innerHTML = '<div style="color:var(--dim)">Search hiccup — try again in a moment.</div>'; return; }
+  if (!r.ok) { document.getElementById('sp-results').innerHTML = '<div style="color:var(--dim)">Search failed (' + r.status + '). Try re-connecting Spotify, or just use YouTube/MP3.</div>'; return; }
   const d = await r.json(); const items = [];
   ((d.tracks && d.tracks.items) || []).filter(Boolean).forEach(tr => items.push({ uri: tr.uri, ctx: false, name: tr.name, sub: (tr.artists || []).map(a => a.name).join(', '), art: (tr.album && tr.album.images && tr.album.images[2] || {}).url }));
   ((d.playlists && d.playlists.items) || []).filter(Boolean).forEach(pl => items.push({ uri: pl.uri, id: pl.id, ctx: true, name: pl.name, sub: '▶ Playlist · ' + ((pl.tracks && pl.tracks.total) || 0) + ' songs', art: (pl.images && pl.images[0] || {}).url }));
