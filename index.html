@@ -13,7 +13,18 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/7.7.7/plugins/regions.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/7.7.7/plugins/timeline.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/wavesurfer.js/7.7.7/plugins/hover.min.js"></script>
+  <script src="stem-engine/stem-mixer.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tsparticles@2/tsparticles.bundle.min.js"></script>
+  <!-- Accurate BPM + first-beat (downbeat) detection. ESM-only lib bridged onto window for the classic script below. -->
+  <script type="module">
+    try {
+      const { analyze, guess } = await import('https://esm.sh/web-audio-beat-detector@8');
+      window.beatDetector = { analyze, guess };
+    } catch (e) { console.warn('beat-detector load failed, will use basic fallback', e); }
+    window.dispatchEvent(new Event('beatdetector-ready'));
+  </script>
+  <!-- Essentia.js beat-tracking runs in a Web Worker (see getBeatWorker) so it never freezes the page -->
+
   
   <style>
     *, *::before, *::after {
@@ -190,6 +201,35 @@
       width: 100%;
       display: flex;
       flex-direction: column;
+    }
+
+    .landing-pick-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      max-width: 860px;
+      margin: 14px auto 0;
+      align-items: stretch;
+    }
+    @media (max-width: 680px) { .landing-pick-row { grid-template-columns: 1fr; } }
+    .landing-pick {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      padding: 14px 12px;
+      min-height: 78px;
+      text-align: center;
+    }
+    .landing-loops-card {
+      align-items: stretch;
+      justify-content: flex-start;
+      text-align: left;
+      max-height: 150px;
+      overflow-y: auto;
+      padding: 10px 12px;
+      cursor: default;
     }
 
     .box-instruction {
@@ -488,6 +528,74 @@
       box-shadow: inset 0 0 40px rgba(192, 132, 252, 0.4);
       border-color: var(--cyan);
     }
+
+    /* Chord-timeline ribbon — the time-driven transport (works in file AND Spotify mode) */
+    #ribbon-wrap {
+      width: 100%;
+      position: relative;
+      margin: 4px 0 8px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, #050110 0%, #0a0418 100%);
+      overflow: hidden;
+      cursor: pointer;
+    }
+    #chord-ribbon { display: block; width: 100%; height: 58px; }
+    #ribbon-wrap .ribbon-label {
+      position: absolute; top: 3px; left: 8px; z-index: 2;
+      font-family: 'Orbitron', sans-serif; font-size: 0.5rem; letter-spacing: 1px;
+      color: rgba(168, 85, 247, 0.7); pointer-events: none;
+    }
+
+    /* === Right-panel STAGE: shape bar + beat-accurate chords-over-lyrics === */
+    #stage-view { flex-direction: column; gap: 10px; height: 100%; min-height: 0; }
+    #stage-view.active { display: flex; }
+    #stage-shapebar { display: flex; align-items: center; flex-wrap: wrap; gap: 10px 14px; padding: 10px 12px; border-radius: 12px;
+      background: rgba(12,12,20,0.82); border: 1px solid var(--border); flex-shrink: 0; overflow: visible; }
+    #chord-source-badge { white-space: nowrap; }
+    .stage-now { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .stage-now .nm { font-size: 1.3rem; font-weight: 900; color: var(--cyan); text-shadow: 0 0 12px rgba(34,211,238,0.5); font-family: 'Orbitron', sans-serif; }
+    #stage-now-canvas { width: 62px; height: 74px; }
+    .stage-next { display: flex; gap: 8px; align-items: center; }
+    .stage-next .lbl { font-size: 0.5rem; color: var(--dim); letter-spacing: 1px; writing-mode: vertical-rl; transform: rotate(180deg); }
+    .ncard { display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 5px 7px; border-radius: 7px; border: 1px solid var(--border); background: rgba(124,58,237,0.08); }
+    .ncard .nn { font-size: 0.78rem; font-weight: 700; color: #ECECF2; font-family: 'Orbitron', sans-serif; }
+    .ncard canvas { width: 34px; height: 40px; }
+    #stage-sheet { position: relative; flex: 1; min-height: 0; border-radius: 12px; background: rgba(12,12,20,0.82); border: 1px solid var(--border); padding: 18px 22px; overflow-y: auto; }
+    .sline { position: relative; padding-top: 22px; padding-bottom: 12px; transition: opacity .3s; cursor: pointer; }
+    .sline .crow { position: absolute; top: 0; left: 0; right: 0; height: 20px; }
+    .sline .schip { position: absolute; font-family: 'Orbitron', sans-serif; font-size: 0.74rem; font-weight: 700; color: var(--cyan); transform: translateX(-50%); white-space: nowrap; }
+    .sline .schip i { display: block; width: 1px; height: 9px; margin: 1px auto 0; background: var(--cyan); opacity: .7; }
+    .sline .swords { font-family: 'JetBrains Mono', monospace; font-size: 1.15rem; color: rgba(236,236,242,0.72); line-height: 1.3; }
+    .sline.active { padding-top: 26px; }
+    .sline.active .swords { color: #fff; font-size: 1.65rem; }
+    .sline.active .schip { font-size: 0.9rem; text-shadow: 0 0 10px rgba(34,211,238,0.6); }
+    .sline.dim { opacity: .42; }
+    .sline .sbeats { display: flex; gap: 5px; margin-top: 5px; height: 7px; }
+    .sline .sbeats b { width: 7px; height: 7px; border-radius: 50%; background: rgba(147,51,234,0.28); }
+    .sline .sbeats b.chg { background: #f0abfc; box-shadow: 0 0 9px #f0abfc; }
+
+    /* Unique-chords palette (SHAPES tab) */
+    .chord-palette { display: flex; flex-wrap: wrap; align-content: flex-start; gap: 12px; flex: 1; min-height: 0; overflow-y: auto; padding: 4px; }
+    .palette-card { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px; border-radius: 10px;
+      border: 1px solid var(--border); background: rgba(124,58,237,0.08); }
+    .pc-top { display: flex; align-items: center; gap: 6px; }
+    .pc-name { font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 0.85rem; color: var(--cyan); min-width: 34px; text-align: center; text-shadow: 0 0 8px rgba(34,211,238,0.4); }
+    .pc-cyc { background: transparent; border: 1px solid var(--border); border-radius: 5px; color: #a78bfa; cursor: pointer; font-size: 0.7rem; padding: 2px 6px; }
+    .pc-cyc:hover { color: #fff; border-color: var(--cyan); }
+    .pc-canvas { width: 48px; height: 58px; }
+    #column-fretboard-view.active { overflow-y: auto; }   /* SHAPES page must scroll */
+    #chord-source-badge { font-size: 0.55rem; font-weight: 700; letter-spacing: 0.5px; padding: 3px 8px; border-radius: 10px; }
+    #chord-source-badge.auto { color: #fbbf24; border: 1px solid rgba(251,191,36,0.5); background: rgba(251,191,36,0.08); }
+    #chord-source-badge.ug { color: #4ade80; border: 1px solid rgba(74,222,128,0.5); background: rgba(74,222,128,0.08); }
+    #chord-source-badge.manual { color: #67e8f9; border: 1px solid rgba(34,211,238,0.5); background: rgba(34,211,238,0.08); }
+    /* Per-chord uncertainty flags — subtle amber, not alarming */
+    .sline .schip.uncertain { color: #fbbf24; }
+    .sline .schip.uncertain i { background: #fbbf24; }
+    .sline .schip.uncertain::after { content: '?'; font-size: 0.7em; vertical-align: super; opacity: 0.85; margin-left: 1px; }
+    .palette-card.uncertain { border-color: rgba(251,191,36,0.55); }
+    .palette-card.uncertain .pc-name { color: #fbbf24; }
+    .pc-flag { font-size: 0.5rem; color: #fbbf24; height: 8px; line-height: 8px; }
 
     #timeline {
       width: 100%;
@@ -849,7 +957,20 @@
       <div class="switch-option active" id="opt-audio">AUDIO SYSTEM</div>
       <div class="switch-option" id="opt-video">VIDEO STUDIO</div>
     </div>
+    <div style="display:flex; align-items:center; gap:8px; margin-left:16px;">
+      <button class="btn" id="btn-spotify-connect" style="padding:7px 14px; font-size:0.6rem; color:#1DB954; border-color:#1DB954;">🟢 CONNECT SPOTIFY</button>
+      <span id="spotify-status" style="font-size:0.55rem; color:var(--dim);"></span>
+    </div>
   </header>
+
+  <div id="sp-nowplaying" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:120; background:#0d0d16; border-top:1px solid #1DB954; padding:8px 16px; align-items:center; gap:12px;">
+    <img id="sp-np-art" style="width:42px; height:42px; border-radius:4px; object-fit:cover; background:#222;">
+    <div style="flex:1; overflow:hidden;"><div id="sp-np-title" style="color:#fff; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div><div id="sp-np-artist" style="color:var(--dim); font-size:0.7rem;"></div></div>
+    <button class="btn" id="sp-prev" style="padding:6px 10px;">⏮</button>
+    <button class="btn accent" id="sp-playpause" style="padding:6px 14px;">⏯</button>
+    <button class="btn" id="sp-next" style="padding:6px 10px;">⏭</button>
+    <span id="sp-user" style="color:var(--dim); font-size:0.6rem; margin-left:8px;"></span>
+  </div>
 
   <div id="landing-gate">
     <div id="dropzone">
@@ -857,25 +978,32 @@
       <p id="lbl-gate-sub" style="color: var(--dim); font-size: 0.85rem;">Drag & drop an MP3, WAV, or MP4 track here to map wavelengths</p>
       <input type="file" id="file-input" accept="audio/*,video/*" />
     </div>
+    <div class="landing-pick-row">
+      <button id="btn-use-youtube" class="btn landing-pick" style="color:#ff4b4b; border-color:#ff4b4b;"><span style="font-size:0.8rem;">▶ YOUTUBE</span><span style="font-size:0.54rem; color:var(--dim);">search &amp; play any song</span></button>
+      <button id="btn-use-spotify" class="btn landing-pick" style="color:#1DB954; border-color:#1DB954;"><span style="font-size:0.8rem;">🟢 SPOTIFY <span style="font-size:0.5rem;">✨ premium</span></span><span style="font-size:0.54rem; color:var(--dim);">search &amp; play</span></button>
+      <div id="landing-loops" class="landing-pick landing-loops-card"></div>
+    </div>
 
     <div class="instruction-wrapper-row">
       <div class="box-instruction active-hud" id="info-box-audio">
-        <h3>🎛️ Audio Console Commands</h3>
+        <h3>🎸 How To Play Along</h3>
         <div class="instruction-grid-2x2">
-          <div class="instruction-item"><strong>[ SPACEBAR ]</strong><span>Freeze or resume track performance frequencies instantly.</span></div>
-          <div class="instruction-item"><strong>[ I ] & [ O ]</strong><span>Lock down the primary IN and OUT loop boundary markers.</span></div>
-          <div class="instruction-item"><strong>[ L ] KEYCAP</strong><span>Instantly toggle the primary repeating loop on and off.</span></div>
-          <div class="instruction-item"><strong>GAP DIAL</strong><span>Inject precise cooling delay gaps between playback periods.</span></div>
+          <div class="instruction-item"><strong>[ SPACE ]</strong><span>Play or pause — the chords scroll in time so you just look up and play.</span></div>
+          <div class="instruction-item"><strong>[ I ] then [ O ]</strong><span>Drop your loop's start and end points on the fly while it plays.</span></div>
+          <div class="instruction-item"><strong>[ L ]</strong><span>Loop that tricky section on repeat until your fingers nail it.</span></div>
+          <div class="instruction-item"><strong>CAPO BOX</strong><span>Type your capo number — every chord flips to an easy open shape.</span></div>
+          <div class="instruction-item"><strong>SLOW IT DOWN</strong><span>Take fast parts at half speed — real pitch, no chipmunk voice.</span></div>
+          <div class="instruction-item"><strong>SAVE A LOOP</strong><span>Saved to that exact song — one click jumps you straight back to it.</span></div>
         </div>
       </div>
       
       <div class="box-instruction" id="info-box-video">
-        <h3>🎬 Video Deck Studio Controls</h3>
+        <h3>🎬 Video Studio</h3>
         <div class="instruction-grid-2x2">
-          <div class="instruction-item"><strong>SCREEN MODES</strong><span>Instantly cycle between default view and 2X half-screen scaling.</span></div>
-          <div class="instruction-item"><strong>◫ MIRROR VIEW</strong><span>Flips the visual player coordinate system for staging and practice.</span></div>
-          <div class="instruction-item"><strong>⧉ POP-OUT VIDEO</strong><span>Launches native Picture-in-Picture window overlay on your Mac.</span></div>
-          <div class="instruction-item"><strong>SYNC MATRIX</strong><span>Locks video frame streams directly to the core audio looping regions.</span></div>
+          <div class="instruction-item"><strong>SEARCH ANY SONG</strong><span>Type a song or paste a YouTube link — it loads ready to play.</span></div>
+          <div class="instruction-item"><strong>BIGGER SCREEN</strong><span>Scale the video up so you can read every chord from across the room.</span></div>
+          <div class="instruction-item"><strong>◫ MIRROR</strong><span>Flip the picture to match facing a teacher, mirror, or webcam.</span></div>
+          <div class="instruction-item"><strong>⧉ POP-OUT</strong><span>Float the video in its own window and practice anywhere on screen.</span></div>
         </div>
       </div>
     </div>
@@ -911,9 +1039,61 @@
       </div>
 
       <div class="panel" id="waveform-panel-container">
-        <button class="btn accent" id="btn-toggle-sidebar" style="position:absolute; top:12px; right:12px; z-index:10; font-size:0.6rem; padding: 4px 8px;">◨ TOGGLE SIDEBAR</button>
+        <div style="position:absolute; top:12px; right:12px; z-index:10; display:flex; gap:8px;">
+          <button class="btn" id="btn-eject-song" title="Exit this song and pick another (no refresh)" style="font-size:0.6rem; padding: 4px 8px; color:#ff6b6b; border-color:#ff6b6b;">✕ EXIT</button>
+          <button class="btn accent" id="btn-toggle-sidebar" style="font-size:0.6rem; padding: 4px 8px;">◨ TOGGLE SIDEBAR</button>
+        </div>
         <div class="panel-title">WAVEFORM INTERACTIVE PERFORMANCE MATRIX</div>
+        <div id="sp-browser" style="display:none; flex-direction:column; gap:8px; margin:6px 0 10px;">
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <span style="color:#1DB954; font-family:'Orbitron',sans-serif; font-size:0.7rem;">🟢 SPOTIFY</span>
+            <select id="sp-pl-select" class="cyber-input" style="padding:7px; min-width:170px; max-width:240px;"><option value="">★ My Playlists…</option></select>
+            <input type="text" id="sp-search" class="cyber-input" placeholder="Search songs / artists…" style="flex:1; min-width:150px; padding:7px;">
+            <button class="btn" id="sp-search-btn" style="padding:6px 12px; font-size:0.6rem;">SEARCH</button>
+            <button class="btn" id="sp-myplaylists" style="padding:6px 12px; font-size:0.6rem;">★ PLAYLISTS</button>
+            <button class="btn" id="sp-close" style="padding:6px 12px; font-size:0.6rem; margin-left:auto; color:var(--cyan);">✕ FILE MODE</button>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <div id="sp-results" style="flex:1; max-height:210px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;"><div style="color:var(--dim); font-size:0.7rem;">Pick a playlist above, or search — then click a song to load it into the looper.</div></div>
+            <div style="width:190px; flex-shrink:0; border-left:1px solid var(--border); padding-left:10px;">
+              <div style="font-size:0.6rem; color:var(--dim); display:flex; justify-content:space-between; align-items:center;">QUEUE <button class="btn" id="sp-queue-clear" style="padding:2px 6px; font-size:0.5rem;">CLEAR</button></div>
+              <div id="sp-queue" style="max-height:180px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; margin-top:5px;"></div>
+            </div>
+          </div>
+        </div>
+        <div id="yt-browser" style="display:none; flex-direction:column; gap:8px; margin:6px 0 10px;">
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <span style="color:#ff4b4b; font-family:'Orbitron',sans-serif; font-size:0.7rem;">▶ YOUTUBE</span>
+            <input type="text" id="yt-search" class="cyber-input" placeholder="Search YouTube — type a song and hit enter…" style="flex:1; min-width:200px; padding:7px;">
+            <button class="btn accent" id="yt-search-btn" style="padding:6px 14px; font-size:0.6rem;">SEARCH</button>
+            <button class="btn" id="yt-close" style="padding:6px 12px; font-size:0.6rem; margin-left:auto; color:var(--cyan);">✕ FILE MODE</button>
+          </div>
+          <div id="yt-saved" style="display:none; flex-wrap:wrap; gap:6px; align-items:center;"></div>
+          <div id="yt-results" style="display:none; max-height:200px; overflow-y:auto; flex-direction:column; gap:6px; border:1px solid var(--border); border-radius:8px; padding:6px;"></div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <span style="font-size:0.55rem; color:var(--dim); white-space:nowrap;">or paste a link:</span>
+            <input type="text" id="yt-url" class="cyber-input" placeholder="youtube.com/watch?v=… or 11-char ID" style="flex:1; min-width:150px; padding:5px; font-size:0.65rem;">
+            <button class="btn" id="yt-load" style="padding:5px 12px; font-size:0.6rem;">LOAD</button>
+          </div>
+          <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
+            <div id="yt-player" style="width:320px; height:180px; background:#000; border:1px solid var(--border); border-radius:8px;"></div>
+            <div style="flex:1; min-width:200px; display:flex; flex-direction:column; gap:8px;">
+              <div style="display:flex; gap:6px; align-items:center;">
+                <button class="btn accent" id="yt-play" style="padding:6px 14px; font-size:0.6rem;">▶ PLAY</button>
+                <button class="btn" id="yt-pause" style="padding:6px 14px; font-size:0.6rem;">⏸ PAUSE</button>
+              </div>
+              <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                <button class="btn" id="yt-in" style="padding:5px 10px; font-size:0.6rem;">◀ IN</button>
+                <button class="btn" id="yt-out" style="padding:5px 10px; font-size:0.6rem;">OUT ▶</button>
+                <button class="btn accent" id="yt-loop" style="padding:5px 10px; font-size:0.6rem;">⟳ LOOP OFF</button>
+              </div>
+              <div style="font-size:0.65rem; color:var(--cyan); font-family:'Orbitron',sans-serif;">IN: <span id="yt-a" style="color:#fff;">0:00</span> &nbsp;|&nbsp; OUT: <span id="yt-b" style="color:#fff;">END</span></div>
+              <div style="font-size:0.58rem; color:var(--dim); line-height:1.5;"><b style="color:var(--cyan);">AUDIO SYSTEM</b> → loads the song as a waveform like an MP3 (auto-chords/BPM/loop) — needs the Phase-2 engine. <b style="color:#ff4b4b;">VIDEO STUDIO</b> → plays the video here now. Toggle up top.</div>
+            </div>
+          </div>
+        </div>
         <div id="waveform-wrap"><div id="timeline"></div><div id="waveform"></div></div>
+        <div id="ribbon-wrap"><span class="ribbon-label">CHORD VIEW · 4 BARS (scrolls live ▶)</span><canvas id="chord-ribbon"></canvas></div>
         <div class="scrubber-container">
           <span id="scrub-current" class="scrubber-time">0:00</span>
           <input type="range" id="scrubber" min="0" value="0" step="0.01" style="flex:1;" />
@@ -936,6 +1116,7 @@
               <input type="text" id="input-song-key" class="cyber-input" value="G" style="width:36px; text-align:center; font-weight:bold; color:var(--cyan); padding:4px;" />
             </div>
             <button class="btn" id="btn-set-b">OUT ▶</button>
+            <button class="btn accent" id="btn-snap-bars" title="Snap loop IN/OUT to the nearest bar so loops stay musically tight">⧉ SNAP: BARS</button>
           </div>
           <div style="font-size: 0.7rem; color: var(--cyan); font-family: 'Orbitron', sans-serif;">IN: <span id="lbl-a" style="color:#fff">0:00</span> | OUT: <span id="lbl-b" style="color:#fff">END</span></div>
         </div>
@@ -952,11 +1133,12 @@
             <div class="metro-visual-indicator" id="metro-tick-light"></div>
           </div>
           <div style="display:flex; flex-direction:column; gap:6px; margin-top:8px;">
-            <button class="btn accent" id="btn-tap-metro" style="padding:6px; font-size:0.6rem;">🥁 TAP CLICK SPEED</button>
+            <button class="btn accent" id="btn-tap-metro" style="padding:6px; font-size:0.6rem;" title="Play the song, then tap along 4+ beats (or press T) to lock the metronome to your timing">🥁 TAP TO LOCK BEAT (or press T)</button>
             <div style="display:flex; gap:4px;">
               <button class="btn" id="btn-toggle-metro" style="padding:6px; font-size:0.6rem; flex:1;">▶ METRONOME</button>
               <button class="btn" id="btn-metro-sync" style="padding:6px; font-size:0.6rem; flex:1; color:#a78bfa; border-color:rgba(147,51,234,0.4);">🔗 SYNC TO TRACK</button>
             </div>
+            <button class="btn" id="btn-countin" style="padding:6px; font-size:0.6rem;" title="Play 4 metronome beats before the song starts">🔢 COUNT-IN: OFF</button>
             <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
               <span style="font-size:0.6rem; color:var(--dim)">VOL</span>
               <input type="range" id="slider-metro-vol" min="0" max="1" step="0.05" value="0.4" style="flex:1" />
@@ -965,23 +1147,81 @@
               <span style="font-size:0.6rem; color:var(--dim)">OFFSET (s)</span>
               <input type="number" id="input-metro-offset" step="0.01" value="0.00" style="flex:1; background: #080312; border: 1px solid rgba(147, 51, 234, 0.4); border-radius: 4px; color: #fff; font-size: 0.7rem; text-align: center; outline:none; font-family:'JetBrains Mono', monospace;" />
             </div>
+            <button class="btn" id="btn-auto-bpm" style="padding:6px; font-size:0.6rem; color:#22c55e; border-color:rgba(34,197,94,0.5);">✨ AUTO-DETECT (BPM · BEATS · CHORDS)</button>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <span style="font-size:0.55rem; color:var(--dim); white-space:nowrap;">DOWNBEAT</span>
+              <button class="btn" id="btn-nudge-back" style="padding:4px 6px; font-size:0.6rem; flex:1;">◀ −1</button>
+              <button class="btn" id="btn-nudge-fwd" style="padding:4px 6px; font-size:0.6rem; flex:1;">+1 ▶</button>
+            </div>
+            <div style="display:flex; align-items:center; gap:4px;">
+              <span style="font-size:0.55rem; color:var(--dim); white-space:nowrap;" title="If the click is double/half the real tempo">TEMPO ×</span>
+              <button class="btn" id="btn-half-bpm" style="padding:4px 6px; font-size:0.6rem; flex:1;">½× HALF</button>
+              <button class="btn" id="btn-double-bpm" style="padding:4px 6px; font-size:0.6rem; flex:1;">2× DOUBLE</button>
+            </div>
+            <div id="bpm-detect-status" style="font-size:0.55rem; color:var(--dim); text-align:center; min-height:13px;"></div>
+            <div style="display:flex; align-items:center; gap:4px; border-top:1px solid rgba(147,51,234,0.2); padding-top:6px;">
+              <span style="font-size:0.55rem; color:var(--dim); white-space:nowrap;" title="One-time per device. Click sounds early? press −. Late? press +.">CLICK SYNC</span>
+              <button class="btn" id="btn-lat-back" style="padding:4px 6px; font-size:0.6rem; flex:1;">◀ −5ms</button>
+              <span id="latency-cal-val" style="font-size:0.6rem; color:var(--cyan); min-width:46px; text-align:center; font-family:'JetBrains Mono',monospace;">0 ms</span>
+              <button class="btn" id="btn-lat-fwd" style="padding:4px 6px; font-size:0.6rem; flex:1;">+5ms ▶</button>
+            </div>
           </div>
         </div>
         <div class="panel" style="padding:10px;">
           <div class="panel-title" style="font-size:0.7rem; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-            <span><span>💾 SAVE FILES (SCROLL)</span></span>
+            <span><span>💾 SAVE LOOPS (SCROLL)</span></span>
             <button class="btn accent" id="btn-save-loop" style="padding:4px 8px; font-size:0.55rem;">+ ADD TO BANK</button>
           </div>
           <div id="loop-bank-list"></div>
         </div>
       </div>
+      <div class="panel" id="stem-panel" style="margin-top:10px;">
+        <div class="panel-title" style="font-size:0.7rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+          <span>🎚️ STEM ISOLATOR <span style="font-size:0.5rem; color:#c084fc; border:1px solid #c084fc; border-radius:8px; padding:1px 6px; margin-left:4px;">✨ PREMIUM</span></span>
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:0.5rem; color:var(--dim);">MUTE</span>
+            <select id="stem-mute-select" style="font-size:0.55rem; background:rgba(0,0,0,0.4); color:#f0abfc; border:1px solid rgba(192,132,252,0.5); border-radius:5px; padding:2px 5px; outline:none;">
+              <option>Guitar</option><option>Bass</option><option>Drums</option><option>Vocals</option><option>Piano</option><option>Other</option>
+            </select>
+            <button class="btn accent" id="btn-separate-stems" style="padding:4px 10px; font-size:0.55rem;">⚡ ISOLATE</button>
+          </div>
+        </div>
+        <div id="stem-status" style="font-size:0.55rem; color:var(--dim); min-height:13px; margin:5px 0 8px;">Pick the instrument you're learning, hit Isolate, then play along with everything else. (Set a loop first to do just that part — faster + less memory.)</div>
+        <div id="stem-modes" style="display:none; gap:6px; margin-top:4px;"></div>
+      </div>
     </div>
 
     <div class="workspace-right" id="workspace-right-col">
       <div class="deck-toggle-bar">
-        <button class="btn" id="btn-tab-lyrics">🎤 LYRIC PROMPTER</button>
-        <button class="btn active" id="btn-tab-chords">🎸 BARRE MATRIX</button>
-        <button class="btn" id="btn-tab-both">⬍ BOTH</button>
+        <button class="btn active" id="btn-tab-stage">🎭 STAGE</button>
+        <button class="btn" id="btn-tab-lyrics">🎤 LYRICS</button>
+        <button class="btn" id="btn-tab-chords">🎸 SHAPES</button>
+      </div>
+
+      <div class="sidebar-view active" id="stage-view">
+        <div id="stage-shapebar">
+          <div class="stage-now"><div class="nm" id="stage-now-name">—</div><canvas id="stage-now-canvas" width="124" height="148"></canvas></div>
+          <div class="stage-next"><span class="lbl">NEXT</span><div id="stage-next-cards" style="display:flex; gap:8px;"></div></div>
+          <div style="margin-left:auto; display:flex; flex-direction:column; align-items:flex-end; gap:6px;">
+            <div style="display:flex; gap:12px; align-items:center; font-family:'Orbitron',sans-serif;">
+              <span style="font-size:0.6rem; color:var(--dim);" title="Auto-detected key of the song">KEY <b id="stage-key-val" style="color:var(--cyan); font-size:1rem; text-shadow:0 0 8px rgba(34,211,238,0.55);">—</b></span>
+              <span style="font-size:0.62rem; color:#f0abfc;" title="Type a capo fret (0–7) and press Enter — it transposes the chords + key">CAPO <input id="stage-capo-input" type="text" inputmode="numeric" placeholder="0" style="width:26px; background:rgba(0,0,0,0.4); border:1px solid rgba(192,132,252,0.5); border-radius:4px; color:#f0abfc; text-align:center; font-family:'JetBrains Mono',monospace; font-size:0.62rem; padding:1px 0; outline:none;"></span>
+              <button id="stage-instrument" title="Switch between guitar chord shapes and the bass root note (the foundational bassline)" style="font-size:0.58rem; background:rgba(124,58,237,0.18); border:1px solid rgba(192,132,252,0.5); border-radius:5px; color:#f0abfc; padding:2px 8px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap;">🎸 GUITAR</button>
+            </div>
+            <span id="chord-source-badge" class="auto" title="Where these chords came from">⚠ AUTO-DETECTED · FIRST PASS</span>
+            <div style="display:flex; align-items:center; gap:5px;">
+              <span style="font-size:0.5rem; color:var(--dim);" title="Slide to align lyrics with the vocal (LRCLIB timing vs your audio)">LYRIC SYNC</span>
+              <input type="range" id="slider-lyric-offset" min="-30" max="30" step="0.1" value="0" style="width:110px;">
+              <span id="lyric-offset-val" style="font-size:0.58rem; color:var(--cyan); min-width:44px; text-align:right; font-family:'JetBrains Mono',monospace;">0.0s</span>
+            </div>
+          </div>
+        </div>
+        <div id="stage-strum" style="display:flex; align-items:center; gap:10px; padding:5px 12px; margin:2px 0 6px; border:1px solid rgba(147,51,234,0.3); border-radius:8px; background:rgba(124,58,237,0.07);">
+          <span id="strum-label" style="font-family:'Orbitron',sans-serif; font-size:0.58rem; color:#f0abfc; letter-spacing:1px; flex-shrink:0;">STRUM</span>
+          <div id="strum-arrows" style="display:flex; gap:0; flex:1;"></div>
+          <button class="btn" id="strum-cycle" title="Cycle strumming patterns" style="padding:3px 9px; font-size:0.58rem; flex-shrink:0;">↻ <span id="strum-name"></span></button>
+        </div>
+        <div id="stage-sheet"><div style="color:var(--dim); font-size:0.8rem; text-align:center; margin-top:34px; line-height:1.8;">Press <span style="color:#22c55e">✨ AUTO-DETECT</span> for chords.<br>Fetch lyrics in the <span style="color:var(--cyan)">🎤 LYRICS</span> tab to see them here.</div></div>
       </div>
 
       <div class="sidebar-view" id="column-lyrics-view">
@@ -999,38 +1239,26 @@
         </div>
       </div>
 
-      <div class="sidebar-view active" id="column-fretboard-view">
-        <div class="fretboard-hud">
-          <div class="fretboard-hud-line">
-            <span>CAGED BARRE MATRIX SEQUENCER</span>
-          </div>
-          <div style="display:flex; gap:8px; align-items:center;">
-            <input type="text" id="input-progression" class="cyber-input" placeholder="Type chords (e.g. G D Em C)" style="flex:1; padding:4px;" />
-            <button class="btn accent" id="btn-build-prog" style="padding:4px 8px; font-size:0.55rem;">BUILD</button>
-            <button class="btn" id="btn-auto-chord" style="padding:4px 8px; font-size:0.55rem; color:#22c55e; border-color:#22c55e;">+ AUTO-STEP</button>
-          </div>
-          <div class="progression-racks" id="progression-rack"></div>
-          <div style="display:flex; gap:4px; margin-top:4px;">
-            <select id="chord-root" class="cyber-select" style="flex:1;">
-              <option value="C">C</option><option value="C#">C# / Db</option><option value="D">D</option><option value="Eb">D# / Eb</option>
-              <option value="E">E</option><option value="F">F</option><option value="F#">F# / Gb</option><option value="G" selected>G</option>
-              <option value="Ab">G# / Ab</option><option value="A">A</option><option value="Bb">A# / Bb</option><option value="B">B</option>
-            </select>
-            <select id="chord-type" class="cyber-select" style="flex:1;">
-              <option value="C-Maj">C-Shape Barre (Major)</option>
-              <option value="C-Min">C-Shape Barre (Minor)</option>
-              <option value="A-Maj">A-Shape Barre (Major)</option>
-              <option value="A-Min">A-Shape Barre (Minor)</option>
-              <option value="G-Maj">G-Shape Barre (Major)</option>
-              <option value="G-Min">G-Shape Barre (Minor)</option>
-              <option value="E-Maj">E-Shape Barre (Major)</option>
-              <option value="E-Min">E-Shape Barre (Minor)</option>
-              <option value="D-Maj">D-Shape Barre (Major)</option>
-              <option value="D-Min">D-Shape Barre (Minor)</option>
-            </select>
-          </div>
+      <div class="sidebar-view" id="column-fretboard-view">
+        <div class="panel-title" style="font-size:0.65rem; margin-bottom:8px;">SONG CHORDS — one of each · tap ◀ ▶ to change a shape (applies everywhere)</div>
+        <div style="display:flex; align-items:center; gap:6px; margin-bottom:10px; flex-shrink:0;">
+          <span style="font-size:0.58rem; color:var(--dim);" title="Shift all chords to easier shapes / another key. Audio is unchanged — put a capo on your real guitar at the shown fret.">TRANSPOSE / CAPO</span>
+          <button class="btn" id="btn-transpose-down" style="padding:3px 9px; font-size:0.65rem;">◀ ♭</button>
+          <span id="transpose-val" style="font-size:0.6rem; color:var(--cyan); min-width:90px; text-align:center; font-family:'JetBrains Mono',monospace;">0 st</span>
+          <button class="btn" id="btn-transpose-up" style="padding:3px 9px; font-size:0.65rem;">♯ ▶</button>
         </div>
-        <div class="fretboard-canvas-wrap">
+        <div id="song-chords-palette" class="chord-palette"></div>
+        <div id="chord-entry-row" style="display:flex; gap:8px; align-items:center; margin-top:14px; padding-top:10px; border-top:1px solid var(--border); flex-shrink:0;">
+          <span style="font-size:0.55rem; color:var(--dim); white-space:nowrap;">Know the chords?</span>
+          <input type="text" id="input-progression" class="cyber-input" placeholder="Drop them in (e.g. G D Em C)" style="flex:1; padding:4px;" />
+          <button class="btn accent" id="btn-build-prog" style="padding:4px 8px; font-size:0.55rem;">SET</button>
+        </div>
+        <!-- legacy CAGED sequencer + manual fretboard kept (hidden) so existing logic doesn't break -->
+        <div style="display:none;">
+          <button class="btn" id="btn-auto-chord">+ AUTO-STEP</button>
+          <div class="progression-racks" id="progression-rack"></div>
+          <select id="chord-root"><option value="C">C</option><option value="C#">C#</option><option value="D">D</option><option value="Eb">Eb</option><option value="E">E</option><option value="F">F</option><option value="F#">F#</option><option value="G" selected>G</option><option value="Ab">Ab</option><option value="A">A</option><option value="Bb">Bb</option><option value="B">B</option></select>
+          <select id="chord-type"><option value="C-Maj">C-Maj</option><option value="C-Min">C-Min</option><option value="A-Maj">A-Maj</option><option value="A-Min">A-Min</option><option value="G-Maj">G-Maj</option><option value="G-Min">G-Min</option><option value="E-Maj">E-Maj</option><option value="E-Min">E-Min</option><option value="D-Maj">D-Maj</option><option value="D-Min">D-Min</option></select>
           <canvas id="fretboard-vector"></canvas>
         </div>
       </div>
@@ -1042,7 +1270,7 @@
 tsParticles.load('particles', {
   fpsLimit: 60,
   particles: { 
-    number: { value: 225, density: { enable: true, value_area: 900 } }, 
+    number: { value: 70, density: { enable: true, value_area: 900 } },
     color: { value: "#ffffff" }, 
     shape: { type: "circle" }, 
     opacity: { value: 0.8, random: true }, 
@@ -1065,6 +1293,23 @@ let savedLoops = JSON.parse(localStorage.getItem('cosmicSavedLoopsMaster')) || [
 let audioCtx = null; let isMetroPlaying = false; let metroFollowSong = false;
 let tapTimes = []; let firstPeakOffset = 0; let lastTickTime = 0;
 let standaloneMetroTimer = null;
+// Decimal-accurate tempo + drift-free lookahead scheduler state
+let detectedBpm = 120;
+let syncScheduler = null;              // setInterval handle for the lookahead scheduler
+let nextBeatMediaTime = 0;             // next beat, in song (media) seconds (constant-BPM fallback mode)
+let anchorMedia = 0, anchorAudio = 0, playRate = 1;  // media<->audio clock map
+const LOOKAHEAD_MS = 25, SCHEDULE_AHEAD = 0.12;
+const getBpm = () => parseFloat(document.getElementById('input-metro-bpm').value) || 120;
+const getOffset = () => parseFloat(document.getElementById('input-metro-offset').value) || 0;
+// Real per-beat timestamp map (Essentia). When present, we click on ACTUAL beats (no drift).
+let beatTicks = [];                    // beat times in song-seconds
+let beatConfidence = 0;
+let nextBeatIdx = 0;                   // index into beatTicks for the scheduler
+let accentOffset = 0;                  // which beat is "1" (downbeat), shiftable by nudge
+let sharedAudioWired = false;          // song routed through the click AudioContext?
+// Per-device latency calibration (industry standard; saved once). Signed ms.
+let latencyCalMs = parseFloat(localStorage.getItem('looperLatencyMs')) || 0;
+const userCal = () => latencyCalMs / 1000;
 
 let isAutoStepChords = false; let currentChordIndex = 0; let lastStepBeatCount = 0;
 window.lyricData = []; window.lastActiveLyric = -1;
@@ -1075,26 +1320,24 @@ let mediaRecorder = null;
 let recordedChunks = [];
 let isRecording = false;
 
-const tabLyrics = document.getElementById('btn-tab-lyrics'); 
-const tabChords = document.getElementById('btn-tab-chords'); 
-const tabBoth = document.getElementById('btn-tab-both');
-const viewLyrics = document.getElementById('column-lyrics-view'); 
+const tabStage = document.getElementById('btn-tab-stage');
+const tabLyrics = document.getElementById('btn-tab-lyrics');
+const tabChords = document.getElementById('btn-tab-chords');
+const viewStage = document.getElementById('stage-view');
+const viewLyrics = document.getElementById('column-lyrics-view');
 const viewChords = document.getElementById('column-fretboard-view');
 
-tabLyrics.addEventListener('click', () => setSidebarView('lyrics')); 
-tabChords.addEventListener('click', () => setSidebarView('chords')); 
-tabBoth.addEventListener('click', () => setSidebarView('both'));
+tabStage.addEventListener('click', () => setSidebarView('stage'));
+tabLyrics.addEventListener('click', () => setSidebarView('lyrics'));
+tabChords.addEventListener('click', () => { setSidebarView('chords'); if (typeof updateChordEntryVisibility === 'function') updateChordEntryVisibility(); });
 
 function setSidebarView(mode) {
-  tabLyrics.classList.remove('active'); 
-  tabChords.classList.remove('active'); 
-  tabBoth.classList.remove('active');
-  viewLyrics.classList.remove('active'); 
-  viewChords.classList.remove('active');
-  
+  [tabStage, tabLyrics, tabChords].forEach(t => t.classList.remove('active'));
+  [viewStage, viewLyrics, viewChords].forEach(v => v.classList.remove('active'));
+
+  if (mode === 'stage') { tabStage.classList.add('active'); viewStage.classList.add('active'); window.__stageDirty = true; renderStage(ws ? ws.getCurrentTime() : 0); }
   if (mode === 'lyrics') { tabLyrics.classList.add('active'); viewLyrics.classList.add('active'); }
-  if (mode === 'chords') { tabChords.classList.add('active'); viewChords.classList.add('active'); setTimeout(()=>{initFretboardCanvasDimensions(); renderManualFretboard();}, 50); }
-  if (mode === 'both') { tabBoth.classList.add('active'); viewLyrics.classList.add('active'); viewChords.classList.add('active'); setTimeout(()=>{initFretboardCanvasDimensions(); renderManualFretboard();}, 50); }
+  if (mode === 'chords') { tabChords.classList.add('active'); viewChords.classList.add('active'); renderChordPalette(); setTimeout(()=>{initFretboardCanvasDimensions(); renderManualFretboard();}, 50); }
 }
 
 let sidebarOpen = true;
@@ -1239,15 +1482,104 @@ function triggerMetroTick() {
 function loopStandaloneMetro() {
     if (!isMetroPlaying || metroFollowSong) return;
     triggerMetroTick();
-    const ms = 60000 / parseFloat(document.getElementById('input-metro-bpm').value || 120);
+    const ms = 60000 / getBpm();
     standaloneMetroTimer = setTimeout(loopStandaloneMetro, ms);
+}
+
+// === Drift-free lookahead scheduler — clicks on REAL beats (Essentia ticks), latency-compensated ===
+function scheduleClick(time, accent) {
+    if (!audioCtx) return;
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.connect(gain); gain.connect(audioCtx.destination);
+    osc.frequency.value = accent ? 1200 : 800;
+    const vol = parseFloat(document.getElementById('slider-metro-vol').value) * (accent ? 1.0 : 0.7);
+    gain.gain.setValueAtTime(0.0001, time);
+    gain.gain.exponentialRampToValueAtTime(Math.max(0.0002, vol), time + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.05);
+    osc.start(time); osc.stop(time + 0.06);
+    const light = document.getElementById('metro-tick-light');
+    const delayMs = Math.max(0, (time - audioCtx.currentTime) * 1000);
+    setTimeout(() => { if(light){ light.classList.add('flash-tick'); setTimeout(() => light.classList.remove('flash-tick'), 80); } }, delayMs);
+}
+// Route the SONG through the same AudioContext as the click so they share one output path/clock
+// (kills the "click is ahead" skew). Falls back gracefully if it can't wire.
+function wireSharedAudio() {
+    if (sharedAudioWired || !audioCtx || !ws) return;
+    try {
+        const el = ws.getMediaElement ? ws.getMediaElement() : null;
+        if (!el) return;
+        const node = audioCtx.createMediaElementSource(el);
+        node.connect(audioCtx.destination);
+        sharedAudioWired = true;
+    } catch (e) { console.warn('shared-audio wiring skipped (clicks still play):', e); }
+}
+const nowMedia = () => anchorMedia + (audioCtx.currentTime - anchorAudio) * playRate;
+// With a shared output path, output latency cancels between song & click → 0; else subtract it.
+const outputDelay = () => sharedAudioWired ? 0 : ((audioCtx.outputLatency || 0) + (audioCtx.baseLatency || 0));
+// Convert a beat's SONG time → the ctx time to call osc.start() so the AUDIBLE click aligns.
+const songTimeToCtxTime = (songT) => anchorAudio + (songT - anchorMedia) / playRate - outputDelay() + userCal();
+function resyncBeatIndex() {
+    const t = ws ? ws.getCurrentTime() : 0;
+    let lo = 0, hi = beatTicks.length;
+    while (lo < hi) { const mid = (lo + hi) >> 1; if (beatTicks[mid] < t) lo = mid + 1; else hi = mid; }
+    nextBeatIdx = lo;
+}
+// Re-anchor the media↔audio clock map; recompute the next beat to schedule.
+function resyncClock() {
+    if (!ws || !audioCtx) return;
+    anchorMedia = ws.getCurrentTime();
+    anchorAudio = audioCtx.currentTime;
+    playRate = parseFloat(document.getElementById('slider-tempo').value) || 1;
+    if (beatTicks.length) resyncBeatIndex();
+    else {
+        const period = 60 / getBpm(); const offset = getOffset();
+        const k = Math.ceil((anchorMedia - offset) / period - 1e-9);
+        nextBeatMediaTime = offset + k * period;
+    }
+}
+function schedulerTick() {
+    if (!ws || !audioCtx) return;
+    if (Math.abs(nowMedia() - ws.getCurrentTime()) > 0.05) resyncClock();  // drift re-anchor
+    const horizonSong = nowMedia() + SCHEDULE_AHEAD * playRate;
+    let guard = 0;
+    if (beatTicks.length) {
+        // ACCURATE MODE: click on each real detected beat — cannot drift.
+        while (nextBeatIdx < beatTicks.length && beatTicks[nextBeatIdx] <= horizonSong && guard++ < 64) {
+            const at = songTimeToCtxTime(beatTicks[nextBeatIdx]);
+            const isDown = (((nextBeatIdx - accentOffset) % 4) + 4) % 4 === 0;
+            if (at > audioCtx.currentTime) scheduleClick(at, isDown);
+            nextBeatIdx++;
+        }
+    } else {
+        // FALLBACK MODE: constant-BPM grid.
+        const period = 60 / getBpm();
+        while (nextBeatMediaTime < horizonSong && guard++ < 64) {
+            const at = songTimeToCtxTime(nextBeatMediaTime);
+            if (at > audioCtx.currentTime) scheduleClick(at, false);
+            nextBeatMediaTime += period;
+        }
+    }
+}
+function startSyncScheduler() {
+    if (syncScheduler || !audioCtx) return;
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    resyncClock();
+    syncScheduler = setInterval(schedulerTick, LOOKAHEAD_MS);
+}
+function stopSyncScheduler() { if (syncScheduler) { clearInterval(syncScheduler); syncScheduler = null; } }
+// Single source of truth for what the metronome engine should be doing right now.
+function updateMetroEngine() {
+    const followRun = isMetroPlaying && metroFollowSong && ws && ws.isPlaying();
+    if (followRun) startSyncScheduler(); else stopSyncScheduler();
+    if (isMetroPlaying && !metroFollowSong) { clearTimeout(standaloneMetroTimer); loopStandaloneMetro(); }
+    else if (!followRun) clearTimeout(standaloneMetroTimer);
 }
 
 document.getElementById('btn-toggle-metro').addEventListener('click', (e) => {
     isMetroPlaying = !isMetroPlaying;
     e.target.innerText = isMetroPlaying ? "⏹ STOP METRO" : "▶ METRONOME";
     e.target.classList.toggle('accent', isMetroPlaying);
-    if (isMetroPlaying && !metroFollowSong) loopStandaloneMetro(); else clearTimeout(standaloneMetroTimer);
+    updateMetroEngine();
 });
 
 // Functional Sync-To-Track Downbeat Toggle Logic
@@ -1259,26 +1591,303 @@ btnMetroSync.addEventListener('click', () => {
     btnMetroSync.innerText = "🔗 SYNCED ON";
     btnMetroSync.style.borderColor = "#ffffff";
     btnMetroSync.style.color = "#ffffff";
-    // Clear out standard standalone intervals so downbeat telemetry takes over driving the ticks
+    // Switch from free-running click to the song-locked lookahead scheduler
     clearTimeout(standaloneMetroTimer);
   } else {
     btnMetroSync.classList.remove('active');
     btnMetroSync.innerText = "🔗 SYNC TO TRACK";
     btnMetroSync.style.borderColor = "rgba(147,51,234,0.4)";
     btnMetroSync.style.color = "#a78bfa";
-    if (isMetroPlaying) loopStandaloneMetro();
+    stopSyncScheduler();
   }
+  updateMetroEngine();
 });
 
-document.getElementById('btn-tap-metro').addEventListener('click', () => {
-    const now = Date.now(); tapTimes.push(now);
-    if (tapTimes.length > 4) tapTimes.shift();
-    if (tapTimes.length > 1) {
-        let diffs = []; for(let i=1; i<tapTimes.length; i++) diffs.push(tapTimes[i] - tapTimes[i-1]);
-        const avg = diffs.reduce((a,b)=>a+b,0) / diffs.length;
-        document.getElementById('input-metro-bpm').value = Math.round(60000 / avg);
+// === Auto BPM + downbeat: seed (octave-folded) → whole-song grid refine to a DECIMAL bpm ===
+function foldTempo(bpm, lo = 70, hi = 150) {
+  if (!bpm || !isFinite(bpm)) return 120;
+  while (bpm < lo) bpm *= 2;
+  while (bpm > hi) bpm /= 2;
+  return bpm;
+}
+
+// Coarse onset times (seconds) from a 10ms energy envelope — feeds the grid refinement.
+function detectOnsets(buffer) {
+  const data = buffer.getChannelData(0); const sr = buffer.sampleRate;
+  const hop = Math.max(1, Math.floor(sr * 0.01)); // 10ms frames
+  const env = [];
+  for (let i = 0; i < data.length; i += hop) {
+    let s = 0; const end = Math.min(i + hop, data.length);
+    for (let j = i; j < end; j++) s += data[j] * data[j];
+    env.push(Math.sqrt(s / hop));
+  }
+  const diff = []; let mean = 0;
+  for (let i = 1; i < env.length; i++) { const d = Math.max(0, env[i] - env[i-1]); diff.push(d); mean += d; }
+  mean /= (diff.length || 1);
+  const thr = mean * 1.5; const onsets = [];
+  for (let i = 1; i < diff.length - 1; i++) {
+    if (diff[i] > thr && diff[i] >= diff[i-1] && diff[i] > diff[i+1]) onsets.push((i * hop) / sr);
+  }
+  return onsets;
+}
+
+// Search ±4 BPM around the seed at 0.01 resolution; circular-mean resultant length scores grid
+// alignment AND yields the phase (downbeat) for free. Averaging over all onsets → true decimals.
+function refineTempoPhase(onsets, seedBpm) {
+  let best = seedBpm, bestScore = -Infinity, bestPhase = 0;
+  for (let bpm = seedBpm - 4; bpm <= seedBpm + 4; bpm += 0.01) {
+    const period = 60 / bpm; let sx = 0, sy = 0;
+    for (let k = 0; k < onsets.length; k++) {
+      const a = 2 * Math.PI * ((onsets[k] % period) / period);
+      sx += Math.cos(a); sy += Math.sin(a);
     }
-});
+    const score = Math.sqrt(sx*sx + sy*sy);
+    if (score > bestScore) {
+      bestScore = score; best = bpm;
+      let ph = Math.atan2(sy, sx) / (2 * Math.PI); if (ph < 0) ph += 1; bestPhase = ph;
+    }
+  }
+  const period = 60 / best;
+  return { bpm: Math.round(best * 100) / 100, offset: Math.round(bestPhase * period * 1000) / 1000 };
+}
+
+// Resample any AudioBuffer to 44.1kHz mono — Essentia's beat tracker requires it.
+async function resampleTo441Mono(audioBuffer) {
+  const len = Math.ceil(44100 * audioBuffer.duration);
+  const off = new OfflineAudioContext(1, len, 44100);
+  const src = off.createBufferSource(); src.buffer = audioBuffer;
+  src.connect(off.destination); src.start();
+  const rendered = await off.startRendering();
+  return rendered.getChannelData(0);
+}
+
+// Real per-beat timestamps via Essentia BeatTrackerMultiFeature. Returns {bpm, ticks[], confidence} or null.
+async function getBeatMap(audioBuffer) {
+  const ess = window.__essentia;
+  if (!ess) return null;
+  const mono441 = await resampleTo441Mono(audioBuffer);
+  const signal = ess.arrayToVector(mono441);
+  try {
+    const r = ess.RhythmExtractor2013(signal, 208, 'multifeature', 40);
+    const ticks = Array.from(ess.vectorToArray(r.ticks));
+    return { bpm: r.bpm, confidence: r.confidence, ticks };
+  } finally { signal.delete && signal.delete(); }
+}
+
+// Essentia reports beats ~30ms LATE (intrinsic tracker latency). Snap each tick to the nearest
+// real audio onset (energy-flux peak) within ±70ms — removes the systematic lag for any song.
+function snapTicksToOnsets(buffer, ticks) {
+  const data = buffer.getChannelData(0); const sr = buffer.sampleRate;
+  const hop = Math.max(1, Math.floor(sr * 0.005)); // 5ms frames
+  const env = [];
+  for (let i = 0; i < data.length; i += hop) {
+    let s = 0; const e = Math.min(i + hop, data.length);
+    for (let j = i; j < e; j++) s += data[j] * data[j];
+    env.push(Math.sqrt(s / hop));
+  }
+  const flux = [0];
+  for (let i = 1; i < env.length; i++) flux.push(Math.max(0, env[i] - env[i-1]));
+  const win = Math.max(1, Math.round(0.07 * sr / hop)); // ±70ms
+  return ticks.map(t => {
+    const c = Math.round(t * sr / hop);
+    let bestI = c, best = -1;
+    for (let i = Math.max(1, c - win); i <= Math.min(flux.length - 1, c + win); i++) {
+      if (flux[i] > best) { best = flux[i]; bestI = i; }
+    }
+    return best > 0 ? (bestI * hop) / sr : t;
+  });
+}
+
+// Background beat-analysis worker — Essentia + onset-snap run OFF the main thread (no page freeze).
+let beatWorker = null, beatWorkerBusy = false;
+function getBeatWorker() {
+  if (beatWorker) return beatWorker;
+  // Same-origin worker file (a Blob worker can't importScripts the essentia libs cross-origin).
+  try { beatWorker = new Worker('beat-worker.js?v=12'); }
+  catch (e) { console.warn('beat worker create failed', e); beatWorker = null; }
+  return beatWorker;
+}
+// Resample (async, non-blocking) then hand the signal to the worker; returns {ticks,bpm,confidence} or null.
+async function analyzeViaWorker(buffer) {
+  const w = getBeatWorker();
+  if (!w) return null;
+  const mono441 = await resampleTo441Mono(buffer);
+  return await new Promise((resolve) => {
+    let done = false;
+    const finish = (val) => { if (done) return; done = true; w.removeEventListener('message', onMsg); w.removeEventListener('error', onErr); resolve(val); };
+    const onMsg = (e) => finish(e.data && e.data.ok ? e.data : null);
+    const onErr = (e) => { console.warn('beat worker error', e.message || e); finish(null); };
+    w.addEventListener('message', onMsg);
+    w.addEventListener('error', onErr);
+    setTimeout(() => finish(null), 60000);   // never hang the UI; fall back after 60s
+    w.postMessage({ signal: mono441, sampleRate: 44100 }, [mono441.buffer]);
+  });
+}
+
+// Apply a beat/chord analysis result (from the worker OR the server cache) to the app.
+function applyMap(map) {
+  beatTicks = map.ticks; beatConfidence = map.confidence || 0;
+  detectedBpm = Math.round((map.bpm || 120) * 100) / 100;
+  accentOffset = 0;
+  document.getElementById('input-metro-bpm').value = detectedBpm.toFixed(2);
+  document.getElementById('input-metro-offset').value = beatTicks[0].toFixed(3);
+  firstPeakOffset = beatTicks[0];
+  if (syncScheduler) resyncBeatIndex();
+  if (map.chords && map.chords.length) applyDetectedChords(map.chords);
+  else buildSongChordsFromProgression();
+  if (map.key) setSongKey(map.key);
+  buildSongBars();
+  autoSuggestStrum();
+}
+// Per-bar chord list (with repeats) for the stage's "next" preview.
+function buildSongBars() {
+  const ch = window.songChords || [];
+  const bars = [];
+  if (typeof beatTicks !== 'undefined' && beatTicks && beatTicks.length >= 2 && ch.length) {
+    const chordAt = (tt) => { let nm = ch[0].name; for (let i = 0; i < ch.length; i++) { if (ch[i].time <= tt + 0.001) nm = ch[i].name; else break; } return nm; };
+    const start = (typeof accentOffset !== 'undefined' ? accentOffset : 0) || 0;
+    for (let b = start; b < beatTicks.length; b += 4) bars.push({ time: beatTicks[b], name: chordAt(beatTicks[b]) });
+  }
+  window.songBars = bars;
+}
+// Rough auto-suggest of a strumming pattern from tempo + chord-change density (real detection = premium / stem-sep).
+function autoSuggestStrum() {
+  const ch = window.songChords || [], bars = window.songBars || [];
+  const bpm = (typeof detectedBpm !== 'undefined' ? detectedBpm : 120) || 120;
+  const changesPerBar = bars.length ? (ch.length / bars.length) : 1;
+  let pick = 0;
+  if (changesPerBar > 1.3) pick = 3;        // busy → Down/Up 8ths
+  else if (bpm >= 145) pick = 1;            // fast → All Down
+  else if (bpm <= 80) pick = 0;             // slow ballad → D · DU · UDU
+  else pick = 2;                            // mid-tempo → D · D · DU
+  strumIdx = pick; localStorage.setItem('looperStrumIdx', strumIdx); renderStrum();
+}
+async function autoDetectTempo(buffer) {
+  if (!buffer) buffer = window.decodedBuffer;
+  if (!buffer) return;
+  const statusEl = document.getElementById('bpm-detect-status');
+  if (beatWorkerBusy) { if (statusEl) statusEl.textContent = 'still mapping… one moment'; return; }
+
+  // PRIMARY PATH: real beat map in the background worker (accurate, drift-free, no freeze).
+  if (getBeatWorker()) {
+    try {
+      // INSTANT PATH: reuse a cached analysis if this YouTube song was already mapped (by anyone).
+      if (window.__ytVideoId && LOOPER_API) {
+        try {
+          const cr = await fetch(LOOPER_API + '/analysis?v=' + encodeURIComponent(window.__ytVideoId));
+          if (cr.ok) { const a = await cr.json(); if (a && a.ticks && a.ticks.length > 4) { applyMap(a); if (statusEl) statusEl.textContent = `🔒 ${(+a.bpm || 0).toFixed(2)} BPM · cached · instant`; return; } }
+        } catch (e) {}
+      }
+      beatWorkerBusy = true;
+      if (statusEl) statusEl.textContent = '🥁 mapping beats in background…';
+      const map = await analyzeViaWorker(buffer);
+      beatWorkerBusy = false;
+      if (map && map.ticks && map.ticks.length > 4) {
+        applyMap(map);
+        const conf = beatConfidence >= 3.5 ? 'excellent' : beatConfidence >= 1.5 ? 'good' : '⚠ low (nudge if off)';
+        if (statusEl) statusEl.textContent = `🔒 ${detectedBpm.toFixed(2)} BPM · ${beatTicks.length} beats mapped · ${conf}`;
+        // Cache it so the next play of this song — for anyone — is instant.
+        if (window.__ytVideoId && LOOPER_API) { fetch(LOOPER_API + '/analysis?v=' + encodeURIComponent(window.__ytVideoId), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ticks: map.ticks, bpm: map.bpm, confidence: map.confidence, chords: map.chords, key: map.key }) }).catch(() => {}); }
+        return;
+      }
+    } catch (e) { beatWorkerBusy = false; console.warn('beat map failed, falling back', e); }
+  }
+
+  // FALLBACK PATH: constant-BPM grid (octave-fold + whole-song refine). Used if Essentia unavailable.
+  beatTicks = [];
+  let seed = 120;
+  if (window.beatDetector && (window.beatDetector.analyze || window.beatDetector.guess)) {
+    try {
+      if (statusEl) statusEl.textContent = 'analyzing tempo…';
+      if (window.beatDetector.analyze) seed = await window.beatDetector.analyze(buffer);
+      else { const r = await window.beatDetector.guess(buffer); seed = r && r.bpm; }
+    } catch (e) { seed = 120; }
+  }
+  seed = foldTempo(seed, 70, 150);
+  let result;
+  try {
+    const onsets = detectOnsets(buffer);
+    result = (onsets.length > 8) ? refineTempoPhase(onsets, seed)
+                                 : { bpm: Math.round(seed * 100) / 100, offset: 0 };
+  } catch (e) { result = { bpm: Math.round(seed * 100) / 100, offset: 0 }; }
+  detectedBpm = result.bpm; firstPeakOffset = result.offset;
+  document.getElementById('input-metro-bpm').value = result.bpm.toFixed(2);
+  document.getElementById('input-metro-offset').value = result.offset.toFixed(3);
+  if (statusEl) statusEl.textContent = `🔒 ${result.bpm.toFixed(2)} BPM (estimated) · nudge if off`;
+  if (ws && ws.isPlaying()) resyncClock();
+}
+
+// Shift which beat is "1" (the accented downbeat). Beat-map mode shifts the accent; grid mode shifts offset.
+function nudgeDownbeat(dir) {
+  const s = document.getElementById('bpm-detect-status');
+  if (beatTicks.length) {
+    accentOffset = (((accentOffset + dir) % 4) + 4) % 4;
+    if (s) s.textContent = `downbeat → beat ${accentOffset + 1} of 4`;
+    return;
+  }
+  const beat = 60 / getBpm(); const bar = 4 * beat;
+  let off = getOffset() + dir * beat;
+  off = ((off % bar) + bar) % bar;
+  firstPeakOffset = off;
+  document.getElementById('input-metro-offset').value = off.toFixed(3);
+  if (s) s.textContent = `downbeat → ${off.toFixed(2)}s`;
+  if (ws && ws.isPlaying()) resyncClock();
+}
+
+// Per-device latency calibration: + = click later, − = click earlier. Saved once per device.
+function adjustLatency(deltaMs) {
+  latencyCalMs = Math.round((latencyCalMs + deltaMs) * 10) / 10;
+  localStorage.setItem('looperLatencyMs', String(latencyCalMs));
+  const el = document.getElementById('latency-cal-val');
+  if (el) el.textContent = `${latencyCalMs > 0 ? '+' : ''}${latencyCalMs} ms`;
+}
+
+document.getElementById('btn-auto-bpm').addEventListener('click', () => autoDetectTempo());
+document.getElementById('btn-nudge-back').addEventListener('click', () => nudgeDownbeat(-1));
+document.getElementById('btn-nudge-fwd').addEventListener('click', () => nudgeDownbeat(1));
+document.getElementById('btn-lat-back').addEventListener('click', () => adjustLatency(-5));
+document.getElementById('btn-lat-fwd').addEventListener('click', () => adjustLatency(5));
+adjustLatency(0); // paint the stored calibration value on load
+
+// TAP-TO-LOCK: tap along WHILE THE SONG PLAYS → locks tempo AND phase (the actual beat grid) to your taps.
+let tapLockTimes = [], tapWallTimes = [];
+function tapLockBeat() {
+  const playing = ws && ws.isPlaying();
+  const wNow = performance.now() / 1000;
+  if (tapWallTimes.length && wNow - tapWallTimes[tapWallTimes.length - 1] > 2.5) { tapLockTimes = []; tapWallTimes = []; }
+  tapWallTimes.push(wNow);
+  if (playing) tapLockTimes.push(ws.getCurrentTime());
+  const statusEl = document.getElementById('bpm-detect-status');
+  const median = (arr) => { const a = arr.slice().sort((x, y) => x - y); return a[Math.floor(a.length / 2)]; };
+  // BPM from wall-clock taps (works whether or not the song is playing)
+  if (tapWallTimes.length >= 2) {
+    const iv = []; for (let i = 1; i < tapWallTimes.length; i++) iv.push(tapWallTimes[i] - tapWallTimes[i - 1]);
+    const p = median(iv);
+    if (p > 0.2 && p < 2) { detectedBpm = Math.round((60 / p) * 100) / 100; document.getElementById('input-metro-bpm').value = detectedBpm.toFixed(2); }
+  }
+  // Full phase-locked beat grid needs song-time taps (so it aligns to the audio) → must be playing
+  if (playing && tapLockTimes.length >= 4) {
+    const iv = []; for (let i = 1; i < tapLockTimes.length; i++) iv.push(tapLockTimes[i] - tapLockTimes[i - 1]);
+    const period = median(iv);
+    if (period > 0.2 && period < 2) {
+      const ref = tapLockTimes[tapLockTimes.length - 1], dur = ws.getDuration();
+      const ticks = []; const firstN = Math.ceil((0 - ref) / period);
+      for (let n = firstN; ; n++) { const tt = ref + n * period; if (tt > dur + 0.001) break; if (tt >= 0) ticks.push(Math.round(tt * 1000) / 1000); }
+      beatTicks = ticks; accentOffset = 0;
+      detectedBpm = Math.round((60 / period) * 100) / 100;
+      document.getElementById('input-metro-bpm').value = detectedBpm.toFixed(2);
+      document.getElementById('input-metro-offset').value = (ticks[0] || 0).toFixed(3);
+      if (syncScheduler) resyncClock();
+      __stageIdx = -2; renderRibbon();
+      if (statusEl) statusEl.textContent = `🔒 LOCKED to your tap · ${detectedBpm.toFixed(2)} BPM`;
+      return;
+    }
+  }
+  if (statusEl) statusEl.textContent = playing ? `tap along… ${Math.min(tapLockTimes.length, 4)}/4 to lock the grid` : `▶ play the song, then tap along to lock the beat`;
+}
+document.getElementById('btn-tap-metro').addEventListener('click', tapLockBeat);
+// Spacebar is play/pause; use "T" to tap-lock from the keyboard while playing.
+document.addEventListener('keydown', (e) => { const tag = document.activeElement.tagName.toLowerCase(); if (tag === 'input' || tag === 'textarea' || tag === 'select') return; if (e.key.toLowerCase() === 't') tapLockBeat(); });
 
 document.getElementById('btn-fetch-lyrics').addEventListener('click', async () => {
   const artistInput = document.getElementById('input-lyric-artist').value.trim();
@@ -1346,34 +1955,91 @@ document.getElementById('btn-fetch-lyrics').addEventListener('click', async () =
         }
       }
     });
+    window.__stageDirty = true; renderStage(ws ? ws.getCurrentTime() : 0);
     return window.lyricData.length > 0;
   }
 
+  // The user's audio duration is the key to getting the LRC for THEIR exact recording (timestamps line up).
+  const dur = (ws && ws.getDuration) ? Math.round(ws.getDuration()) : 0;
+
   try {
-    // TIER 1: Cleaned Direct Fetch Request
-    const res = await fetch(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(song)}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (await parseAndRender(data)) return;
+    // TIER 1: exact match BY DURATION — LRCLIB returns the matching-length recording (±2s), so timing aligns.
+    if (dur) {
+      const r = await fetch(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(song)}&duration=${dur}`);
+      if (r.ok) { if (await parseAndRender(await r.json())) { window.lyricOffset = 0; syncLyricSlider(); return; } }
     }
 
-    // TIER 2: Deep Multi-Candidate Fuzzy Match Lookup
-    container.innerHTML = "<div class='lyric-line active-lyric'>>> TIER 1 MISSED. RUNNING MULTI-CANDIDATE FUZZY MATCH...</div>";
+    // TIER 2: search, then pick the result whose DURATION is closest to the user's audio (= same master).
+    container.innerHTML = "<div class='lyric-line active-lyric'>>> MATCHING YOUR RECORDING BY LENGTH...</div>";
     const searchRes = await fetch(`https://lrclib.net/api/search?track_name=${encodeURIComponent(song)}&artist_name=${encodeURIComponent(artist)}`);
     if (searchRes.ok) {
       const results = await searchRes.json();
-      if (results && results.length > 0) {
-        const bestMatch = results.find(r => r.syncedLyrics && r.syncedLyrics.trim().length > 0) || 
-                          results.find(r => r.plainLyrics && r.plainLyrics.trim().length > 0) || 
-                          results[0];
-        if (await parseAndRender(bestMatch)) return;
+      const synced = (results || []).filter(r => r.syncedLyrics && r.syncedLyrics.trim().length > 0);
+      if (synced.length) {
+        const best = dur ? synced.slice().sort((a, b) => Math.abs((a.duration||0) - dur) - Math.abs((b.duration||0) - dur))[0] : synced[0];
+        const diff = dur ? Math.abs((best.duration||0) - dur) : 0;
+        if (await parseAndRender(best)) {
+          window.lyricOffset = 0; syncLyricSlider();
+          if (diff > 3) await autoAlignLyrics();   // no exact-length match → auto-estimate the offset
+          return;
+        }
       }
+      // last resort: any plain lyrics (no timing)
+      const plain = (results || []).find(r => r.plainLyrics && r.plainLyrics.trim().length > 0);
+      if (plain && await parseAndRender(plain)) return;
     }
+
+    // TIER 3: durationless exact get (some entry exists but not by length) + auto-align
+    const r3 = await fetch(`https://lrclib.net/api/get?artist_name=${encodeURIComponent(artist)}&track_name=${encodeURIComponent(song)}`);
+    if (r3.ok && await parseAndRender(await r3.json())) { await autoAlignLyrics(); return; }
+
     throw new Error("No match found");
   } catch (err) {
     container.innerHTML = "<div class='lyric-line' style='opacity:1;'>>> ✕ NO LYRIC MATCH FOUND: Verify spelling or use alternate track keywords.</div>";
   }
 });
+
+// Keep the Stage's lyric-sync slider in step with window.lyricOffset.
+function syncLyricSlider() {
+  const sl = document.getElementById('slider-lyric-offset');
+  const el = document.getElementById('lyric-offset-val');
+  if (sl) sl.value = window.lyricOffset || 0;
+  if (el) el.textContent = ((window.lyricOffset || 0) > 0 ? '+' : '') + (window.lyricOffset || 0).toFixed(1) + 's';
+}
+
+// Auto-estimate a global lyric offset by finding the first VOCAL onset in the user's audio
+// and aligning it to the first sung lyric line. Gets within ~1s — beats a 35s manual drag.
+async function autoAlignLyrics() {
+  try {
+    const buf = window.decodedBuffer;
+    if (!buf || !window.lyricData.length) return;
+    const firstLyricT = window.lyricData[0].time;
+    const data = buf.getChannelData(0), sr = buf.sampleRate;
+    const hop = Math.floor(sr * 0.02);              // 20ms frames
+    const scanEnd = Math.min(data.length, sr * 90); // scan first 90s
+    // vocal-band-ish energy via simple high-passed RMS (de-emphasizes bass/kick intros)
+    const env = []; let prev = 0;
+    for (let i = 0; i < scanEnd; i += hop) {
+      let e = 0; const end = Math.min(i + hop, scanEnd);
+      for (let j = i; j < end; j++) { const hp = data[j] - prev; prev = data[j]; e += hp * hp; }
+      env.push(Math.sqrt(e / hop));
+    }
+    let mean = 0; for (const v of env) mean += v; mean /= (env.length || 1);
+    let sd = 0; for (const v of env) sd += (v - mean) * (v - mean); sd = Math.sqrt(sd / (env.length || 1));
+    const thr = mean + 1.4 * sd;
+    let onsetFrame = -1, run = 0;
+    for (let i = 1; i < env.length; i++) {
+      if (env[i] > thr && env[i] > env[i-1]) { run++; if (run >= 4) { onsetFrame = i - 3; break; } } else run = 0;
+    }
+    if (onsetFrame < 0) return;
+    const firstVocalT = (onsetFrame * hop) / sr;
+    const offset = Math.round((firstVocalT - firstLyricT) * 10) / 10;
+    if (Math.abs(offset) > 1 && Math.abs(offset) <= 60) {
+      window.lyricOffset = offset; syncLyricSlider();
+      __stageActiveLine = -2; renderStage(ws ? ws.getCurrentTime() : 0);
+    }
+  } catch (e) { /* leave offset at 0 */ }
+}
 
 function manualLyricSync(idx) {
     if(idx === window.lastActiveLyric) return;
@@ -1415,7 +2081,7 @@ document.getElementById('matrix-engine-switch').addEventListener('click', () => 
   }
 });
 
-document.getElementById('slider-track-vol').addEventListener('input', (e) => { const v = parseFloat(e.target.value); document.getElementById('val-track-vol').innerText = Math.round(v * 100) + '%'; if (ws) ws.setVolume(v); if (vNode) vNode.volume = v; });
+document.getElementById('slider-track-vol').addEventListener('input', (e) => { const v = parseFloat(e.target.value); document.getElementById('val-track-vol').innerText = Math.round(v * 100) + '%'; if (window.StemMixer && StemMixer.isReady()) { StemMixer.setMaster(v); } else if (ws) { ws.setVolume(v); } if (vNode) vNode.volume = v; });
 document.getElementById('slider-gap').addEventListener('input', (e) => { document.getElementById('val-gap').innerText = parseFloat(e.target.value).toFixed(1) + 's'; });
 document.getElementById('slider-step-inc').addEventListener('input', (e) => { document.getElementById('val-step-inc').innerText = e.target.value + '%'; });
 
@@ -1423,12 +2089,20 @@ const fmt = (s) => { if (!s || isNaN(s)) return '0:00'; const m = Math.floor(s /
 
 document.getElementById('dropzone').addEventListener('click', () => document.getElementById('file-input').click());
 document.getElementById('dropzone').addEventListener('dragover', (e) => e.preventDefault());
-document.getElementById('dropzone').addEventListener('drop', (e) => { e.preventDefault(); if(e.dataTransfer.files[0]) initMediaPipeline(e.dataTransfer.files[0]); });
-document.getElementById('file-input').addEventListener('change', (e) => { if(e.target.files[0]) initMediaPipeline(e.target.files[0]); });
+document.getElementById('dropzone').addEventListener('drop', (e) => { e.preventDefault(); if(e.dataTransfer.files[0]) { window.__ytVideoId = null; initMediaPipeline(e.dataTransfer.files[0]); } });
+document.getElementById('file-input').addEventListener('change', (e) => { if(e.target.files[0]) { window.__ytVideoId = null; initMediaPipeline(e.target.files[0]); } });
 
 async function initMediaPipeline(file) {
-  document.getElementById('landing-gate').style.display = 'none'; 
+  playSource = 'file';
+  if (typeof stopSpotifyLoop === 'function') stopSpotifyLoop();
+  if (typeof stopYouTubeLoop === 'function') stopYouTubeLoop();
+  if (ytPlayer && ytPlayer.pauseVideo) try { ytPlayer.pauseVideo(); } catch (e) {}
+  ['sp-browser','sp-nowplaying','yt-browser'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  const wfw = document.getElementById('waveform-wrap'); if (wfw) wfw.style.display = '';
+  document.getElementById('landing-gate').style.display = 'none';
   document.getElementById('main-dashboard').style.display = 'grid';
+  renderLoopBank();   // repaint persisted loops every time a song loads (they survive reloads via localStorage)
+  setTimeout(setupRibbon, 80);
   if (file.type.startsWith('video/') || file.name.endsWith('.mp4')) { isVideoMediaMode = true; }
   
   if (isVideoMediaMode) {
@@ -1467,38 +2141,33 @@ async function initMediaPipeline(file) {
   const arrayBuf = await file.arrayBuffer();
   if (audioCtx) {
     audioCtx.decodeAudioData(arrayBuf, (buffer) => {
-      const data = buffer.getChannelData(0); const sr = buffer.sampleRate;
-      let max = 0; for(let i=0; i<data.length; i++) { if(Math.abs(data[i])>max) max = Math.abs(data[i]); }
-      let threshold = max * 0.8; let peaks = [];
-      for (let i = 0; i < data.length; i++) { 
-        if (data[i] > threshold) { peaks.push(i); i += sr / 4; } 
-      }
-      if (peaks.length > 1) { 
-        firstPeakOffset = peaks[0] / sr;
-        document.getElementById('input-metro-offset').value = firstPeakOffset.toFixed(2);
-        let intervals = {};
-        for(let i=1; i<peaks.length; i++) {
-          let diff = peaks[i] - peaks[i-1];
-          let bpm = Math.round(60 / (diff / sr));
-          if(bpm > 60 && bpm < 180) { intervals[bpm] = (intervals[bpm] || 0) + 1; }
-        }
-        let guessedBPM = Object.keys(intervals).reduce((a, b) => intervals[a] > intervals[b] ? a : b, 120);
-        document.getElementById('input-metro-bpm').value = guessedBPM;
-      } 
+      window.decodedBuffer = buffer;
+      autoDetectTempo(buffer);   // AUTO map beats + chords on load (background worker; no freeze)
     });
   }
 
   ws.on('ready', () => { 
     document.getElementById('scrub-total').textContent = fmt(ws.getDuration()); 
     document.getElementById('scrubber').max = ws.getDuration(); 
-    if(ws.media) ws.media.preservesPitch = true; 
-    activeRegion = regionsPlugin.addRegion({ start: 0, end: ws.getDuration() * 0.4, color: 'rgba(147, 51, 234, 0.06)', drag: true, resize: true }); 
-    initFretboardCanvasDimensions(); 
-    renderManualFretboard(); 
+    if(ws.media) ws.media.preservesPitch = true;
+    wireSharedAudio();
+    activeRegion = regionsPlugin.addRegion({ start: 0, end: ws.getDuration() * 0.4, color: 'rgba(147, 51, 234, 0.06)', drag: true, resize: true });
+    if (window.__pendingLoop) {   // a saved loop asked to load its linked song → apply its region now
+      const pl = window.__pendingLoop; window.__pendingLoop = null;
+      const dur = ws.getDuration();
+      activeRegion.setOptions({ start: Math.min(pl.start, dur), end: Math.min(pl.end, dur) });
+      try { ws.setTime(Math.min(pl.start, dur)); } catch (e) {}
+      setTimeout(updateLbls, 0);
+    }
+    initFretboardCanvasDimensions();
+    renderManualFretboard();
+    setupRibbon(); buildSongChordsFromProgression();
   });
-  
-  ws.on('play', () => { if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); document.getElementById('btn-play').innerText = "⏸ PAUSE"; });
-  ws.on('pause', () => document.getElementById('btn-play').innerText = "▶ PLAY");
+
+  ws.on('play', () => { if(audioCtx && audioCtx.state === 'suspended') audioCtx.resume(); document.getElementById('btn-play').innerText = "⏸ PAUSE"; updateMetroEngine(); startRibbonLoop(); });
+  ws.on('pause', () => { document.getElementById('btn-play').innerText = "▶ PLAY"; updateMetroEngine(); renderRibbon(); });
+  ws.on('seeking', () => { if (syncScheduler) resyncClock(); renderRibbon(); });
+  ws.on('interaction', () => { if (syncScheduler) resyncClock(); renderRibbon(); });
   
   ws.on('timeupdate', (t) => {
     document.getElementById('scrub-current').textContent = fmt(t); 
@@ -1514,16 +2183,8 @@ async function initMediaPipeline(file) {
         currentBeatTotal = Math.floor((t - offset) / beatInterval);
     }
 
-    // Precise live Downbeat execution handler
-    if (isMetroPlaying && metroFollowSong && ws.isPlaying()) {
-        if (t >= offset) {
-            const lastBeat = Math.floor((lastTickTime - offset) / beatInterval);
-            if (currentBeatTotal > lastBeat) {
-                triggerMetroTick();
-            }
-        }
-    }
-    
+    // (metronome clicks are handled by the drift-free lookahead scheduler, not here)
+
     if (isAutoStepChords && ws.isPlaying() && currentBeatTotal !== lastStepBeatCount) {
         if (currentBeatTotal % 4 === 0 && currentBeatTotal > 0) {
             advanceAutoChordSequencer();
@@ -1532,10 +2193,12 @@ async function initMediaPipeline(file) {
     }
     
     lastTickTime = t;
+    renderStage(t);
 
     if (window.lyricData.length > 0) {
         let activeIdx = -1;
-        for(let i=0; i<window.lyricData.length; i++) { if(t >= window.lyricData[i].time - 0.2) activeIdx = i; else break; }
+        const lyOff = window.lyricOffset || 0;
+        for(let i=0; i<window.lyricData.length; i++) { if(t >= window.lyricData[i].time + lyOff - 0.2) activeIdx = i; else break; }
         if(activeIdx !== -1) manualLyricSync(activeIdx);
     }
 
@@ -1584,7 +2247,8 @@ function advanceAutoChordSequencer() {
     }
 }
 
-function updateTempo() { if (!ws) return; const t = parseFloat(document.getElementById('slider-tempo').value); document.getElementById('val-tempo').innerText = `${t.toFixed(2)}x`; ws.setPlaybackRate(t); }
+function updateTempo() { if (!ws) return; const t = parseFloat(document.getElementById('slider-tempo').value); document.getElementById('val-tempo').innerText = `${t.toFixed(2)}x`; ws.setPlaybackRate(t, true); if (ws.media) ws.media.preservesPitch = true; if (window.StemMixer && StemMixer.isReady()) StemMixer.setRate(t); if (syncScheduler) resyncClock(); }
+['input-metro-bpm','input-metro-offset'].forEach(id => document.getElementById(id).addEventListener('change', () => { if (syncScheduler) resyncClock(); }));
 
 function trigReset() { 
   if(ws && activeRegion) { 
@@ -1605,20 +2269,239 @@ function trigReset() {
 
 function updateLbls() { if(activeRegion) { document.getElementById('lbl-a').textContent = fmt(activeRegion.start); document.getElementById('lbl-b').textContent = fmt(activeRegion.end); } }
 
-document.getElementById('btn-play').addEventListener('click', () => { if(!ws) return; if(ws.isPlaying()) ws.pause(); else { ws.play(); setTimeout(updateTempo, 10); } });
+// Count-in: 4 metronome beats before the song starts (toggle).
+window.countInOn = false;
+document.getElementById('btn-countin').addEventListener('click', (e) => {
+  window.countInOn = !window.countInOn;
+  e.target.classList.toggle('accent', window.countInOn);
+  e.target.textContent = '🔢 COUNT-IN: ' + (window.countInOn ? 'ON' : 'OFF');
+});
+function doCountIn(cb) {
+  if (!audioCtx) { cb(); return; }
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  const beat = 60 / getBpm(); const start = audioCtx.currentTime + 0.12;
+  const cd = document.getElementById('countdown-overlay');
+  for (let i = 0; i < 4; i++) {
+    scheduleClick(start + i * beat, i === 0);
+    setTimeout(() => { if (cd) { cd.style.display = 'block'; cd.innerText = (4 - i); } }, (start - audioCtx.currentTime + i * beat) * 1000);
+  }
+  setTimeout(() => { if (cd) cd.style.display = 'none'; cb(); }, (start - audioCtx.currentTime + 4 * beat) * 1000);
+}
+document.getElementById('btn-play').addEventListener('click', () => {
+  if (!ws) return;
+  if (ws.isPlaying()) { ws.pause(); return; }
+  const startPlay = () => { ws.play(); setTimeout(updateTempo, 10); };
+  if (window.countInOn) doCountIn(startPlay); else startPlay();
+});
 document.getElementById('btn-stop').addEventListener('click', () => { if(!ws) return; ws.stop(); });
-document.getElementById('btn-set-a').addEventListener('click', () => { if(ws&&activeRegion&&ws.getCurrentTime()<activeRegion.end) { activeRegion.setOptions({start:ws.getCurrentTime()}); updateLbls(); }});
-document.getElementById('btn-set-b').addEventListener('click', () => { if(ws&&activeRegion&&ws.getCurrentTime()>activeRegion.start) { activeRegion.setOptions({end:ws.getCurrentTime()}); updateLbls(); }});
+// ===== Loop quantize-to-bars: snap IN/OUT to the nearest bar line so loops are musically cohesive. =====
+window.quantizeLoops = (localStorage.getItem('looperQuantize') !== '0');   // default ON
+// Bar boundaries = every 4 beats from the downbeat (accentOffset), extrapolated past the last beat to song end.
+function barBoundaries() {
+  if (!Array.isArray(beatTicks) || beatTicks.length < 2) return null;
+  const start = (typeof accentOffset !== 'undefined' ? accentOffset : 0) || 0;
+  const bars = [];
+  for (let b = start; b < beatTicks.length; b += 4) bars.push(beatTicks[b]);
+  if (!bars.length) return null;
+  const dur = (ws && ws.getDuration) ? ws.getDuration() : bars[bars.length - 1] + 8;
+  const barLen = bars.length >= 2 ? (bars[bars.length - 1] - bars[0]) / (bars.length - 1)
+    : (beatTicks[start + 1] != null ? (beatTicks[start + 1] - beatTicks[start]) * 4 : 2);
+  let last = bars[bars.length - 1];
+  if (barLen > 0.05) while (last + barLen <= dur + 0.02) { last += barLen; bars.push(last); }
+  return bars;
+}
+function snapToBar(t) {
+  if (!window.quantizeLoops) return t;
+  const bars = barBoundaries(); if (!bars) return t;   // no beat grid yet → leave as-is
+  let best = t, bestD = Infinity;
+  for (const bt of bars) { const d = Math.abs(bt - t); if (d < bestD) { bestD = d; best = bt; } }
+  return Math.max(0, best);
+}
+document.getElementById('btn-set-a').addEventListener('click', () => { if(ws&&activeRegion){ const s=snapToBar(ws.getCurrentTime()); if(s<activeRegion.end){ activeRegion.setOptions({start:s}); updateLbls(); } }});
+document.getElementById('btn-set-b').addEventListener('click', () => { if(ws&&activeRegion){ const e=snapToBar(ws.getCurrentTime()); if(e>activeRegion.start){ activeRegion.setOptions({end:e}); updateLbls(); } }});
+(function(){ const b=document.getElementById('btn-snap-bars'); if(!b) return; const paint=()=>{ b.textContent = window.quantizeLoops ? '⧉ SNAP: BARS' : '⧉ SNAP: OFF'; b.className = window.quantizeLoops ? 'btn accent' : 'btn'; }; paint(); b.addEventListener('click', ()=>{ window.quantizeLoops = !window.quantizeLoops; localStorage.setItem('looperQuantize', window.quantizeLoops ? '1' : '0'); paint(); }); })();
 
 const btnToggleLoop = document.getElementById('btn-toggle-loop');
 btnToggleLoop.addEventListener('click', () => { loopModeActive = !loopModeActive; btnToggleLoop.className = loopModeActive ? "btn accent" : "btn danger"; btnToggleLoop.innerText = loopModeActive ? "⟳ LOOP ON" : "✕ LOOP OFF"; });
 
 document.addEventListener('keydown', (e) => { const t = document.activeElement.tagName.toLowerCase(); if (t === 'input' || t === 'textarea' || t === 'select') return; if (e.key.toLowerCase() === 'i') document.getElementById('btn-set-a').click(); if (e.key.toLowerCase() === 'o') document.getElementById('btn-set-b').click(); if (e.key.toLowerCase() === 'l') document.getElementById('btn-toggle-loop').click(); if (e.code === 'Space') { e.preventDefault(); document.getElementById('btn-play').click(); } });
 
-function renderLoopBank() { const c = document.getElementById('loop-bank-list'); c.innerHTML = ''; savedLoops.forEach((l, i) => { c.innerHTML += `<div class="loop-card"><span style="color:var(--cyan); font-weight:bold;">${l.name}</span><span style="color:var(--dim)">${fmt(l.start)} - ${fmt(l.end)}</span><div style="display:flex; gap:4px;"><button class="btn" style="padding:4px 8px; font-size:0.55rem" onclick="loadLp(${i})">📂</button><button class="btn danger" style="padding:4px 8px; font-size:0.55rem" onclick="delLp(${i})">✕</button></div></div>`; }); }
-window.loadLp = (i) => { if(ws&&activeRegion) { activeRegion.setOptions({start:savedLoops[i].start, end:savedLoops[i].end}); ws.setTime(savedLoops[i].start); updateLbls(); } };
+function renderLoopBank() { const c = document.getElementById('loop-bank-list'); c.innerHTML = ''; savedLoops.forEach((l, i) => {
+  const song = l.ytTitle ? l.ytTitle : (l.ytId ? ('YouTube ' + l.ytId) : '');
+  const songLine = song ? `<span style="color:#f0abfc; font-size:0.5rem; display:block; max-width:130px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;" title="${song}">▶ ${song}</span>` : '';
+  c.innerHTML += `<div class="loop-card"><div style="display:flex; flex-direction:column; min-width:0;"><span style="color:var(--cyan); font-weight:bold;">${l.name}</span>${songLine}</div><span style="color:var(--dim)">${fmt(l.start)} - ${fmt(l.end)}</span><div style="display:flex; gap:4px;"><button class="btn" style="padding:4px 8px; font-size:0.55rem" onclick="loadLp(${i})">📂</button><button class="btn danger" style="padding:4px 8px; font-size:0.55rem" onclick="delLp(${i})">✕</button></div></div>`; }); if (typeof renderLandingLoops === 'function') renderLandingLoops(); }
+// Saved loops shown on the LANDING page too, so they're always there (survive refresh/exit) and
+// clicking one jumps straight to its linked song + timestamp.
+function renderLandingLoops() {
+  const c = document.getElementById('landing-loops'); if (!c) return;
+  c.style.display = '';
+  const esc = (s) => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+  let html = '<div style="font-size:0.6rem; color:#f0abfc; font-family:\'Orbitron\',sans-serif; letter-spacing:1px; margin-bottom:7px;">💾 SAVED LOOPS</div>';
+  if (!savedLoops.length) {
+    html += '<div style="font-size:0.56rem; color:var(--dim); line-height:1.5;">Loops you save show up here — one click jumps you back to that spot in the song.</div>';
+    c.innerHTML = html; return;
+  }
+  html += '<div style="display:flex; flex-direction:column; gap:5px;">';
+  savedLoops.forEach((l, i) => {
+    const song = esc(l.ytTitle || (l.ytId ? ('YouTube ' + l.ytId) : 'local file'));
+    const nm = esc(l.name || 'Loop');
+    html += '<button class="btn" title="' + song + '" onclick="loadLp(' + i + ')" '
+      + 'style="width:100%; padding:5px 8px; display:flex; flex-direction:column; align-items:flex-start; gap:1px; overflow:hidden;">'
+      + '<span style="width:100%; color:var(--cyan); font-weight:bold; font-size:0.58rem; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; text-align:left;">' + nm + ' · ' + fmt(l.start) + '–' + fmt(l.end) + '</span>'
+      + '<span style="width:100%; color:var(--dim); font-size:0.5rem; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; text-align:left;">▶ ' + song + '</span>'
+      + '</button>';
+  });
+  html += '</div>';
+  c.innerHTML = html;
+}
+renderLandingLoops();
+window.loadLp = (i) => {
+  const l = savedLoops[i]; if (!l) return;
+  // Same song already open → just move the loop region, no reload.
+  if (l.ytId && l.ytId === window.__ytVideoId && ws && activeRegion) {
+    activeRegion.setOptions({ start: l.start, end: l.end }); ws.setTime(l.start); updateLbls(); return;
+  }
+  if (l.ytId) {
+    // Linked to a YouTube song → pull it up as a waveform, then snap the loop in once it's ready.
+    window.__pendingLoop = { start: l.start, end: l.end };
+    window.__ytTitle = l.ytTitle || '';
+    // force AUDIO mode so loop + metronome + chords work (not the silent video view)
+    const a = document.getElementById('opt-audio'), v = document.getElementById('opt-video');
+    if (a && v) { a.classList.add('active'); v.classList.remove('active'); }
+    loadYouTubeAudioAsWaveform(l.ytId);
+    return;
+  }
+  // Local-file loop with the file already loaded → just jump the region.
+  if (ws && activeRegion && window.__ytVideoId == null) { activeRegion.setOptions({ start: l.start, end: l.end }); ws.setTime(l.start); updateLbls(); return; }
+  // Otherwise this loop has no song attached (older loop, or saved from a local file). Help them
+  // re-load it fast: jump into YouTube search pre-filled with the loop name, and apply the loop on load.
+  window.__pendingLoop = { start: l.start, end: l.end };
+  if (typeof enterYouTubeMode === 'function') {
+    enterYouTubeMode();
+    const inp = document.getElementById('yt-search');
+    if (inp && l.name && !/^loop[_\s]*\d*$/i.test(l.name)) { inp.value = l.name; if (typeof youtubeSearch === 'function') youtubeSearch(l.name); }
+    else if (inp) { inp.focus(); }
+  } else {
+    alert('This loop has no song attached yet. Load the song (YouTube or your file) and your loop (' + fmt(l.start) + '–' + fmt(l.end) + ') will snap into place.');
+  }
+};
 window.delLp = (i) => { savedLoops.splice(i,1); localStorage.setItem('cosmicSavedLoopsMaster', JSON.stringify(savedLoops)); renderLoopBank(); };
-document.getElementById('btn-save-loop').addEventListener('click', () => { if(!activeRegion) return; const n = prompt("Name Loop:", `LOOP_${savedLoops.length+1}`); if(n) { savedLoops.push({name:n, start:activeRegion.start, end:activeRegion.end}); localStorage.setItem('cosmicSavedLoopsMaster', JSON.stringify(savedLoops)); renderLoopBank(); } });
+document.getElementById('btn-save-loop').addEventListener('click', () => { if(!activeRegion) return; const n = prompt("Name Loop:", `LOOP_${savedLoops.length+1}`); if(n) { savedLoops.push({name:n, start:activeRegion.start, end:activeRegion.end, ytId: window.__ytVideoId||null, ytTitle: window.__ytTitle||null}); localStorage.setItem('cosmicSavedLoopsMaster', JSON.stringify(savedLoops)); renderLoopBank(); } });
+// Exit the current song without a page refresh → back to the picker.
+function ejectSong() {
+  try { if (ws && ws.isPlaying && ws.isPlaying()) ws.pause(); } catch (e) {}
+  try { if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo(); } catch (e) {}
+  if (typeof stopYouTubeLoop === 'function') stopYouTubeLoop();
+  if (typeof stopSpotifyLoop === 'function') stopSpotifyLoop();
+  playSource = 'file';
+  // tear down any active stem separation so the next song starts clean
+  try { if (window.StemMixer && StemMixer.isReady()) { StemMixer.teardown(); window.__stemsReady = false; if (ws) ws.setVolume(parseFloat(document.getElementById('slider-track-vol').value) || 1); renderStemRows(); const ss = document.getElementById('stem-status'); if (ss) ss.textContent = 'Pick the instrument you\'re learning, hit Isolate, then play along with everything else.'; } } catch (e) {}
+  document.getElementById('main-dashboard').style.display = 'none';
+  ['sp-browser','yt-browser','sp-nowplaying'].forEach(id => { const e = document.getElementById(id); if (e) e.style.display = 'none'; });
+  const wfw = document.getElementById('waveform-wrap'); if (wfw) wfw.style.display = '';
+  document.getElementById('landing-gate').style.display = '';
+}
+document.getElementById('btn-eject-song').addEventListener('click', ejectSong);
+
+// === Stem Isolator (Premium) — lean "mute one instrument" model: keep only the muted stem + mix, play mix − stem. ===
+const STEM_MODEL_URL = (localStorage.getItem('looperStemModel') || 'stem-engine/ggml-model-htdemucs-6s-f16.bin').trim();
+let __stemBound = false;
+window.__stemsReady = false;
+
+// Mode buttons (Mute / Original / Solo) shown once a stem is isolated.
+function renderStemRows() {
+  const c = document.getElementById('stem-modes'); if (!c) return;
+  if (!window.__stemsReady || !window.StemMixer || !StemMixer.isReady()) { c.style.display = 'none'; c.innerHTML = ''; return; }
+  c.style.display = 'flex';
+  const muted = StemMixer.mutedName || 'Guitar';
+  const cur = StemMixer.getMode();
+  const modes = [
+    { k: 'backing', label: '🔇 Mute ' + muted, hint: 'play everything except ' + muted + ' — you play that part' },
+    { k: 'original', label: '🎵 Original', hint: 'the full track' },
+    { k: 'solo', label: '🎧 Solo ' + muted, hint: 'hear only ' + muted + ' to learn it' }
+  ];
+  c.innerHTML = '';
+  modes.forEach(m => {
+    const b = document.createElement('button');
+    b.className = cur === m.k ? 'btn accent' : 'btn';
+    b.style.cssText = 'flex:1; padding:5px 6px; font-size:0.55rem;';
+    b.title = m.hint; b.textContent = m.label;
+    b.onclick = () => { StemMixer.setMode(m.k); renderStemRows(); };
+    c.appendChild(b);
+  });
+}
+function applyStemGains() { /* lean model uses StemMixer.setMode() via the buttons — nothing to drive here */ }
+
+// While stems are active the 6-channel mixer IS the audio; WaveSurfer stays the silent clock/visual.
+// Mirror its transport into the mixer (bound once).
+function bindStemTransport() {
+  if (__stemBound || !ws) return; __stemBound = true;
+  ws.on('play', () => { if (StemMixer.isReady()) StemMixer.play(ws.getCurrentTime()); });
+  ws.on('pause', () => { if (StemMixer.isReady()) StemMixer.pause(); });
+  ws.on('seeking', () => { if (StemMixer.isReady() && ws.isPlaying()) StemMixer.seek(ws.getCurrentTime()); });
+  ws.on('interaction', () => { if (StemMixer.isReady() && ws.isPlaying()) StemMixer.seek(ws.getCurrentTime()); });
+}
+
+// Copy a slice [start,end] (seconds) of an AudioBuffer into a fresh buffer — so we only separate the part being practiced.
+function sliceAudioBuffer(buf, start, end) {
+  const sr = buf.sampleRate;
+  const s = Math.max(0, Math.floor(start * sr)), e = Math.min(buf.length, Math.floor(end * sr));
+  const len = Math.max(1, e - s);
+  const ac = window.__sliceCtx || (window.__sliceCtx = new (window.AudioContext || window.webkitAudioContext)());
+  const out = ac.createBuffer(buf.numberOfChannels, len, sr);
+  for (let ch = 0; ch < buf.numberOfChannels; ch++) out.getChannelData(ch).set(buf.getChannelData(ch).subarray(s, e));
+  return out;
+}
+// Cloud GPU backend URL — set this once the Modal stem endpoint is live (localStorage.looperStemBackend or hardcode).
+// Until then the in-browser engine is DISABLED (it's too slow/crashes), so the feature shows "coming soon".
+const STEM_BACKEND = (localStorage.getItem('looperStemBackend') || '').trim();
+async function separateStems() {
+  if (!requirePremium('Stem separation')) return;
+  const st = document.getElementById('stem-status');
+  const btn = document.getElementById('btn-separate-stems');
+  if (!STEM_BACKEND) { if (st) st.innerHTML = '🚧 Instrument isolation is coming very soon — we\'re moving it to a fast cloud engine (splits a song in seconds, no lag). Stay tuned.'; return; }
+  if (!window.StemMixer) { if (st) st.textContent = 'Stem engine didn\'t load — hard-refresh and retry.'; return; }
+  if (!STEM_MODEL_URL) { if (st) st.innerHTML = '⚙️ Engine is wired — last step is hosting the AI model file (see STEM_MODEL_URL). Then this lights up.'; return; }
+  let buf = null;
+  try { buf = ws && ws.getDecodedData ? ws.getDecodedData() : null; } catch (e) {}
+  if (!buf) { if (st) st.textContent = 'Load a song into AUDIO mode (the waveform) first, then isolate.'; return; }
+  const muteSel = document.getElementById('stem-mute-select');
+  const mutedStem = (muteSel && muteSel.value) || 'Guitar';
+  if (btn) btn.disabled = true;
+  const t0 = Date.now();
+  let lastMsg = '';
+  const tick = setInterval(() => { if (st && lastMsg) st.textContent = lastMsg + ' · ' + Math.round((Date.now() - t0) / 1000) + 's'; }, 1000);
+  // When a phase lands (the priority section first, then the full song), wire the mixer into the transport.
+  const wirePhase = (phase, meta) => {
+    window.__stemsReady = true;
+    StemMixer.setMode('backing');                       // default: mute the chosen instrument so you can play its part
+    bindStemTransport();
+    try { ws.setVolume(0); } catch (e) {}               // the mixer carries the sound now (mix − muted stem)
+    if (StemMixer.isReady() && ws.isPlaying && ws.isPlaying()) StemMixer.play(ws.getCurrentTime());
+    renderStemRows();
+    if (st && phase === 'full') {
+      lastMsg = '';
+      const m = (meta && meta.mutedName) || mutedStem;
+      if (meta && meta.sectionMode) st.innerHTML = '✅ Isolated a ' + (meta.spanSec || 90) + 's section. <span style="color:var(--dim)">(Limited-RAM device — kept it safe.)</span> ' + m + ' is muted — play its part, or Solo to hear it.';
+      else st.innerHTML = '✅ Done — ' + m + ' is muted across the song. Play its part, hit Original, or Solo ' + m + ' to learn it.';
+    }
+  };
+  try {
+    await StemMixer.separate(buf, {
+      modelUrl: STEM_MODEL_URL,
+      mutedStem: mutedStem,
+      playheadTime: (ws.getCurrentTime ? ws.getCurrentTime() : 0),
+      onStatus: (m) => { lastMsg = m || ''; if (st && m) st.textContent = m; },
+      onPhase: wirePhase
+    });
+    clearInterval(tick);
+  } catch (e) {
+    clearInterval(tick);
+    if (st) st.textContent = '⚠️ ' + (e.message || 'Separation failed.');
+  } finally { if (btn) btn.disabled = false; }
+}
+document.getElementById('btn-separate-stems').addEventListener('click', separateStems);
+renderStemRows();
 
 const fCanvas = document.getElementById('fretboard-vector'); const fCtx = fCanvas.getContext('2d');
 function initFretboardCanvasDimensions() { if (!viewChords.classList.contains('active') || !fCanvas.parentElement) return; const rect = fCanvas.parentElement.getBoundingClientRect(); fCanvas.width = rect.width; fCanvas.height = rect.height; renderManualFretboard(); }
@@ -1638,30 +2521,53 @@ document.getElementById('chord-type').addEventListener('change', () => {
 
 const rootMapOffsets = {"C":0, "C#":1, "D":2, "Eb":3, "E":4, "F":5, "F#":6, "G":7, "Ab":8, "A":9, "Bb":10, "B":11};
 
-document.getElementById('btn-build-prog').addEventListener('click', () => {
-  const progStr = document.getElementById('input-progression').value; const rack = document.getElementById('progression-rack'); rack.innerHTML = '';
-  const chords = progStr.split(' ').filter(c => c.trim() !== '');
-    chords.forEach((chordStr, idx) => {
-    const pill = document.createElement('div'); 
-    pill.className = 'chord-pill'; 
+// Build the chord-shape pills from a list of chord names (shared by manual BUILD + auto-detection).
+function buildPills(chordNames) {
+  const rack = document.getElementById('progression-rack'); rack.innerHTML = '';
+  chordNames.forEach((chordStr, idx) => {
+    const pill = document.createElement('div');
+    pill.className = 'chord-pill';
     pill.innerText = chordStr;
-    
     let rootSeed = chordStr.replace(/m|min|maj|7/g, '');
     let typeSeed = (chordStr.includes('m') || chordStr.includes('min')) ? 'E-Min' : 'E-Maj';
     pill.setAttribute('data-saved-root', rootSeed);
     pill.setAttribute('data-saved-type', typeSeed);
-
-    pill.onclick = () => { 
-      document.querySelectorAll('.chord-pill').forEach(p => p.classList.remove('active')); 
-      pill.classList.add('active'); 
-      currentChordIndex = idx; 
-      
+    pill.onclick = () => {
+      document.querySelectorAll('.chord-pill').forEach(p => p.classList.remove('active'));
+      pill.classList.add('active');
+      currentChordIndex = idx;
       document.getElementById('chord-root').value = pill.getAttribute('data-saved-root');
       document.getElementById('chord-type').value = pill.getAttribute('data-saved-type');
       renderManualFretboard();
     };
-    rack.appendChild(pill); if(idx === 0) pill.click();
+    rack.appendChild(pill); if (idx === 0) pill.click();
   });
+}
+
+// Auto-detected chords flow straight into the app — no typing.
+function applyDetectedChords(chords) {
+  window.songChords = chords;                                  // timed chords → ribbon
+  setOriginalChords(chords);                                   // remember untransposed + reset transpose
+  window.chordVoicings = {};                                   // fresh song → default voicings
+  const seq = chords.map(c => c.name);
+  document.getElementById('input-progression').value = seq.join(' ');
+  buildPills(seq);                                             // → shape stepper
+  renderRibbon();
+  const uncertain = chords.filter(c => (c.conf || 0) < 0.55).length;
+  const s = document.getElementById('bpm-detect-status');
+  if (s) s.textContent += `  ·  🎸 ${seq.length} chords auto-detected${uncertain ? ' (' + uncertain + ' uncertain)' : ''}`;
+  window.__stageDirty = true; __stageIdx = -2; renderStage(ws ? ws.getCurrentTime() : 0);
+  renderChordPalette();
+  updateChordSourceBadge('auto');
+}
+
+document.getElementById('btn-build-prog').addEventListener('click', () => {
+  const names = document.getElementById('input-progression').value.split(' ').filter(c => c.trim() !== '');
+  buildPills(names);
+  buildSongChordsFromProgression();
+  window.__stageDirty = true; __stageIdx = -2; renderStage(ws ? ws.getCurrentTime() : 0);
+  renderChordPalette();
+  updateChordSourceBadge('manual');
 });
 
 document.getElementById('btn-auto-chord').addEventListener('click', (e) => { 
@@ -1778,6 +2684,1066 @@ function renderManualFretboard() {
     fCtx.strokeStyle = "#7c3aed"; fCtx.lineWidth = 2; fCtx.beginPath(); fCtx.arc(nX, nY, 8, 0, Math.PI * 2); fCtx.stroke();
   });
 }
+// === Chord-timeline ribbon — the time-driven transport (file AND Spotify mode) ===
+window.songChords = [];                 // [{time, name}] — demo chord track for now (Phase 3 = real chords)
+let ribbonCanvas = null, ribbonCtx = null, ribbonRAF = null, ribbonReady = false;
+
+// Demo: map the typed progression onto bars using the beat map (replaced by real chords in Phase 3).
+function buildSongChordsFromProgression() {
+  const pills = Array.from(document.querySelectorAll('.chord-pill')).map(p => p.innerText.trim()).filter(Boolean);
+  const dur = (ws && ws.getDuration) ? ws.getDuration() : (window.decodedBuffer ? window.decodedBuffer.duration : 0);
+  window.songChords = [];
+  if (pills.length && dur) {
+    if (beatTicks.length > 4) {
+      let ci = 0;
+      for (let b = accentOffset; b < beatTicks.length; b += 4) { window.songChords.push({ time: beatTicks[b], name: pills[ci % pills.length] }); ci++; }
+    } else {
+      const n = Math.max(pills.length, Math.round(dur / 2));
+      for (let i = 0; i < n; i++) window.songChords.push({ time: (i / n) * dur, name: pills[i % pills.length] });
+    }
+  }
+  setOriginalChords(window.songChords);
+  renderRibbon();
+}
+
+function setupRibbon() {
+  if (ribbonReady) { sizeRibbon(); return; }
+  ribbonCanvas = document.getElementById('chord-ribbon');
+  if (!ribbonCanvas) return;
+  ribbonCtx = ribbonCanvas.getContext('2d');
+  ribbonReady = true;
+  sizeRibbon();
+  window.addEventListener('resize', sizeRibbon);
+  let dragging = false;
+  const seek = (e) => {
+    if (!ws) return;
+    const rect = ribbonCanvas.getBoundingClientRect();
+    const frac = (e.clientX - rect.left) / rect.width;
+    const win = ribbonWindow();
+    ws.setTime(Math.max(0, Math.min(ws.getDuration(), win.tStart + frac * win.windowDur)));
+    renderRibbon();
+  };
+  ribbonCanvas.addEventListener('mousedown', (e) => { dragging = true; seek(e); });
+  window.addEventListener('mousemove', (e) => { if (dragging) seek(e); });
+  window.addEventListener('mouseup', () => { dragging = false; });
+}
+
+function sizeRibbon() {
+  if (!ribbonCanvas || !ribbonCtx) return;
+  const dpr = window.devicePixelRatio || 1;
+  const w = ribbonCanvas.clientWidth, h = ribbonCanvas.clientHeight;
+  if (!w || !h) return;
+  ribbonCanvas.width = Math.round(w * dpr); ribbonCanvas.height = Math.round(h * dpr);
+  ribbonCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  renderRibbon();
+}
+
+function startRibbonLoop() {
+  if (ribbonRAF) return;
+  const tick = () => {
+    if (ws && ws.isPlaying()) {
+      const ct = ws.getCurrentTime();
+      renderRibbon();
+      try { renderStage(ct); } catch (e) {}   // drive the chord shapes every frame (not the ~250ms timeupdate) → no lag
+      ribbonRAF = requestAnimationFrame(tick);
+    } else { ribbonRAF = null; renderRibbon(); }
+  };
+  ribbonRAF = requestAnimationFrame(tick);
+}
+
+// The zoomed window: 4 bars wide, playhead pinned ~12% from the left (read-ahead).
+function ribbonWindow() {
+  const cur = ws ? ws.getCurrentTime() : 0;
+  const bpm = getBpm() || detectedBpm || 120;
+  const windowDur = (60 / bpm) * 16;   // 4 bars × 4 beats
+  const leadFrac = 0.12;
+  return { cur, windowDur, leadFrac, tStart: cur - leadFrac * windowDur };
+}
+
+function renderRibbon() {
+  if (!ribbonCtx || !ribbonCanvas) return;
+  const W = ribbonCanvas.clientWidth, H = ribbonCanvas.clientHeight;
+  ribbonCtx.clearRect(0, 0, W, H);
+  if (!ws || !ws.getDuration || !ws.getDuration()) return;
+  const win = ribbonWindow();
+  const tStart = win.tStart, tEnd = tStart + win.windowDur;
+  const X = (t) => ((t - tStart) / win.windowDur) * W;
+
+  // loop region (clipped to the window)
+  if (typeof activeRegion !== 'undefined' && activeRegion && loopModeActive) {
+    const a = Math.max(tStart, activeRegion.start), b = Math.min(tEnd, activeRegion.end);
+    if (b > a) { ribbonCtx.fillStyle = 'rgba(147,51,234,0.10)'; ribbonCtx.fillRect(X(a), 0, X(b) - X(a), H); }
+  }
+  // beats + bar lines in view
+  if (beatTicks.length) {
+    for (let i = 0; i < beatTicks.length; i++) {
+      const bt = beatTicks[i]; if (bt < tStart - 0.1 || bt > tEnd) continue;
+      const x = X(bt);
+      const isBar = (((i - accentOffset) % 4) + 4) % 4 === 0;
+      ribbonCtx.strokeStyle = isBar ? 'rgba(168,85,247,0.6)' : 'rgba(168,85,247,0.2)';
+      ribbonCtx.lineWidth = isBar ? 1.3 : 0.7;
+      ribbonCtx.beginPath(); ribbonCtx.moveTo(x, H * 0.5); ribbonCtx.lineTo(x, H); ribbonCtx.stroke();
+    }
+  }
+  // chord blocks in view (bigger now that it's zoomed)
+  const ch = window.songChords;
+  for (let i = 0; i < ch.length; i++) {
+    const c0 = ch[i].time, c1 = (i + 1 < ch.length) ? ch[i + 1].time : tEnd + 1;
+    if (c1 < tStart || c0 > tEnd) continue;
+    const x0 = X(Math.max(c0, tStart)), x1 = X(Math.min(c1, tEnd));
+    const isCur = win.cur >= c0 && win.cur < c1;
+    ribbonCtx.fillStyle = isCur ? 'rgba(34,211,238,0.25)' : 'rgba(124,58,237,0.14)';
+    ribbonCtx.fillRect(x0 + 1, H * 0.1, Math.max(1, x1 - x0 - 2), H * 0.36);
+    if (x1 - x0 > 16) {
+      ribbonCtx.fillStyle = isCur ? '#67e8f9' : 'rgba(216,180,254,0.9)';
+      ribbonCtx.font = (isCur ? 'bold 14px ' : '13px ') + "'Orbitron', sans-serif";
+      ribbonCtx.fillText(ch[i].name, X(Math.max(c0, tStart)) + 5, H * 0.34);
+    }
+  }
+  // playhead (fixed near the left)
+  const px = X(win.cur);
+  ribbonCtx.strokeStyle = '#fff'; ribbonCtx.lineWidth = 2;
+  ribbonCtx.shadowColor = '#22d3ee'; ribbonCtx.shadowBlur = 10;
+  ribbonCtx.beginPath(); ribbonCtx.moveTo(px, 0); ribbonCtx.lineTo(px, H); ribbonCtx.stroke();
+  ribbonCtx.shadowBlur = 0;
+}
+
+// === Right-panel STAGE renderer (chords-over-lyrics beat-accurate + current/next shapes) ===
+window.chordVoicings = {};   // per-song: chord name -> chosen CAGED shape (applies to every instance)
+function chordIsMinor(name) { return /m(?!aj)/i.test(name) || /min/i.test(name); }
+function chordNameToShape(name) {
+  if (!name) return null;
+  let root = name.replace(/m(in)?|maj|sus|dim|aug|add|[0-9]|\+|°|\//gi, '').trim();
+  const enh = { 'Db':'C#','D#':'Eb','Gb':'F#','G#':'Ab','A#':'Bb' };
+  if (enh[root]) root = enh[root];
+  if (typeof rootMapOffsets === 'undefined' || rootMapOffsets[root] === undefined) return null;
+  const chosen = window.chordVoicings[name];
+  const type = chosen || (chordIsMinor(name) ? 'E-Min' : 'E-Maj');
+  return { root: root, type: type };
+}
+
+// Standard OPEN voicings (string 0=low E … 5=high e; only fretted notes, f>0). Default for open chords.
+const OPEN_VOICINGS = {
+  'C':  [{s:1,f:3},{s:2,f:2},{s:4,f:1}],            // x32010
+  'A':  [{s:2,f:2},{s:3,f:2},{s:4,f:2}],            // x02220
+  'G':  [{s:0,f:3},{s:1,f:2},{s:5,f:3}],            // 320003
+  'E':  [{s:1,f:2},{s:2,f:2},{s:3,f:1}],            // 022100
+  'D':  [{s:3,f:2},{s:4,f:3},{s:5,f:2}],            // xx0232
+  'Am': [{s:2,f:2},{s:3,f:2},{s:4,f:1}],            // x02210
+  'Em': [{s:1,f:2},{s:2,f:2}],                      // 022000
+  'Dm': [{s:3,f:2},{s:4,f:3},{s:5,f:1}],            // xx0231
+  'A7': [{s:2,f:2},{s:4,f:2}],                      // x02020
+  'D7': [{s:3,f:2},{s:4,f:1},{s:5,f:2}],            // xx0212
+  'E7': [{s:1,f:2},{s:3,f:1}],                      // 020100
+  'G7': [{s:0,f:3},{s:1,f:2},{s:5,f:1}],            // 320001
+  'C7': [{s:1,f:3},{s:2,f:2},{s:3,f:3},{s:4,f:1}]   // x32310
+};
+// Voicing options for the ◀▶ cycle: OPEN first (if it exists), then the 5 CAGED barre shapes.
+function voicingList(name) {
+  const caged = chordIsMinor(name) ? ['E-Min','A-Min','C-Min','G-Min','D-Min'] : ['E-Maj','A-Maj','C-Maj','G-Maj','D-Maj'];
+  return OPEN_VOICINGS[name] ? ['OPEN', ...caged] : caged;
+}
+// Resolve a chord name → fret nodes, honoring the user's chosen voicing, else defaulting to OPEN when available.
+function chordToNodes(name) {
+  const sh = chordNameToShape(name); if (!sh) return [];
+  const v = window.chordVoicings[name];
+  if (v === 'OPEN') return OPEN_VOICINGS[name] ? OPEN_VOICINGS[name].slice() : calculateBarreNodes(sh.root, chordIsMinor(name) ? 'E-Min' : 'E-Maj');
+  if (v) return calculateBarreNodes(sh.root, v);
+  if (OPEN_VOICINGS[name]) return OPEN_VOICINGS[name].slice();   // DEFAULT: open shape
+  return calculateBarreNodes(sh.root, sh.type);                  // else a barre
+}
+
+// Unique-chords palette: one card per distinct chord in the song; cycle its shape (sticks everywhere).
+// Show the manual "drop in chords" entry only BEFORE chords exist; hide it once they're detected/set.
+function updateChordEntryVisibility() {
+  const row = document.getElementById('chord-entry-row');
+  if (row) row.style.display = (window.songChords && window.songChords.length) ? 'none' : 'flex';
+}
+function renderChordPalette() {
+  updateChordEntryVisibility();
+  const cont = document.getElementById('song-chords-palette');
+  if (!cont) return;
+  const seen = []; const confMap = {};
+  (window.songChords || []).forEach(c => { if (!seen.includes(c.name)) seen.push(c.name); if (c.conf !== undefined) confMap[c.name] = Math.min(confMap[c.name] === undefined ? 1 : confMap[c.name], c.conf); });
+  cont.innerHTML = '';
+  if (!seen.length) { cont.innerHTML = '<div style="color:var(--dim);font-size:0.68rem;">Drop a song — its chords appear here to customize.</div>'; return; }
+  seen.forEach(name => {
+    const sh = chordNameToShape(name); if (!sh) return;
+    const uncertain = confMap[name] !== undefined && confMap[name] < 0.6;
+    const card = document.createElement('div'); card.className = 'palette-card' + (uncertain ? ' uncertain' : '');
+    if (uncertain) card.title = 'Auto-detected — not 100% sure. Tap ◀▶ to fix the shape, or type the real chords below.';
+    const top = document.createElement('div'); top.className = 'pc-top';
+    const back = document.createElement('button'); back.className = 'pc-cyc'; back.textContent = '◀';
+    const nm = document.createElement('span'); nm.className = 'pc-name'; nm.textContent = name;
+    const fwd = document.createElement('button'); fwd.className = 'pc-cyc'; fwd.textContent = '▶';
+    top.appendChild(back); top.appendChild(nm); top.appendChild(fwd);
+    const cv = document.createElement('canvas'); cv.width = 96; cv.height = 116; cv.className = 'pc-canvas';
+    const flag = document.createElement('div'); flag.className = 'pc-flag'; flag.textContent = uncertain ? '⚠ verify' : '';
+    card.appendChild(top); card.appendChild(cv); card.appendChild(flag); cont.appendChild(card);
+    drawChordBox(cv, chordToNodes(name));
+    back.onclick = () => cycleVoicing(name, -1);
+    fwd.onclick = () => cycleVoicing(name, 1);
+  });
+}
+function cycleVoicing(name, dir) {
+  const list = voicingList(name);
+  const cur = window.chordVoicings[name] || list[0];   // list[0] is 'OPEN' when the chord has one
+  let idx = list.indexOf(cur); if (idx < 0) idx = 0;
+  window.chordVoicings[name] = list[(idx + dir + list.length) % list.length];
+  renderChordPalette();
+  __stageIdx = -2; renderStage(ws ? ws.getCurrentTime() : 0);
+}
+
+// === Transpose / Capo: shift every chord by N semitones (audio unchanged — capo your real guitar) ===
+const NOTE_NAMES_T = ['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
+window.transposeSemitones = 0; window.songChordsOriginal = [];
+function transposeName(name, semi) {
+  if (!semi) return name;
+  const m = name.match(/^([A-G][#b]?)(.*)$/); if (!m) return name;
+  let root = m[1], rest = m[2];
+  const enh = { 'Db':'C#','D#':'Eb','Gb':'F#','G#':'Ab','A#':'Bb','Cb':'B','Fb':'E','E#':'F','B#':'C' };
+  if (enh[root]) root = enh[root];
+  const idx = NOTE_NAMES_T.indexOf(root); if (idx < 0) return name;
+  return NOTE_NAMES_T[((idx + semi) % 12 + 12) % 12] + rest;
+}
+function applyTranspose(delta) {
+  let v = Math.max(-7, Math.min(7, (window.transposeSemitones || 0) + delta));
+  window.transposeSemitones = v;
+  const src = window.songChordsOriginal || [];
+  if (src.length) window.songChords = src.map(c => ({ ...c, name: transposeName(c.name, v) }));
+  window.chordVoicings = {};
+  if (typeof buildSongBars === 'function') buildSongBars();
+  renderChordPalette(); window.__stageDirty = true; __stageIdx = -2; renderStage(ws ? ws.getCurrentTime() : 0); renderRibbon();
+  const el = document.getElementById('transpose-val');
+  const capoN = v < 0 ? -v : 0;   // a capo lets you finger OPEN shapes lower down → chords transpose DOWN
+  if (el) el.textContent = (v > 0 ? '+' : '') + v + ' st' + (capoN ? ' (capo ' + capoN + ')' : '');
+  const cap = document.getElementById('stage-capo-input');
+  if (cap && document.activeElement !== cap) cap.value = capoN ? String(capoN) : '';
+  const sk = document.getElementById('stage-key-val');   // the open-shape key you actually play in with the capo
+  if (sk && window.songKey) sk.textContent = transposeName(window.songKey, v);
+}
+// Capo N = play open shapes N frets lower (capo becomes the nut) → transpose the displayed chords DOWN by N.
+function setCapo(n) { if (isNaN(n)) return; applyTranspose((-n) - (window.transposeSemitones || 0)); }
+(function () { const ci = document.getElementById('stage-capo-input'); if (ci) ci.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); const raw = ci.value.trim(); const n = (raw === '' || raw === '—') ? 0 : parseInt(raw, 10); if (!isNaN(n)) setCapo(Math.max(0, Math.min(12, n))); ci.blur(); } }); })();
+// Auto-populate the song's detected key — on the stage AND the KEY box by the loop controls.
+function setSongKey(keyName) {
+  if (!keyName) return;
+  window.songKey = keyName;
+  const sv = document.getElementById('stage-key-val'); if (sv) sv.textContent = keyName;
+  const inp = document.getElementById('input-song-key'); if (inp) inp.value = keyName;
+}
+// Capture the untransposed chords whenever they change, and reset transpose.
+function setOriginalChords(chords) { window.songChordsOriginal = (chords || []).map(c => ({ ...c })); window.transposeSemitones = 0; const el = document.getElementById('transpose-val'); if (el) el.textContent = '0 st'; const cap = document.getElementById('stage-capo-input'); if (cap) cap.value = ''; }
+document.getElementById('btn-transpose-down').addEventListener('click', () => applyTranspose(-1));
+document.getElementById('btn-transpose-up').addEventListener('click', () => applyTranspose(1));
+
+function drawChordBox(canvas, nodes) {
+  nodes = nodes || [];
+  const ctx = canvas.getContext('2d'); const dpr = window.devicePixelRatio || 1;
+  const cw = canvas.clientWidth || 34, chh = canvas.clientHeight || 40;
+  if (canvas.width !== Math.round(cw*dpr)) { canvas.width = Math.round(cw*dpr); canvas.height = Math.round(chh*dpr); }
+  const W = cw, H = chh;
+  ctx.setTransform(dpr,0,0,dpr,0,0); ctx.clearRect(0,0,W,H);
+  const frets = 5, strings = 6, padT = 7, padR = 5, padB = 6;
+  let fmin = 99, fmax = 0; nodes.forEach(n => { if (n.f > 0) { fmin = Math.min(fmin,n.f); fmax = Math.max(fmax,n.f); } });
+  let base = (fmin === 99) ? 1 : Math.max(1, fmin);
+  if (fmax - base >= frets) base = fmax - frets + 1; if (base < 1) base = 1;
+  // Fret-position label scales with the box, and we widen the left gutter to fit it clearly.
+  const labelFs = Math.max(9, Math.round(H * 0.16));
+  const padL = base > 1 ? Math.max(14, Math.round(labelFs * 1.7)) : 9;
+  const gw = W-padL-padR, gh = H-padT-padB, ss = gw/(strings-1), fs = gh/frets;
+  ctx.strokeStyle = 'rgba(168,85,247,0.4)'; ctx.lineWidth = 1;
+  for (let f = 0; f <= frets; f++) { const y = padT+f*fs; ctx.beginPath(); ctx.moveTo(padL,y); ctx.lineTo(padL+gw,y); ctx.stroke(); }
+  for (let s = 0; s < strings; s++) { const x = padL+s*ss; ctx.beginPath(); ctx.moveTo(x,padT); ctx.lineTo(x,padT+gh); ctx.stroke(); }
+  if (base > 1) {
+    ctx.fillStyle = '#f0abfc'; ctx.font = "700 " + labelFs + "px 'Orbitron'";
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    ctx.fillText(base + 'fr', 1, padT + fs/2);
+    ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+  }
+  ctx.fillStyle = '#22d3ee'; ctx.shadowColor = '#22d3ee'; ctx.shadowBlur = 6;
+  nodes.forEach(n => { if (n.f <= 0) return; const rel = n.f-base; if (rel < 0 || rel >= frets) return; const x = padL+n.s*ss, y = padT+rel*fs+fs/2; ctx.beginPath(); ctx.arc(x,y,3.1,0,Math.PI*2); ctx.fill(); });
+  ctx.shadowBlur = 0;
+}
+
+// ===== Bass mode — show each chord's ROOT note on a bass neck (the foundational bassline). Free feature; works
+// straight from the detected chord names, no stem/pitch-tracking needed. Premium will add real bass TABS from the isolated stem. =====
+window.instrument = localStorage.getItem('looperInstrument') || 'guitar';
+function chordRoot(name) { const m = String(name || '').match(/^[A-G][#b]?/); return m ? m[0] : null; }
+// Root pitch-class → a comfortable low bass position {s:string 0=E 1=A 2=D 3=G, f:fret}. All within frets 0–4.
+const BASS_POS = { 'E':{s:0,f:0},'F':{s:0,f:1},'F#':{s:0,f:2},'Gb':{s:0,f:2},'G':{s:0,f:3},'G#':{s:0,f:4},'Ab':{s:0,f:4},
+  'A':{s:1,f:0},'A#':{s:1,f:1},'Bb':{s:1,f:1},'B':{s:1,f:2},'Cb':{s:1,f:2},'C':{s:1,f:3},'B#':{s:1,f:3},'C#':{s:1,f:4},'Db':{s:1,f:4},
+  'D':{s:2,f:0},'D#':{s:2,f:1},'Eb':{s:2,f:1} };
+function rootToBassPos(name) { const r = chordRoot(name); return r && BASS_POS[r] ? { root: r, pos: BASS_POS[r] } : null; }
+function drawBassBox(canvas, name) {
+  const ctx = canvas.getContext('2d'); const dpr = window.devicePixelRatio || 1;
+  const cw = canvas.clientWidth || 34, chh = canvas.clientHeight || 40;
+  if (canvas.width !== Math.round(cw * dpr)) { canvas.width = Math.round(cw * dpr); canvas.height = Math.round(chh * dpr); }
+  const W = cw, H = chh; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.clearRect(0, 0, W, H);
+  const frets = 4, strings = 4, padT = 9, padR = 6, padB = 6, padL = 9;
+  const gw = W - padL - padR, gh = H - padT - padB, ss = gw / (strings - 1), fs = gh / frets;
+  ctx.strokeStyle = 'rgba(168,85,247,0.4)'; ctx.lineWidth = 1;
+  for (let f = 0; f <= frets; f++) { const y = padT + f * fs; ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + gw, y); ctx.stroke(); }
+  for (let s = 0; s < strings; s++) { const x = padL + s * ss; ctx.beginPath(); ctx.moveTo(x, padT); ctx.lineTo(x, padT + gh); ctx.stroke(); }
+  // string labels E A D G under the neck
+  ctx.fillStyle = 'rgba(236,236,242,0.35)'; ctx.font = "600 8px 'JetBrains Mono'"; ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ['E', 'A', 'D', 'G'].forEach((nm, s) => ctx.fillText(nm, padL + s * ss, padT + gh + 1));
+  const b = rootToBassPos(name); if (!b) { ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic'; return; }
+  const x = padL + b.pos.s * ss;
+  const R = Math.max(6, Math.round(H * 0.07)), fz = Math.max(8, Math.round(R * 1.25));
+  ctx.shadowColor = '#22d3ee'; ctx.shadowBlur = 8;
+  let dotY;
+  if (b.pos.f === 0) { dotY = padT - R - 1; ctx.fillStyle = '#0a0612'; ctx.strokeStyle = '#22d3ee'; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.arc(x, dotY, R, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); }
+  else { dotY = padT + (b.pos.f - 1) * fs + fs / 2; ctx.fillStyle = '#22d3ee'; ctx.beginPath(); ctx.arc(x, dotY, R, 0, Math.PI * 2); ctx.fill(); }
+  ctx.shadowBlur = 0;
+  // the fret number, right on the note, so it's unmistakable
+  ctx.fillStyle = b.pos.f === 0 ? '#22d3ee' : '#04010a';
+  ctx.font = "700 " + fz + "px 'JetBrains Mono'"; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(String(b.pos.f), x, dotY + 0.5);
+  ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+}
+// One entry point the stage uses for either instrument:
+function drawInstrumentBox(canvas, name) { if (window.instrument === 'bass') drawBassBox(canvas, name); else drawChordBox(canvas, chordToNodes(name)); }
+(function () {
+  const btn = document.getElementById('stage-instrument'); if (!btn) return;
+  const paint = () => {
+    const bass = window.instrument === 'bass';
+    btn.textContent = bass ? '🎵 BASS' : '🎸 GUITAR';
+    const sl = document.getElementById('strum-label'); if (sl) sl.textContent = bass ? 'RHYTHM' : 'STRUM';
+  };
+  paint();
+  btn.addEventListener('click', () => {
+    window.instrument = window.instrument === 'bass' ? 'guitar' : 'bass';
+    localStorage.setItem('looperInstrument', window.instrument);
+    paint(); __stageIdx = -2;                 // force the stage to repaint with the new instrument
+    if (typeof renderStage === 'function') renderStage(ws ? ws.getCurrentTime() : 0);
+  });
+})();
+
+// Strumming-pattern helper on the stage — preset patterns the player can cycle (we don't detect strum from audio).
+const STRUM_PATTERNS = [
+  { name: 'D · DU · UDU', slots: ['D','','D','U','','U','D','U'] },
+  { name: 'All Down', slots: ['D','','D','','D','','D',''] },
+  { name: 'D · D · DU', slots: ['D','','D','','D','U','',''] },
+  { name: 'Down/Up 8ths', slots: ['D','U','D','U','D','U','D','U'] },
+  { name: 'D DU · DU', slots: ['D','','D','U','D','','D','U'] }
+];
+let strumIdx = parseInt(localStorage.getItem('looperStrumIdx') || '0', 10) || 0;
+function renderStrum() {
+  const box = document.getElementById('strum-arrows'); if (!box) return;
+  const p = STRUM_PATTERNS[strumIdx % STRUM_PATTERNS.length];
+  const beats = ['1','&','2','&','3','&','4','&'];
+  box.innerHTML = '';
+  p.slots.forEach((s, i) => {
+    const cell = document.createElement('div');
+    cell.style.cssText = "flex:1; text-align:center; font-family:'Orbitron',sans-serif;";
+    const arrow = s === 'D' ? '↓' : s === 'U' ? '↑' : '·';
+    const col = s === 'D' ? '#22d3ee' : s === 'U' ? '#f0abfc' : 'rgba(236,236,242,0.25)';
+    cell.innerHTML = '<div style="font-size:1rem; color:' + col + '; line-height:1;">' + arrow + '</div><div style="font-size:0.48rem; color:var(--dim); margin-top:1px;">' + beats[i] + '</div>';
+    box.appendChild(cell);
+  });
+  const nm = document.getElementById('strum-name'); if (nm) nm.textContent = p.name;
+}
+(function(){ const b = document.getElementById('strum-cycle'); if (b) b.addEventListener('click', () => { strumIdx = (strumIdx + 1) % STRUM_PATTERNS.length; localStorage.setItem('looperStrumIdx', strumIdx); renderStrum(); }); renderStrum(); })();
+
+function stageChordIndexAt(t) {
+  const ch = window.songChords; if (!ch.length) return -1;
+  const lead = 0.18;   // flip the shape early so your hand is ready right on the beat (compensates render+output latency)
+  let idx = -1; for (let i = 0; i < ch.length; i++) { if (t >= ch[i].time - lead) idx = i; else break; } return idx;
+}
+
+let __stageIdx = -2;
+function renderStageShapes(t) {
+  const ch = window.songChords;
+  const nameEl = document.getElementById('stage-now-name');
+  const nextWrap = document.getElementById('stage-next-cards');
+  if (!nameEl) return;
+  if (!ch.length) { nameEl.textContent = '—'; nextWrap.innerHTML = ''; __stageIdx = -2; return; }
+  let idx = stageChordIndexAt(t); if (idx < 0) idx = 0;
+  // upcoming chords per BAR (so a chord that repeats shows each time — e.g. G then G again)
+  const bars = window.songBars || [];
+  let barIdx = -1; for (let i = 0; i < bars.length; i++) { if (t >= bars[i].time - 0.18) barIdx = i; else break; }
+  const sig = idx + '|' + barIdx;
+  if (sig === __stageIdx) return;       // rebuild when the chord OR the bar changes
+  __stageIdx = sig;
+  const cur = ch[idx]; nameEl.textContent = cur.name;
+  drawInstrumentBox(document.getElementById('stage-now-canvas'), cur.name);
+  let nexts = [];
+  for (let i = barIdx + 1; i < bars.length && nexts.length < 3; i++) nexts.push(bars[i].name);
+  if (!nexts.length) { let seen = cur.name; for (let i = idx+1; i < ch.length && nexts.length < 3; i++) { if (ch[i].name !== seen) { nexts.push(ch[i].name); seen = ch[i].name; } } }
+  nextWrap.innerHTML = '';
+  nexts.forEach(nm => {
+    const card = document.createElement('div'); card.className = 'ncard';
+    const lbl = document.createElement('span'); lbl.className = 'nn'; lbl.textContent = nm;
+    const cv = document.createElement('canvas'); cv.width = 68; cv.height = 80;
+    card.appendChild(lbl); card.appendChild(cv); nextWrap.appendChild(card);
+    drawInstrumentBox(cv, nm);
+  });
+}
+
+function buildStageSheet() {
+  const sheet = document.getElementById('stage-sheet'); const ld = window.lyricData;
+  if (!sheet || !ld || !ld.length) return;
+  sheet.innerHTML = '';
+  for (let i = 0; i < ld.length; i++) {
+    const line = ld[i]; const next = (i+1 < ld.length) ? ld[i+1].time : line.time + 4;
+    const span = Math.max(0.1, next - line.time);
+    const div = document.createElement('div'); div.className = 'sline';
+    const crow = document.createElement('div'); crow.className = 'crow';
+    window.songChords.forEach(c => {
+      if (c.time >= line.time - 0.05 && c.time < next - 0.05) {
+        const x = Math.max(2, Math.min(98, ((c.time - line.time)/span)*100));
+        const chip = document.createElement('span'); chip.className = 'schip'; chip.style.left = x + '%';
+        if (c.conf !== undefined && c.conf < 0.6) { chip.classList.add('uncertain'); chip.title = 'Auto-detected — not 100% sure. Fix it in SHAPES.'; }
+        chip.innerHTML = c.name + '<i></i>'; crow.appendChild(chip);
+      }
+    });
+    const words = document.createElement('div'); words.className = 'swords'; words.textContent = line.text || '♪';
+    div.appendChild(crow); div.appendChild(words);
+    div.onclick = () => { if (ws) ws.setTime(line.time); };
+    sheet.appendChild(div);
+  }
+}
+
+let __stageActiveLine = -2;
+function renderStageSheet(t) {
+  const sheet = document.getElementById('stage-sheet'); const ld = window.lyricData;
+  if (!sheet || !ld || !ld.length) return;
+  if (window.__stageDirty) { buildStageSheet(); window.__stageDirty = false; __stageActiveLine = -2; }
+  const lines = sheet.querySelectorAll('.sline');
+  if (!lines.length) return;
+  const off = window.lyricOffset || 0;
+  let act = -1; for (let i = 0; i < ld.length; i++) { if (t >= ld[i].time + off - 0.15) act = i; else break; }
+  if (act === __stageActiveLine) return;
+  __stageActiveLine = act;
+  lines.forEach((el, i) => { el.classList.toggle('active', i === act); el.classList.toggle('dim', act >= 0 && Math.abs(i - act) > 1); });
+  if (act >= 0 && lines[act]) {
+    const target = Math.max(0, lines[act].offsetTop - sheet.clientHeight * 0.30);
+    sheet.scrollTop = target;   // instant, no animation race
+  }
+}
+
+function renderStage(t) {
+  if (!viewStage || !viewStage.classList.contains('active')) return;
+  renderStageShapes(t);
+  renderStageSheet(t);
+}
+
+// Lyric-sync slider (±30s): align lyric highlight to the vocal (LRCLIB timing vs your audio).
+window.lyricOffset = 0;
+document.getElementById('slider-lyric-offset').addEventListener('input', (e) => {
+  window.lyricOffset = parseFloat(e.target.value) || 0;
+  const el = document.getElementById('lyric-offset-val');
+  if (el) el.textContent = (window.lyricOffset > 0 ? '+' : '') + window.lyricOffset.toFixed(1) + 's';
+  __stageActiveLine = -2; renderStage(ws ? ws.getCurrentTime() : 0);
+});
+
+// Where the chords came from — shown as a badge so it's clear how trustworthy they are.
+function updateChordSourceBadge(src) {
+  window.chordSource = src;
+  const b = document.getElementById('chord-source-badge'); if (!b) return;
+  b.className = src;
+  if (src === 'ug') b.textContent = '✓ UG · EXACT';
+  else if (src === 'manual') b.textContent = '✎ YOUR CHORDS';
+  else b.textContent = '⚠ AUTO · 1ST PASS';
+}
+
+// ½× / 2× fix for octave errors (metronome double/half real tempo) — re-scales the actual beat grid.
+function rescaleBeats(factor) {
+  if (beatTicks.length > 1) {
+    if (factor === 0.5) beatTicks = beatTicks.filter((_, i) => i % 2 === 0);
+    else if (factor === 2) { const nb = []; for (let i = 0; i < beatTicks.length; i++) { nb.push(beatTicks[i]); if (i + 1 < beatTicks.length) nb.push((beatTicks[i] + beatTicks[i + 1]) / 2); } beatTicks = nb; }
+    accentOffset = 0;
+  }
+  detectedBpm = Math.round(getBpm() * factor * 100) / 100;
+  document.getElementById('input-metro-bpm').value = detectedBpm.toFixed(2);
+  __stageIdx = -2;
+  if (syncScheduler) resyncClock();
+  renderRibbon();
+  const s = document.getElementById('bpm-detect-status'); if (s) s.textContent = `🔒 ${detectedBpm.toFixed(2)} BPM (×${factor} applied)`;
+}
+document.getElementById('btn-half-bpm').addEventListener('click', () => rescaleBeats(0.5));
+document.getElementById('btn-double-bpm').addEventListener('click', () => rescaleBeats(2));
+
+// === Spotify auth (PKCE — Client ID only, NO secret ever) ===
+const SPOTIFY_CLIENT_ID = 'c5b99a0063a344aaaa3431889b4ff044';
+const SPOTIFY_SCOPES = 'streaming user-read-email user-read-private user-modify-playback-state user-read-playback-state playlist-read-private user-read-currently-playing';
+function spotifyRedirectUri() {
+  const h = location.hostname;
+  if (h === '127.0.0.1' || h === 'localhost') return 'http://127.0.0.1:9000/index.html';
+  return 'https://looperdeluxe.github.io/looperdeluxe/';
+}
+function b64url(buf) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+async function sha256(str) { return await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str)); }
+function randStr(n) { const a = new Uint8Array(n); crypto.getRandomValues(a); return Array.from(a, b => ('0'+(b & 0xff).toString(16)).slice(-2)).join(''); }
+async function spotifyLogin() {
+  if (!crypto.subtle) { alert('Spotify login needs a secure page (https or 127.0.0.1). Use the localhost tunnel.'); return; }
+  const verifier = randStr(48);
+  sessionStorage.setItem('sp_verifier', verifier);
+  const challenge = b64url(await sha256(verifier));
+  const params = new URLSearchParams({ client_id: SPOTIFY_CLIENT_ID, response_type: 'code', redirect_uri: spotifyRedirectUri(), scope: SPOTIFY_SCOPES, code_challenge_method: 'S256', code_challenge: challenge });
+  location.href = 'https://accounts.spotify.com/authorize?' + params.toString();
+}
+async function spotifyExchangeCode(code) {
+  const verifier = sessionStorage.getItem('sp_verifier'); if (!verifier) return false;
+  const body = new URLSearchParams({ client_id: SPOTIFY_CLIENT_ID, grant_type: 'authorization_code', code: code, redirect_uri: spotifyRedirectUri(), code_verifier: verifier });
+  const r = await fetch('https://accounts.spotify.com/api/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+  const d = await r.json();
+  if (d.access_token) { localStorage.setItem('sp_token', d.access_token); localStorage.setItem('sp_refresh', d.refresh_token || ''); localStorage.setItem('sp_expires', String(Date.now() + (d.expires_in || 3600) * 1000)); return true; }
+  return false;
+}
+async function spotifyRefresh() {
+  const refresh = localStorage.getItem('sp_refresh'); if (!refresh) return false;
+  const body = new URLSearchParams({ client_id: SPOTIFY_CLIENT_ID, grant_type: 'refresh_token', refresh_token: refresh });
+  const r = await fetch('https://accounts.spotify.com/api/token', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body });
+  const d = await r.json();
+  if (d.access_token) { localStorage.setItem('sp_token', d.access_token); localStorage.setItem('sp_expires', String(Date.now() + (d.expires_in || 3600) * 1000)); if (d.refresh_token) localStorage.setItem('sp_refresh', d.refresh_token); return true; }
+  return false;
+}
+async function spotifyToken() {
+  const t = localStorage.getItem('sp_token'); const exp = +localStorage.getItem('sp_expires') || 0;
+  if (t && Date.now() < exp - 30000) return t;
+  if (await spotifyRefresh()) return localStorage.getItem('sp_token');
+  return null;
+}
+async function spotifyUpdateUI() {
+  const status = document.getElementById('spotify-status'); const btn = document.getElementById('btn-spotify-connect');
+  const t = await spotifyToken();
+  if (!t) { if (status) status.textContent = ''; if (btn) btn.textContent = '🟢 CONNECT SPOTIFY'; return; }
+  try {
+    const r = await fetch('https://api.spotify.com/v1/me', { headers: { Authorization: 'Bearer ' + t } });
+    const me = await r.json();
+    window.spotifyUser = me;
+    if (status) status.textContent = 'connected: ' + (me.display_name || me.id || '') + (me.product !== 'premium' ? ' ⚠ Premium needed for playback' : '');
+    if (btn) btn.textContent = '🟢 SPOTIFY ✓';
+  } catch (e) { if (status) status.textContent = 'token error'; }
+}
+// === Spotify playback (Web Playback SDK) + search + playlists ===
+let spPlayer = null, spDeviceId = null, spSDKLoaded = false;
+function loadSpotifySDK() {
+  if (spSDKLoaded) return; spSDKLoaded = true;
+  window.onSpotifyWebPlaybackSDKReady = initSpotifyPlayer;
+  const s = document.createElement('script'); s.src = 'https://sdk.scdn.co/spotify-player.js'; document.head.appendChild(s);
+}
+function initSpotifyPlayer() {
+  spPlayer = new Spotify.Player({ name: 'Looper Deluxe', getOAuthToken: cb => { spotifyToken().then(t => cb(t)); }, volume: 0.8 });
+  spPlayer.addListener('ready', ({ device_id }) => { spDeviceId = device_id; });
+  spPlayer.addListener('not_ready', () => { spDeviceId = null; });
+  spPlayer.addListener('player_state_changed', s => { if (s) updateSpotifyNowPlaying(s); });
+  spPlayer.addListener('account_error', () => alert('Spotify Premium is required for in-app playback.'));
+  spPlayer.addListener('authentication_error', e => console.warn('sp auth', e.message));
+  spPlayer.connect();
+}
+// === Playback-source abstraction: the stage/lyrics/loop read the clock from here,
+// so it works whether the source is a dropped file (WaveSurfer) or Spotify playback. ===
+let playSource = 'file';            // 'file' | 'spotify'
+let spPosBase = 0, spStamp = 0, spDur = 0, spPlaying = false, spRAF = null, spPollT = null, spQueue = [], spCurUri = null;
+function playTime() {
+  if (playSource === 'youtube') return (ytPlayer && ytPlayer.getCurrentTime) ? (ytPlayer.getCurrentTime() || 0) : 0;
+  if (playSource === 'spotify') return (spPlaying ? spPosBase + (performance.now() - spStamp) : spPosBase) / 1000;
+  return ws ? ws.getCurrentTime() : 0;
+}
+function playDuration() {
+  if (playSource === 'youtube') return (ytPlayer && ytPlayer.getDuration) ? (ytPlayer.getDuration() || 0) : 0;
+  if (playSource === 'spotify') return spDur / 1000;
+  return ws ? ws.getDuration() : 0;
+}
+
+// === Premium bundle scaffold (gate features now; hook a real payment/account later) ===
+// ===== Lemon Squeezy Premium =====
+// Paste your published checkout links here (Share button on the product / each variant).
+// If you only have one product link, put it in both — buyers pick the plan on the checkout page.
+const LS_CONFIG = {
+  checkout: 'https://looperdeluxe.lemonsqueezy.com/checkout/buy/da396534-f059-4bc8-8aab-2fd4536068af',
+};
+// Open Lemon Squeezy checkout as an in-page overlay (lazy-loads lemon.js); falls back to a new tab.
+function openCheckout() {
+  const url = LS_CONFIG.checkout + (LS_CONFIG.checkout.includes('?') ? '&' : '?') + 'embed=1';
+  const go = () => {
+    if (window.LemonSqueezy && window.LemonSqueezy.Url) { window.LemonSqueezy.Url.Open(url); }
+    else { window.open(LS_CONFIG.checkout, '_blank', 'noopener'); }
+  };
+  if (window.LemonSqueezy) return go();
+  const s = document.createElement('script');
+  s.src = 'https://assets.lemonsqueezy.com/lemon.js'; s.defer = true;
+  s.onload = () => { try { window.createLemonSqueezy && window.createLemonSqueezy(); } catch(e){} go(); };
+  s.onerror = () => window.open(LS_CONFIG.checkout, '_blank', 'noopener');
+  document.head.appendChild(s);
+}
+// Owner flag = permanent premium on this device once you've visited your ?owner= link (survives refresh, cache,
+// even toggling the free-view test). A paid license also persists via looperPremium.
+let isPremium = (localStorage.getItem('looperPremium') === '1') || (localStorage.getItem('looperOwner') === '1');
+// Internal only — NOT exposed on window, so a casual visitor can't just type setPremium(true) in the console.
+function setPremium(v) { isPremium = !!v; localStorage.setItem('looperPremium', v ? '1' : '0'); try { updatePremiumUI(); } catch (e) {} return isPremium; }
+function requirePremium(feature) { if (isPremium) return true; showPremiumPrompt(feature); return false; }
+
+// Owner unlock: visiting ?owner=<your secret passphrase> flips Premium on. Only the SHA-256 hash lives
+// in this (public) source — the passphrase itself never appears here, so no one can read it off the page.
+async function checkOwnerUnlock() {
+  try {
+    const p = new URLSearchParams(location.search).get('owner');
+    if (!p) return;
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(p));
+    const hex = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+    const OWNER_HASH = '021b71c77209eb455bf9d1c5457fa037a10a37d2bfade511c683a6f89089c7a2';
+    if (hex === OWNER_HASH) {
+      // ?owner=<secret>&free=1 locks it back to the free view for testing; ?owner=<secret> = permanent owner Premium.
+      const lockBack = new URLSearchParams(location.search).get('free');
+      if (lockBack) { localStorage.removeItem('looperOwner'); setPremium(false); }
+      else { localStorage.setItem('looperOwner', '1'); setPremium(true); }
+    }
+    // strip the params either way so the secret never lingers in the address bar / history / shares
+    history.replaceState(null, '', location.pathname);
+  } catch (e) {}
+}
+// Re-assert owner Premium on every load (bulletproof — works at any time once you've used your link on this device).
+if (localStorage.getItem('looperOwner') === '1') setPremium(true);
+checkOwnerUnlock();
+function updatePremiumUI(){ document.querySelectorAll('[data-premium-badge]').forEach(el=>{ el.textContent = isPremium ? '★ PREMIUM' : ''; }); }
+
+// Activate a license key against Lemon Squeezy. No API secret needed — this endpoint is
+// designed for client apps and enforces the per-key device (activation) limit server-side.
+async function activateLicense(key) {
+  key = (key || '').trim();
+  if (!key) return { ok:false, msg:'Enter your license key.' };
+  try {
+    let nm = localStorage.getItem('looperInstanceName');
+    if (!nm) { nm = Math.random().toString(36).slice(2,10); localStorage.setItem('looperInstanceName', nm); }
+    const r = await fetch('https://api.lemonsqueezy.com/v1/licenses/activate', {
+      method:'POST', headers:{'Accept':'application/json','Content-Type':'application/x-www-form-urlencoded'},
+      body: new URLSearchParams({ license_key:key, instance_name:'looper-'+nm })
+    });
+    const d = await r.json();
+    if (d.activated || (d.license_key && d.license_key.status === 'active')) {
+      localStorage.setItem('looperLicenseKey', key);
+      if (d.instance && d.instance.id) localStorage.setItem('looperInstanceId', d.instance.id);
+      setPremium(true);
+      return { ok:true, msg:'Premium unlocked — thank you!' };
+    }
+    return { ok:false, msg: (d.error || 'That key could not be activated (it may have hit its device limit).') };
+  } catch(e) { return { ok:false, msg:'Network error — please try again.' }; }
+}
+
+// Re-check a stored license on load so a refunded/expired/disabled key locks Premium again.
+async function validateStoredLicense() {
+  const key = localStorage.getItem('looperLicenseKey');
+  if (!key) return;
+  const instId = localStorage.getItem('looperInstanceId');
+  try {
+    const r = await fetch('https://api.lemonsqueezy.com/v1/licenses/validate', {
+      method:'POST', headers:{'Accept':'application/json','Content-Type':'application/x-www-form-urlencoded'},
+      body: new URLSearchParams(Object.assign({ license_key:key }, instId ? { instance_id:instId } : {}))
+    });
+    const d = await r.json();
+    const status = d.license_key && d.license_key.status;
+    // Owner always stays Premium — a test key going inactive can never lock the owner out.
+    if (d.valid === false || status === 'expired' || status === 'disabled') { if (localStorage.getItem('looperOwner') !== '1') setPremium(false); }
+    else setPremium(true);
+  } catch(e) { /* offline — keep last known state */ }
+}
+validateStoredLicense();
+function showPremiumPrompt(feature) {
+  let m = document.getElementById('premium-modal');
+  if (!m) {
+    m = document.createElement('div');
+    m.id = 'premium-modal';
+    m.style.cssText = 'position:fixed; inset:0; z-index:400; background:rgba(3,2,10,0.82); display:flex; align-items:center; justify-content:center;';
+    m.innerHTML = '<div style="background:linear-gradient(160deg,#140a26,#0a0612); border:1px solid rgba(192,132,252,0.5); border-radius:14px; padding:26px 30px; max-width:380px; text-align:center; box-shadow:0 0 40px rgba(124,58,237,0.4);">'
+      + '<div style="font-family:\'Orbitron\',sans-serif; font-size:1.1rem; color:#c084fc; margin-bottom:8px;">✨ PREMIUM</div>'
+      + '<div id="premium-feature" style="color:#fff; font-size:0.85rem; margin-bottom:6px;"></div>'
+      + '<div style="color:var(--dim); font-size:0.72rem; line-height:1.6; margin-bottom:18px;">Unlocks stem separation, slow-downer, transpose/capo, unlimited setlists, chord export, and Spotify — the full practice toolkit.</div>'
+      + '<div style="display:flex; gap:8px; justify-content:center; margin-bottom:14px;">'
+      +   '<button class="btn accent" id="premium-yearly" style="padding:9px 14px; font-size:0.7rem;">Yearly · $39.99 <span style="opacity:.75">save 33%</span></button>'
+      +   '<button class="btn" id="premium-monthly" style="padding:9px 14px; font-size:0.7rem;">Monthly · $4.99</button>'
+      + '</div>'
+      + '<div style="border-top:1px solid rgba(192,132,252,0.2); padding-top:12px;">'
+      +   '<div style="color:var(--dim); font-size:0.68rem; margin-bottom:6px;">Already bought? Paste your license key:</div>'
+      +   '<div style="display:flex; gap:6px;">'
+      +     '<input id="premium-license-input" placeholder="XXXXXXXX-XXXX-XXXX-..." autocomplete="off" style="flex:1; min-width:0; background:rgba(255,255,255,0.06); border:1px solid rgba(192,132,252,0.3); border-radius:6px; color:#fff; padding:7px 9px; font-size:0.72rem;">'
+      +     '<button class="btn" id="premium-activate" style="padding:7px 12px; font-size:0.7rem; white-space:nowrap;">Unlock</button>'
+      +   '</div>'
+      +   '<div id="premium-license-msg" style="font-size:0.66rem; margin-top:7px; min-height:14px;"></div>'
+      + '</div>'
+      + '<button class="btn" id="premium-close" style="padding:7px 14px; font-size:0.68rem; margin-top:6px;">Maybe later</button>'
+      + '</div>';
+    document.body.appendChild(m);
+    m.addEventListener('click', e => { if (e.target === m) m.style.display = 'none'; });
+    m.querySelector('#premium-close').onclick = () => { m.style.display = 'none'; };
+    m.querySelector('#premium-yearly').onclick = () => openCheckout();
+    m.querySelector('#premium-monthly').onclick = () => openCheckout();
+    const _act = m.querySelector('#premium-activate');
+    const _inp = m.querySelector('#premium-license-input');
+    const _msg = m.querySelector('#premium-license-msg');
+    _act.onclick = async () => {
+      _act.disabled = true; _msg.style.color = 'var(--dim)'; _msg.textContent = 'Checking…';
+      const res = await activateLicense(_inp.value);
+      _msg.style.color = res.ok ? '#22c55e' : '#ff6b6b'; _msg.textContent = res.msg;
+      _act.disabled = false;
+      if (res.ok) setTimeout(() => { m.style.display = 'none'; location.reload(); }, 1000);
+    };
+    _inp.addEventListener('keydown', e => { if (e.key === 'Enter') _act.click(); });
+  }
+  m.querySelector('#premium-feature').textContent = (feature || 'This') + ' is a Premium feature.';
+  m.style.display = 'flex';
+}
+
+async function enterSpotifyMode() {
+  if (!requirePremium('Spotify')) return;
+  if (!(await spotifyToken())) { spotifyLogin(); return; }
+  playSource = 'spotify';
+  document.getElementById('landing-gate').style.display = 'none';
+  document.getElementById('main-dashboard').style.display = 'grid';
+  document.getElementById('sp-browser').style.display = 'flex';
+  const wfw = document.getElementById('waveform-wrap'); if (wfw) wfw.style.display = 'none';
+  const su = document.getElementById('sp-user'); if (su) su.textContent = window.spotifyUser ? (window.spotifyUser.display_name || '') : '';
+  setTimeout(setupRibbon, 80);
+  loadSpotifySDK();
+  loadMyPlaylists();
+  startSpotifyLoop();
+}
+function exitSpotifyMode() {
+  playSource = 'file';
+  stopSpotifyLoop();
+  document.getElementById('sp-browser').style.display = 'none';
+  document.getElementById('sp-nowplaying').style.display = 'none';
+  const wfw = document.getElementById('waveform-wrap'); if (wfw) wfw.style.display = '';
+  document.getElementById('main-dashboard').style.display = 'none';
+  document.getElementById('landing-gate').style.display = '';
+}
+// Poll Spotify's true position ~every 0.7s to correct drift; interpolate with performance.now()
+// between polls for smooth scrolling. Drives the stage + scrubber off playTime().
+function startSpotifyLoop() {
+  stopSpotifyLoop();
+  const poll = async () => {
+    if (playSource !== 'spotify') return;
+    if (spPlayer) {
+      try {
+        const st = await spPlayer.getCurrentState();
+        if (st) {
+          spPosBase = st.position; spStamp = performance.now(); spDur = st.duration; spPlaying = !st.paused;
+          if (st.track_window && st.track_window.current_track) spCurUri = st.track_window.current_track.uri;
+        }
+      } catch (e) {}
+    }
+    spPollT = setTimeout(poll, 700);
+  };
+  poll();
+  const draw = () => {
+    if (playSource !== 'spotify') { spRAF = null; return; }
+    const t = playTime();
+    window.__stageDirty = true; try { renderStage(t); } catch (e) {}
+    const sc = document.getElementById('scrubber'), cur = document.getElementById('scrub-current'), tot = document.getElementById('scrub-total');
+    if (sc && spDur) { sc.max = (spDur / 1000).toFixed(2); sc.value = t.toFixed(2); }
+    if (cur) cur.textContent = fmt(t);
+    if (tot && spDur) tot.textContent = fmt(spDur / 1000);
+    spRAF = requestAnimationFrame(draw);
+  };
+  spRAF = requestAnimationFrame(draw);
+}
+function stopSpotifyLoop() { if (spRAF) cancelAnimationFrame(spRAF); spRAF = null; if (spPollT) clearTimeout(spPollT); spPollT = null; }
+
+// === YouTube engine (Phase 1: playback + loop + stage sync; chords/BPM come from the analysis service in Phase 2) ===
+let ytPlayer = null, ytApiLoading = false, ytRAF = null, ytLoopOn = false, ytLoopA = 0, ytLoopB = 0, ytCurId = null;
+function ytExtractId(u) {
+  u = (u || '').trim();
+  const m = u.match(/(?:v=|youtu\.be\/|embed\/|shorts\/|live\/)([\w-]{11})/);
+  if (m) return m[1];
+  if (/^[\w-]{11}$/.test(u)) return u;
+  return null;
+}
+function loadYouTubeAPI(cb) {
+  if (window.YT && window.YT.Player) { cb && cb(); return; }
+  const prev = window.onYouTubeIframeAPIReady;
+  window.onYouTubeIframeAPIReady = () => { if (typeof prev === 'function') try { prev(); } catch (e) {} cb && cb(); };
+  if (!ytApiLoading && !document.getElementById('yt-iframe-api')) {
+    ytApiLoading = true;
+    const s = document.createElement('script'); s.id = 'yt-iframe-api'; s.src = 'https://www.youtube.com/iframe_api'; document.head.appendChild(s);
+  }
+}
+function enterYouTubeMode() {
+  playSource = 'youtube';
+  document.getElementById('landing-gate').style.display = 'none';
+  document.getElementById('main-dashboard').style.display = 'grid';
+  document.getElementById('yt-browser').style.display = 'flex';
+  const spb = document.getElementById('sp-browser'); if (spb) spb.style.display = 'none';
+  const wfw = document.getElementById('waveform-wrap'); if (wfw) wfw.style.display = 'none';
+  setTimeout(setupRibbon, 80);
+  loadYouTubeAPI();
+  renderYtSaved();
+}
+function exitYouTubeMode() {
+  playSource = 'file';
+  stopYouTubeLoop();
+  if (ytPlayer && ytPlayer.pauseVideo) try { ytPlayer.pauseVideo(); } catch (e) {}
+  document.getElementById('yt-browser').style.display = 'none';
+  const wfw = document.getElementById('waveform-wrap'); if (wfw) wfw.style.display = '';
+  document.getElementById('main-dashboard').style.display = 'none';
+  document.getElementById('landing-gate').style.display = '';
+}
+function isVideoStudio() { const v = document.getElementById('opt-video'); return !!(v && v.classList.contains('active')); }
+// Configurable Phase-2 analysis-server base (set once live: localStorage.looperApi = 'https://your-box'). Empty = not live yet.
+// On the tailnet preview, auto-connect to the dev engine so search/audio just work; public domain stays clean (set localStorage.looperApi to override either way).
+const LOOPER_API = (localStorage.getItem('looperApi') || (location.hostname.endsWith('.ts.net') ? 'http://hermes-vps.tail2f597b.ts.net:8097' : '')).replace(/\/$/, '');
+// AUDIO mode: the server pulls the song's audio → we load it into the SAME MP3 pipeline (real waveform,
+// auto-BPM, auto-chords, sample-precise loop). No YouTube player → no embedding restriction at all.
+function ytPlayVideo(id) {
+  ytCurId = id;
+  const box = document.getElementById('yt-results'); if (box) box.style.display = 'none';
+  loadYouTubeAPI(() => {
+    if (!ytPlayer) {
+      ytPlayer = new YT.Player('yt-player', {
+        height: '180', width: '320', videoId: id,
+        playerVars: { playsinline: 1, modestbranding: 1, rel: 0 },
+        events: { onReady: e => { e.target.playVideo(); startYouTubeLoop(); } }
+      });
+    } else { ytPlayer.loadVideoById(id); startYouTubeLoop(); }
+  });
+}
+// AUDIO mode wants the song as a waveform (needs the engine + cookies). Until that's live, gracefully
+// fall back to playing the VIDEO so clicking a result NEVER dead-ends on a 503.
+async function loadYouTubeAudioAsWaveform(id) {
+  const status = document.getElementById('bpm-detect-status');
+  try {
+    if (!LOOPER_API) throw new Error('no engine');
+    if (status) status.textContent = 'Pulling YouTube audio…';
+    const r = await fetch(LOOPER_API + '/audio?v=' + encodeURIComponent(id));
+    if (!r.ok) throw new Error('engine ' + r.status);
+    const blob = await r.blob();
+    const file = new File([blob], 'youtube-' + id + '.m4a', { type: blob.type || 'audio/mp4' });
+    if (status) status.textContent = '';
+    window.__ytVideoId = id;   // tag the source so its analysis is cached/reused
+    initMediaPipeline(file);   // full waveform + auto-chords + auto-BPM + loop + metronome, exactly like an MP3
+  } catch (e) {
+    // No audio yet → DON'T dump the bulky video into Audio mode. Be honest about the one unlock.
+    if (status) status.textContent = '';
+    alert('🎵 Audio mode turns a YouTube song into a WAVEFORM — with loop, metronome and auto-chords. That needs the song\'s actual audio, which requires the one-time cookie unlock on the engine.\n\nUntil then:\n  • VIDEO STUDIO → play/watch it now\n  • or drop an MP3 for the full looper\n\nDo the 2-minute cookie step and Audio mode lights up completely.');
+  }
+}
+function ytPlayId(id) {
+  if (!id) return;
+  ytCurId = id;
+  if (!isVideoStudio()) { loadYouTubeAudioAsWaveform(id); return; }  // AUDIO: try waveform, else video
+  ytPlayVideo(id);                                                    // VIDEO STUDIO: the actual video
+}
+function ytLoad() {
+  const id = ytExtractId(document.getElementById('yt-url').value);
+  if (!id) { alert('Paste a YouTube link (youtube.com/watch?v=… or youtu.be/…) or the 11-character video ID.'); return; }
+  window.__ytTitle = '';
+  ytPlayId(id);
+}
+// Spotify-style search: type a song → list of best-match videos → click to play. Uses the engine (no API key/quota).
+async function youtubeSearch(q) {
+  q = (q || '').trim(); if (!q) return;
+  const box = document.getElementById('yt-results'); box.style.display = 'flex';
+  if (!LOOPER_API) { box.innerHTML = '<div style="color:var(--dim);font-size:0.7rem;">🚧 YouTube search is coming soon. For now, drop an MP3 or audio file on the home screen — full chords, loops & metronome work today.</div>'; return; }
+  box.innerHTML = '<div style="color:var(--dim);font-size:0.7rem;">Searching YouTube…</div>';
+  try {
+    const r = await fetch(LOOPER_API + '/search?q=' + encodeURIComponent(q) + '&n=8');
+    const d = await r.json();
+    renderYtResults(d.results || []);
+  } catch (e) { box.innerHTML = '<div style="color:var(--dim);font-size:0.7rem;">Search error: ' + e.message + '</div>'; }
+}
+function renderYtResults(items) {
+  const box = document.getElementById('yt-results'); box.style.display = 'flex'; box.innerHTML = '';
+  if (!items.length) { box.innerHTML = '<div style="color:var(--dim);font-size:0.7rem;">No results.</div>'; return; }
+  items.forEach(it => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:5px;border-radius:6px;background:rgba(255,255,255,0.04);';
+    const main = document.createElement('div');
+    main.style.cssText = 'display:flex;gap:8px;align-items:center;flex:1;overflow:hidden;cursor:pointer;';
+    main.innerHTML = '<img src="' + (it.thumb || '') + '" style="width:54px;height:30px;object-fit:cover;border-radius:3px;background:#222;flex-shrink:0;"><div style="overflow:hidden;flex:1;"><div style="color:#fff;font-size:0.7rem;font-weight:600;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;">' + it.title + '</div><div style="color:var(--dim);font-size:0.58rem;">' + (it.channel || '') + (it.duration ? (' · ' + fmt(it.duration)) : '') + '</div></div>';
+    main.onclick = () => ytPickResult(it);
+    const star = document.createElement('button'); star.className = 'btn'; star.style.cssText = 'padding:3px 8px;font-size:0.6rem;flex-shrink:0;'; star.textContent = '★'; star.title = 'Save to My YouTube Songs';
+    star.onclick = (e) => { e.stopPropagation(); saveYouTubeSong(it); };
+    row.appendChild(main); row.appendChild(star);
+    box.appendChild(row);
+  });
+}
+// Clicking a result gives INSTANT feedback (the first-time audio pull takes ~10s), then loads it.
+function ytPickResult(it) {
+  const box = document.getElementById('yt-results');
+  if (box && !isVideoStudio()) {
+    box.innerHTML = '<div style="padding:14px; color:var(--cyan); font-size:0.74rem; line-height:1.6;">⏳ Loading <b>' + (it.title || 'song') + '</b><br><span style="color:var(--dim);font-size:0.66rem;">pulling &amp; analyzing the audio — ~10s the first time, instant after…</span></div>';
+  }
+  window.__ytTitle = it.title || '';   // remember the title so saved loops can name + relink the song
+  ytPlayId(it.id);
+}
+// Your own saved YouTube songs (a quick library) — persists in the browser, click a chip to reload directly.
+function savedYt() { try { return JSON.parse(localStorage.getItem('looperYtSaved') || '[]'); } catch (e) { return []; } }
+function saveYouTubeSong(it) {
+  const list = savedYt();
+  if (!list.some(s => s.id === it.id)) { list.unshift({ id: it.id, title: it.title }); localStorage.setItem('looperYtSaved', JSON.stringify(list.slice(0, 40))); }
+  renderYtSaved();
+}
+function renderYtSaved() {
+  const box = document.getElementById('yt-saved'); if (!box) return;
+  const list = savedYt();
+  if (!list.length) { box.style.display = 'none'; return; }
+  box.style.display = 'flex'; box.innerHTML = '<span style="font-size:0.55rem;color:var(--dim);">★ SAVED:</span>';
+  list.forEach(s => {
+    const chip = document.createElement('span');
+    chip.style.cssText = 'display:inline-flex;align-items:center;gap:5px;background:rgba(124,58,237,0.18);border:1px solid rgba(147,51,234,0.4);border-radius:12px;padding:3px 9px;font-size:0.62rem;color:#fff;cursor:pointer;max-width:170px;';
+    chip.innerHTML = '<span style="overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">' + s.title + '</span>';
+    chip.onclick = () => ytPickResult(s);
+    const x = document.createElement('span'); x.textContent = '✕'; x.style.cssText = 'color:var(--dim);font-size:0.55rem;flex-shrink:0;';
+    x.onclick = (e) => { e.stopPropagation(); localStorage.setItem('looperYtSaved', JSON.stringify(savedYt().filter(z => z.id !== s.id))); renderYtSaved(); };
+    chip.appendChild(x); box.appendChild(chip);
+  });
+}
+function startYouTubeLoop() {
+  stopYouTubeLoop();
+  const tick = () => {
+    if (playSource !== 'youtube' || !ytPlayer || !ytPlayer.getCurrentTime) { ytRAF = null; return; }
+    const t = ytPlayer.getCurrentTime() || 0;
+    if (ytLoopOn && ytLoopB > ytLoopA && t >= ytLoopB) { ytPlayer.seekTo(ytLoopA, true); }
+    window.__stageDirty = true; try { renderStage(t); } catch (e) {}
+    const dur = ytPlayer.getDuration ? (ytPlayer.getDuration() || 0) : 0;
+    const sc = document.getElementById('scrubber'), cur = document.getElementById('scrub-current'), tot = document.getElementById('scrub-total');
+    if (sc && dur) { sc.max = dur.toFixed(2); sc.value = t.toFixed(2); }
+    if (cur) cur.textContent = fmt(t);
+    if (tot && dur) tot.textContent = fmt(dur);
+    ytRAF = requestAnimationFrame(tick);
+  };
+  ytRAF = requestAnimationFrame(tick);
+}
+function stopYouTubeLoop() { if (ytRAF) cancelAnimationFrame(ytRAF); ytRAF = null; }
+async function spotifySearch(q) {
+  const t = await spotifyToken(); if (!t || !q) return;
+  const url = 'https://api.spotify.com/v1/search?type=track,playlist&market=from_token&limit=18&q=' + encodeURIComponent(q);
+  let r = await fetch(url, { headers: { Authorization: 'Bearer ' + t } });
+  if (r.status === 429) {
+    const wait = Math.min((+r.headers.get('retry-after') || 1) * 1000, 3000);
+    document.getElementById('sp-results').innerHTML = '<div style="color:var(--dim)">Spotify is busy — retrying…</div>';
+    await new Promise(rr => setTimeout(rr, wait));
+    r = await fetch(url, { headers: { Authorization: 'Bearer ' + t } });
+  }
+  if (!r.ok) { document.getElementById('sp-results').innerHTML = '<div style="color:var(--dim)">Search hiccup — try again in a moment.</div>'; return; }
+  const d = await r.json(); const items = [];
+  ((d.tracks && d.tracks.items) || []).filter(Boolean).forEach(tr => items.push({ uri: tr.uri, ctx: false, name: tr.name, sub: (tr.artists || []).map(a => a.name).join(', '), art: (tr.album && tr.album.images && tr.album.images[2] || {}).url }));
+  ((d.playlists && d.playlists.items) || []).filter(Boolean).forEach(pl => items.push({ uri: pl.uri, id: pl.id, ctx: true, name: pl.name, sub: '▶ Playlist · ' + ((pl.tracks && pl.tracks.total) || 0) + ' songs', art: (pl.images && pl.images[0] || {}).url }));
+  renderSpotifyResults(items);
+}
+// Populate BOTH the dropdown (quick jump) and the results list with the user's playlists.
+async function loadMyPlaylists() {
+  const t = await spotifyToken(); if (!t) return;
+  const r = await fetch('https://api.spotify.com/v1/me/playlists?limit=50', { headers: { Authorization: 'Bearer ' + t } });
+  const d = await r.json();
+  const pls = ((d.items) || []).filter(Boolean);
+  const sel = document.getElementById('sp-pl-select');
+  if (sel) {
+    sel.innerHTML = '<option value="">★ My Playlists (' + pls.length + ')…</option>';
+    pls.forEach(pl => { const o = document.createElement('option'); o.value = pl.id; o.textContent = pl.name + '  ·  ' + ((pl.tracks && pl.tracks.total) || 0) + ' songs'; sel.appendChild(o); });
+  }
+  renderSpotifyResults(pls.map(pl => ({ uri: pl.uri, id: pl.id, ctx: true, name: pl.name, sub: '▶ Playlist · ' + ((pl.tracks && pl.tracks.total) || 0) + ' songs', art: (pl.images && pl.images[0] || {}).url })));
+}
+// Open one playlist → list its songs so you can sort/choose them.
+async function loadPlaylistTracks(id) {
+  const t = await spotifyToken(); if (!t || !id) return;
+  const c = document.getElementById('sp-results'); c.innerHTML = '<div style="color:var(--dim);font-size:0.7rem;">Loading songs…</div>';
+  // Use the full playlist object (the /tracks sub-endpoint 403s for Development-mode apps).
+  const r = await fetch('https://api.spotify.com/v1/playlists/' + id + '?market=from_token', { headers: { Authorization: 'Bearer ' + t } });
+  const d = await r.json();
+  const raw = (d.tracks && d.tracks.items) || [];
+  const items = raw.map(it => it.track).filter(Boolean).map(tr => ({ uri: tr.uri, ctx: false, name: tr.name, sub: (tr.artists || []).map(a => a.name).join(', '), art: (tr.album && tr.album.images && tr.album.images[2] || {}).url, dur: tr.duration_ms }));
+  if (!items.length) {
+    // Spotify strips playlist track data from Development-mode apps (2025 policy) — be honest, not broken.
+    c.innerHTML = '<div style="color:var(--dim);font-size:0.68rem;line-height:1.6;">Spotify won\'t share this playlist\'s songs with the app — their 2025 API policy blocks playlist contents for non-approved apps.<br>Use <b style="color:#1DB954;">Search</b> above to find a song and play it directly.</div>';
+    return;
+  }
+  renderSpotifyResults(items);
+}
+function renderSpotifyResults(items) {
+  const c = document.getElementById('sp-results'); c.innerHTML = '';
+  if (!items.length) { c.innerHTML = '<div style="color:var(--dim);font-size:0.7rem;">Nothing here.</div>'; return; }
+  items.forEach(it => {
+    const row = document.createElement('div');
+    row.style.cssText = 'background:rgba(255,255,255,0.04); border:1px solid var(--border); border-radius:8px; padding:7px; cursor:pointer; display:flex; gap:8px; align-items:center;';
+    row.innerHTML = '<img src="' + (it.art || '') + '" style="width:34px;height:34px;border-radius:4px;object-fit:cover;background:#222;"><div style="overflow:hidden;flex:1;"><div style="color:#fff;font-size:0.72rem;font-weight:600;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;">' + it.name + '</div><div style="color:var(--dim);font-size:0.6rem;">' + it.sub + '</div></div>';
+    if (it.ctx) {
+      const open = document.createElement('button'); open.className = 'btn'; open.style.cssText = 'padding:3px 8px;font-size:0.55rem;'; open.textContent = 'OPEN ▸';
+      open.onclick = (e) => { e.stopPropagation(); loadPlaylistTracks(it.id || (it.uri || '').split(':').pop()); };
+      row.appendChild(open);
+      row.onclick = () => loadPlaylistTracks(it.id || (it.uri || '').split(':').pop());
+    } else {
+      const play = document.createElement('button'); play.className = 'btn'; play.style.cssText = 'padding:3px 8px;font-size:0.55rem;'; play.textContent = '▶';
+      play.onclick = (e) => { e.stopPropagation(); spotifyPlay(it.uri, false); };
+      const q = document.createElement('button'); q.className = 'btn'; q.style.cssText = 'padding:3px 8px;font-size:0.55rem;'; q.textContent = '＋'; q.title = 'Add to queue';
+      q.onclick = (e) => { e.stopPropagation(); spQueueAdd(it); };
+      row.appendChild(play); row.appendChild(q);
+      row.onclick = () => spotifyPlay(it.uri, false);
+    }
+    c.appendChild(row);
+  });
+}
+// Queue: visual list + Spotify's real playback queue (so they actually play in order).
+async function spQueueAdd(it) {
+  spQueue.push(it); renderQueue();
+  const t = await spotifyToken();
+  if (t && it.uri) fetch('https://api.spotify.com/v1/me/player/queue?uri=' + encodeURIComponent(it.uri) + (spDeviceId ? ('&device_id=' + spDeviceId) : ''), { method: 'POST', headers: { Authorization: 'Bearer ' + t } }).catch(() => {});
+}
+function renderQueue() {
+  const c = document.getElementById('sp-queue'); if (!c) return; c.innerHTML = '';
+  if (!spQueue.length) { c.innerHTML = '<div style="color:var(--dim);font-size:0.6rem;">empty</div>'; return; }
+  spQueue.forEach((it, i) => {
+    const r = document.createElement('div'); r.style.cssText = 'font-size:0.62rem;color:#fff;display:flex;gap:4px;align-items:center;';
+    r.innerHTML = '<span style="flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">' + (i + 1) + '. ' + it.name + '</span>';
+    const x = document.createElement('button'); x.className = 'btn'; x.style.cssText = 'padding:1px 5px;font-size:0.5rem;'; x.textContent = '✕';
+    x.onclick = () => { spQueue.splice(i, 1); renderQueue(); };
+    r.appendChild(x); c.appendChild(r);
+  });
+}
+async function spotifyPlay(uri, isContext) {
+  const t = await spotifyToken(); if (!t) return;
+  if (!spDeviceId) await new Promise(r => setTimeout(r, 1000));
+  const body = isContext ? { context_uri: uri } : { uris: [uri] };
+  const res = await fetch('https://api.spotify.com/v1/me/player/play' + (spDeviceId ? ('?device_id=' + spDeviceId) : ''), { method: 'PUT', headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (res.status === 404) alert('No active Spotify device yet — give it a second after connecting, then tap a song again.');
+}
+function updateSpotifyNowPlaying(state) {
+  const tr = state.track_window && state.track_window.current_track; if (!tr) return;
+  document.getElementById('sp-nowplaying').style.display = 'flex';
+  document.getElementById('sp-np-title').textContent = tr.name;
+  document.getElementById('sp-np-artist').textContent = tr.artists.map(a => a.name).join(', ');
+  document.getElementById('sp-np-art').src = (tr.album && tr.album.images && tr.album.images[0] || {}).url || '';
+}
+document.getElementById('btn-use-spotify').addEventListener('click', enterSpotifyMode);
+document.getElementById('sp-close').addEventListener('click', exitSpotifyMode);
+document.getElementById('sp-search-btn').addEventListener('click', () => spotifySearch(document.getElementById('sp-search').value));
+document.getElementById('sp-search').addEventListener('keydown', e => { if (e.key === 'Enter') spotifySearch(e.target.value); });
+document.getElementById('sp-myplaylists').addEventListener('click', loadMyPlaylists);
+document.getElementById('sp-pl-select').addEventListener('change', e => { if (e.target.value) loadPlaylistTracks(e.target.value); });
+document.getElementById('sp-queue-clear').addEventListener('click', () => { spQueue = []; renderQueue(); });
+document.getElementById('btn-use-youtube').addEventListener('click', enterYouTubeMode);
+document.getElementById('yt-load').addEventListener('click', ytLoad);
+document.getElementById('yt-url').addEventListener('keydown', e => { if (e.key === 'Enter') ytLoad(); });
+document.getElementById('yt-search-btn').addEventListener('click', () => youtubeSearch(document.getElementById('yt-search').value));
+document.getElementById('yt-search').addEventListener('keydown', e => { if (e.key === 'Enter') youtubeSearch(e.target.value); });
+document.getElementById('yt-close').addEventListener('click', exitYouTubeMode);
+document.getElementById('yt-play').addEventListener('click', () => { if (ytPlayer && ytPlayer.playVideo) ytPlayer.playVideo(); });
+document.getElementById('yt-pause').addEventListener('click', () => { if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo(); });
+document.getElementById('yt-in').addEventListener('click', () => { if (ytPlayer && ytPlayer.getCurrentTime) { ytLoopA = ytPlayer.getCurrentTime() || 0; document.getElementById('yt-a').textContent = fmt(ytLoopA); } });
+document.getElementById('yt-out').addEventListener('click', () => { if (ytPlayer && ytPlayer.getCurrentTime) { ytLoopB = ytPlayer.getCurrentTime() || 0; document.getElementById('yt-b').textContent = fmt(ytLoopB); } });
+document.getElementById('yt-loop').addEventListener('click', e => { ytLoopOn = !ytLoopOn; e.target.textContent = ytLoopOn ? '⟳ LOOP ON' : '⟳ LOOP OFF'; e.target.classList.toggle('accent', ytLoopOn); });
+document.getElementById('sp-playpause').addEventListener('click', () => { if (spPlayer) spPlayer.togglePlay(); });
+document.getElementById('sp-prev').addEventListener('click', () => { if (spPlayer) spPlayer.previousTrack(); });
+document.getElementById('sp-next').addEventListener('click', () => { if (spPlayer) spPlayer.nextTrack(); });
+
+document.getElementById('btn-spotify-connect').addEventListener('click', async () => { if (!requirePremium('Spotify')) return; (await spotifyToken()) ? enterSpotifyMode() : spotifyLogin(); });
+(async () => {
+  const p = new URLSearchParams(location.search);
+  if (p.get('code')) { const ok = await spotifyExchangeCode(p.get('code')); history.replaceState({}, '', location.pathname); await spotifyUpdateUI(); if (ok) enterSpotifyMode(); return; }
+  spotifyUpdateUI();
+})();
+
+// --- Debug hook (lets an automated browser measure sync precisely; harmless in prod) ---
+window.__looper = {
+  loadUrl: async (url) => { const r = await fetch(url); const b = await r.blob(); const f = new File([b], 'test.wav', {type:'audio/wav'}); await initMediaPipeline(f); },
+  waitBeats: async (ms=9000) => { const t0=Date.now(); while(Date.now()-t0<ms){ if(beatTicks.length>4) return true; await new Promise(r=>setTimeout(r,150)); } return beatTicks.length>4; },
+  state: () => ({ essentiaLoaded: !!window.__essentia, nTicks: beatTicks.length, firstTicks: beatTicks.slice(0,10).map(t=>+t.toFixed(3)), bpm: detectedBpm, conf: +(beatConfidence||0).toFixed(2), sharedAudio: sharedAudioWired, outputLatency: audioCtx?+(audioCtx.outputLatency||0).toFixed(4):null, baseLatency: audioCtx?+(audioCtx.baseLatency||0).toFixed(4):null, ctxState: audioCtx?audioCtx.state:null, sampleRate: audioCtx?audioCtx.sampleRate:null, latencyCalMs }),
+  play: () => { if(ws){ ws.play(); } isMetroPlaying=true; metroFollowSong=true; updateMetroEngine(); },
+  // Measure: at the current instant, how far is the projected click position from the real song position?
+  probe: () => ({ cur: ws?+ws.getCurrentTime().toFixed(4):null, nowMedia:+nowMedia().toFixed(4), nextBeatIdx, anchorMedia:+anchorMedia.toFixed(4), anchorAudio:+anchorAudio.toFixed(4), ctxNow:+audioCtx.currentTime.toFixed(4), playing: ws?ws.isPlaying():false, schedulerOn: !!syncScheduler })
+};
 </script>
 <p style="font-size: 10px; color: gray;">BPM Data provided by <a href="https://getsongbpm.com/" target="_blank" rel="noopener">GetSongBPM</a></p>
 </body>

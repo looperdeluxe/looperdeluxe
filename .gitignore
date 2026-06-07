@@ -1,0 +1,16 @@
+# Dev artifacts — never ship
+bass-premium-mockup.html
+stage-mockup.html
+stage-capo-input
+test-*.wav
+test_debug.txt
+*.bak
+.DS_Store
+
+# Dead in-browser stem engine (we use the cloud GPU now; stem-mixer.js stays for playback).
+# Big binaries bloat the repo and aren't loaded while the feature is gated.
+stem-engine/demucs_free.wasm
+stem-engine/demucs_free.js
+stem-engine/demucs-ggml-worker.js
+stem-engine/WavFileEncoder.js
+stem-engine/*.bin
