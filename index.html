@@ -1069,14 +1069,15 @@
         <div id="sp-browser" style="display:none; flex-direction:column; gap:8px; margin:6px 0 10px;">
           <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <span style="color:#1DB954; font-family:'Orbitron',sans-serif; font-size:0.7rem;">🟢 SPOTIFY</span>
-            <select id="sp-pl-select" class="cyber-input" style="padding:7px; min-width:170px; max-width:240px;"><option value="">★ My Playlists…</option></select>
-            <input type="text" id="sp-search" class="cyber-input" placeholder="Search songs / artists…" style="flex:1; min-width:150px; padding:7px;">
-            <button class="btn" id="sp-search-btn" style="padding:6px 12px; font-size:0.6rem;">SEARCH</button>
-            <button class="btn" id="sp-myplaylists" style="padding:6px 12px; font-size:0.6rem;">★ PLAYLISTS</button>
+            <select id="sp-pl-select" class="cyber-input" style="display:none;"><option value="">★ My Playlists…</option></select>
+            <input type="text" id="sp-search" class="cyber-input" placeholder="Search any song or artist…" style="flex:1; min-width:180px; padding:7px;">
+            <button class="btn" id="sp-search-btn" style="padding:6px 14px; font-size:0.6rem;">SEARCH</button>
+            <button id="sp-myplaylists" style="display:none;"></button>
+            <button class="btn" id="sp-reconnect" title="Log out and re-connect Spotify (fixes search errors)" style="padding:6px 10px; font-size:0.55rem; color:#1DB954; border-color:#1DB954;">↻ RECONNECT</button>
             <button class="btn" id="sp-close" style="padding:6px 12px; font-size:0.6rem; margin-left:auto; color:var(--cyan);">✕ FILE MODE</button>
           </div>
           <div style="display:flex; gap:10px;">
-            <div id="sp-results" style="flex:1; max-height:210px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;"><div style="color:var(--dim); font-size:0.7rem;">Pick a playlist above, or search — then click a song to load it into the looper.</div></div>
+            <div id="sp-results" style="flex:1; max-height:210px; overflow-y:auto; display:flex; flex-direction:column; gap:6px;"><div style="color:var(--dim); font-size:0.7rem;">Search any song or artist above, then click a result to play it. <span style="color:#1DB954;">Tip:</span> if search errors, hit ↻ Reconnect.</div></div>
             <div style="width:190px; flex-shrink:0; border-left:1px solid var(--border); padding-left:10px;">
               <div style="font-size:0.6rem; color:var(--dim); display:flex; justify-content:space-between; align-items:center;">QUEUE <button class="btn" id="sp-queue-clear" style="padding:2px 6px; font-size:0.5rem;">CLEAR</button></div>
               <div id="sp-queue" style="max-height:180px; overflow-y:auto; display:flex; flex-direction:column; gap:4px; margin-top:5px;"></div>
@@ -3843,6 +3844,8 @@ document.getElementById('sp-search-btn').addEventListener('click', () => spotify
 document.getElementById('sp-search').addEventListener('keydown', e => { if (e.key === 'Enter') spotifySearch(e.target.value); });
 document.getElementById('sp-myplaylists').addEventListener('click', loadMyPlaylists);
 document.getElementById('sp-pl-select').addEventListener('change', e => { if (e.target.value) loadPlaylistTracks(e.target.value); });
+// Re-connect: clear the old token and log in fresh (fixes 400/401 search errors from a stale token).
+(function(){ const b=document.getElementById('sp-reconnect'); if(b) b.addEventListener('click', () => { ['sp_token','sp_refresh','sp_expires'].forEach(k=>localStorage.removeItem(k)); const r=document.getElementById('sp-results'); if(r) r.innerHTML='<div style="color:var(--dim);font-size:0.7rem;">Re-connecting Spotify…</div>'; spotifyLogin(); }); })();
 document.getElementById('sp-queue-clear').addEventListener('click', () => { spQueue = []; renderQueue(); });
 document.getElementById('btn-use-youtube').addEventListener('click', enterYouTubeMode);
 document.getElementById('yt-load').addEventListener('click', ytLoad);
