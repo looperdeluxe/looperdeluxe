@@ -940,6 +940,28 @@
       background: rgba(147, 51, 234, 0.15);
       border: 1px solid rgba(147, 51, 234, 0.3);
     }
+
+    /* ===== RESPONSIVE: on narrow / half-width / phone, STACK everything and let the PAGE scroll
+       (instead of cramming into one fixed 100vh screen) — so nothing ever overlaps. ===== */
+    @media (max-width: 920px) {
+      html, body { height: auto; overflow-y: auto; overflow-x: hidden; }
+      #app-container { height: auto; min-height: 100vh; padding: 10px; }
+      .dashboard { grid-template-columns: 1fr; }            /* left + right stack vertically */
+      .workspace-left, .workspace-right { height: auto; overflow: visible; padding-right: 0; }
+      .workspace-right { min-height: 66vh; }                /* keep the stage/lyrics readable */
+      #particles { position: fixed; }
+    }
+    @media (max-width: 600px) {
+      #app-container { padding: 7px; }
+      .panel { padding: 11px; }
+      .transport, .transport-left { flex-wrap: wrap; gap: 6px; }
+      .deck-toggle-bar { flex-wrap: wrap; }
+      .instruction-grid-2x2 { grid-template-columns: 1fr; }  /* command cards stack 1-per-row */
+      .stage-now canvas { max-width: 100%; height: auto; }
+      .slider-container { min-width: 0; }
+      #lbl-gate-primary { font-size: 1.05rem; }
+      .landing-pick-row { grid-template-columns: 1fr; }
+    }
   </style>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="apple-touch-icon" href="favicon.png">
