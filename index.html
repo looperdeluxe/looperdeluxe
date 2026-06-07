@@ -1158,7 +1158,7 @@
         <div class="control-row">
           <div class="slider-container"><div class="slider-header"><span class="slider-label">SPEED GEAR</span><span id="val-tempo" class="slider-val">1.00x</span></div><input type="range" id="slider-tempo" min="0.25" max="1.0" step="0.01" value="1.0" /></div>
           <div class="slider-container"><div class="slider-header"><span class="slider-label">VOLUME OUT</span><span id="val-track-vol" class="slider-val">100%</span></div><input type="range" id="slider-track-vol" min="0" max="1" step="0.05" value="1" /></div>
-          <div class="slider-container"><div class="slider-header"><span class="slider-label">STEP UP</span><span id="val-step-inc" class="slider-val">0%</span></div><input type="range" id="slider-step-inc" min="0" max="20" step="1" value="0" /></div>
+          <div class="slider-container"><div class="slider-header"><span class="slider-label">STEP UP<span id="step-quota" style="font-size:0.5rem; color:var(--dim); font-weight:400;"></span></span><span id="val-step-inc" class="slider-val">0%</span></div><input type="range" id="slider-step-inc" min="0" max="20" step="1" value="0" /></div>
           <div class="slider-container"><div class="slider-header"><span class="slider-label">GAP DELAY</span><span id="val-gap" class="slider-val">0.0s</span></div><input type="range" id="slider-gap" min="0" max="10" step="0.5" value="0" /></div>
         </div>
         <div class="transport">
@@ -2168,6 +2168,20 @@ document.getElementById('matrix-engine-switch').addEventListener('click', () => 
 document.getElementById('slider-track-vol').addEventListener('input', (e) => { const v = parseFloat(e.target.value); document.getElementById('val-track-vol').innerText = Math.round(v * 100) + '%'; if (window.StemMixer && StemMixer.isReady()) { StemMixer.setMaster(v); } else if (ws) { ws.setVolume(v); } if (vNode) vNode.volume = v; });
 document.getElementById('slider-gap').addEventListener('input', (e) => { document.getElementById('val-gap').innerText = parseFloat(e.target.value).toFixed(1) + 's'; });
 document.getElementById('slider-step-inc').addEventListener('input', (e) => { document.getElementById('val-step-inc').innerText = e.target.value + '%'; });
+// Step-Up daily quota gate: engaging the trainer on a NEW song counts against the daily song cap.
+document.getElementById('slider-step-inc').addEventListener('change', (e) => {
+  const v = parseInt(e.target.value) || 0;
+  if (v <= 0) return;   // turning it off never costs anything
+  const q = checkStepUpQuota(true);
+  if (q !== true) {
+    e.target.value = 0; document.getElementById('val-step-inc').innerText = '0%';
+    const st = document.getElementById('chordget-status');
+    showTiers('Step-Up speed trainer (' + q.cap + ' songs/day on ' + (isPremium?'Premium':'Looper') + ')', isPremium ? 'pro' : 'premium');
+  } else {
+    updateStepUpLabel();
+  }
+});
+try { updateStepUpLabel(); } catch(e){}
 
 const fmt = (s) => { if (!s || isNaN(s)) return '0:00'; const m = Math.floor(s / 60); const sec = String(Math.floor(s % 60)).padStart(2, '0'); return `${m}:${sec}`; };
 
@@ -3671,10 +3685,33 @@ function setPro(v){ isPro = !!v; localStorage.setItem('looperPro', v ? '1' : '0'
 function requirePro(feature){ if (isPro) return true; showTiers(feature, 'pro'); return false; }
 const PRO_BETA = true;  // flip to false when Pro is finished + the Lemon Squeezy Pro product is live
 const TIERS = {
-  free:    { name:'Free',    price:'$0',                 color:'#9ca3af' },
+  free:    { name:'Looper',  price:'Free',                 color:'#9ca3af' },
   premium: { name:'Premium', price:'$4.99/mo · $39.99/yr', color:'#c084fc' },
-  pro:     { name:'Pro',     price:'$9.99/mo · $79.99/yr', color:'#fbbf24', beta:true },
+  pro:     { name:'Elite',   price:'$9.99/mo · $79.99/yr', color:'#fbbf24', beta:true },
 };
+
+// ===== STEP-UP daily quota (speed trainer). Metric = distinct songs/day you can use it on. =====
+// Looper(free) 3 · Premium 5 · Elite unlimited. Same song again is free; a NEW song counts.
+function _stepToday(){ const d=new Date(); return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate(); }
+function stepSongCap(){ return isPro ? Infinity : (isPremium ? 5 : 3); }
+function getStepUse(){ try{ const u=JSON.parse(localStorage.getItem('looperStepUse')||'{}'); if(u.date!==_stepToday()) return {date:_stepToday(), songs:[]}; if(!Array.isArray(u.songs)) u.songs=[]; return u; }catch(e){ return {date:_stepToday(), songs:[]}; } }
+function saveStepUse(u){ try{ localStorage.setItem('looperStepUse', JSON.stringify(u)); }catch(e){} }
+function currentStepSongId(){ try{ const k=(typeof currentSongInfo==='function')?currentSongInfo().key:''; if(k && k!=='song::') return k; }catch(e){} return window.__ytVideoId || window.__loadedSongName || (window.currentLoadedFile||'song'); }
+// returns true if allowed, else {blocked:true, cap} — and (if newSong) records the song when allowed.
+function checkStepUpQuota(record){
+  if (isPro) return true;
+  const u=getStepUse(); const sid=currentStepSongId(); const cap=stepSongCap();
+  if (u.songs.indexOf(sid) !== -1) return true;       // already counted today → continue free
+  if (u.songs.length >= cap) return { blocked:true, cap, used:u.songs.length };
+  if (record){ u.songs.push(sid); saveStepUse(u); updateStepUpLabel(); }
+  return true;
+}
+function updateStepUpLabel(){
+  const lbl=document.getElementById('step-quota'); if(!lbl) return;
+  if (isPro){ lbl.textContent=''; return; }
+  const u=getStepUse(); const cap=stepSongCap();
+  lbl.textContent = ' ('+Math.min(u.songs.length,cap)+'/'+cap+' songs today)';
+}
 // The comparison rows (label, free, premium, pro). '✓' / '—' / text.
 const TIER_ROWS = [
   ['Auto chords (7th-aware)', '✓','✓','✓'],
@@ -3684,7 +3721,7 @@ const TIER_ROWS = [
   ['Step-Up speed trainer', '✓','✓','✓'],
   ['Slow-downer + transpose/capo', '✓','✓','✓'],
   ['Setlists', 'basic','playlists','collaborative'],
-  ['Stem separation', '—','basic','Pro-grade + high quota'],
+  ['Stem separation', '—','basic','Elite-grade + high quota'],
   ['Isolate lead vs rhythm guitar', '—','—','✓'],
   ['Auto bass + guitar tabs', '—','—','✓'],
   ['Verified 100% chords', '—','—','✓'],
@@ -3708,7 +3745,7 @@ function showTiers(feature, highlight){
     let cta;
     if (key==='free') cta = '<div style="font-size:0.6rem;color:var(--dim);padding:8px;text-align:center;">Current base</div>';
     else if (key==='premium') cta = '<button class="btn accent" style="width:100%;padding:8px;font-size:0.65rem;" onclick="openCheckout()">Get Premium</button>';
-    else cta = '<button class="btn" disabled style="width:100%;padding:8px;font-size:0.6rem;opacity:0.7;cursor:default;">🚧 Pro — Beta (soon)</button>';
+    else cta = '<button class="btn" disabled style="width:100%;padding:8px;font-size:0.6rem;opacity:0.7;cursor:default;">🚧 Elite — Beta (soon)</button>';
     return '<div style="flex:1; min-width:150px; border:1px solid '+(hot?t.color:'rgba(255,255,255,0.1)')+'; border-radius:10px; overflow:hidden; '+(hot?'box-shadow:0 0 18px '+t.color+'55;':'')+'">'
       + '<div style="padding:9px 8px; text-align:center; background:'+t.color+'18;">'
       +   '<div style="font-family:\'Orbitron\',sans-serif; font-size:0.8rem; color:'+t.color+';">'+t.name+(t.beta?' <span style="font-size:0.5rem;background:'+t.color+'33;padding:1px 5px;border-radius:6px;">BETA</span>':'')+'</div>'
@@ -3723,7 +3760,7 @@ function showTiers(feature, highlight){
     +   '<div style="font-family:\'Orbitron\',sans-serif; font-size:1rem; color:#c084fc;">Choose your plan</div>'
     +   '<button onclick="document.getElementById(\'tiers-modal\').remove()" style="background:none;border:none;color:var(--dim);font-size:1.1rem;cursor:pointer;">✕</button>'
     + '</div>'
-    + (feature?'<div style="color:#fff; font-size:0.74rem; margin-bottom:12px;">🔓 <b>'+feature+'</b>'+(highlight==='pro'?' is a <b style="color:#fbbf24;">Pro</b> feature (coming soon in Beta).':' is in Premium.')+'</div>':'<div style="height:8px;"></div>')
+    + (feature?'<div style="color:#fff; font-size:0.74rem; margin-bottom:12px;">🔓 <b>'+feature+'</b>'+(highlight==='pro'?' is an <b style="color:#fbbf24;">Elite</b> feature (coming soon in Beta).':' is in Premium.')+'</div>':'<div style="height:8px;"></div>')
     + '<div style="display:flex; gap:8px; align-items:stretch;">'+labels+col('free')+col('premium')+col('pro')+'</div>'
     + '<div style="text-align:center; margin-top:12px;"><span style="color:var(--dim); font-size:0.64rem;">Already bought? </span><button class="btn" style="padding:5px 12px; font-size:0.64rem;" onclick="document.getElementById(\'tiers-modal\').remove(); showPremiumPrompt(\''+(feature||'Premium')+'\')">Paste license key</button></div>'
     + '</div>';
@@ -3821,7 +3858,7 @@ function showPremiumPrompt(feature) {
       +   '</div>'
       +   '<div id="premium-license-msg" style="font-size:0.66rem; margin-top:7px; min-height:14px;"></div>'
       + '</div>'
-      + '<div style="margin-top:10px;"><a href="#" id="premium-compare" style="color:#fbbf24; font-size:0.66rem; text-decoration:none;">Compare all plans (incl. Pro) →</a></div>'
+      + '<div style="margin-top:10px;"><a href="#" id="premium-compare" style="color:#fbbf24; font-size:0.66rem; text-decoration:none;">Compare all plans (incl. Elite) →</a></div>'
       + '<button class="btn" id="premium-close" style="padding:7px 14px; font-size:0.68rem; margin-top:6px;">Maybe later</button>'
       + '</div>';
     document.body.appendChild(m);
