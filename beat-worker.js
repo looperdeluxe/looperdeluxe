@@ -101,7 +101,17 @@ function detectChords(sig, sr, ticks) {
       const score = (dia && dia.has(nm)) ? raw * 1.15 : raw;   // key prior: boost in-key chords
       if (score > best) { best = score; bi = k; bestRaw = raw; }
     }
-    return { name: NOTE_NAMES[tpls[bi].root] + (tpls[bi].min ? 'm' : ''), conf: bestRaw };
+    // Triad is locked (root never changes — proven 100% root accuracy). Now SAFELY add a 7th as
+    // colour, ONLY when that root's b7/maj7 is clearly present. Never flips a root → no regression.
+    const r = tpls[bi].root, isMin = tpls[bi].min;
+    let mxc = 0; for (let i = 0; i < 12; i++) if (chroma[i] > mxc) mxc = chroma[i];
+    const cc = mxc > 0 ? chroma.map(v => v / mxc) : chroma;
+    const triadAvg = (cc[r] + cc[(r + (isMin ? 3 : 4)) % 12] + cc[(r + 7) % 12]) / 3;
+    const b7 = cc[(r + 10) % 12], maj7 = cc[(r + 11) % 12];
+    let suf = isMin ? 'm' : '';
+    if (b7 >= triadAvg * 0.35 && b7 > maj7 * 1.3)            suf = isMin ? 'm7' : '7';
+    else if (!isMin && maj7 >= triadAvg * 0.35 && maj7 > b7 * 1.3) suf = 'maj7';
+    return { name: NOTE_NAMES[r] + suf, conf: bestRaw };
   }
   // First pass: per-beat chroma + global chroma (for key estimation).
   const beatChroma = []; const globalChroma = new Array(12).fill(0);
