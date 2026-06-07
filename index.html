@@ -3835,7 +3835,9 @@ async function spotifyPlay(uri, isContext) {
   if (!spDeviceId) await new Promise(r => setTimeout(r, 1000));
   const body = isContext ? { context_uri: uri } : { uris: [uri] };
   const res = await fetch('https://api.spotify.com/v1/me/player/play' + (spDeviceId ? ('?device_id=' + spDeviceId) : ''), { method: 'PUT', headers: { Authorization: 'Bearer ' + t, 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  if (res.status === 404) alert('No active Spotify device yet — give it a second after connecting, then tap a song again.');
+  if (res.status === 404) { alert('No active Spotify device yet — give it a second after connecting, then tap a song again.'); return; }
+  // Picked a song → clear the results list so it isn't cluttering the screen.
+  if (!isContext) { const r = document.getElementById('sp-results'); if (r) r.innerHTML = '<div style="color:var(--dim); font-size:0.7rem;">▶ Now playing. Search again to pick another song.</div>'; }
 }
 function updateSpotifyNowPlaying(state) {
   const tr = state.track_window && state.track_window.current_track; if (!tr) return;
