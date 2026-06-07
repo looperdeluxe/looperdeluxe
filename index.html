@@ -3749,7 +3749,13 @@ async function spotifySearch(q) {
     await new Promise(rr => setTimeout(rr, wait));
     r = await fetch(url, { headers: { Authorization: 'Bearer ' + t } });
   }
-  if (!r.ok) { document.getElementById('sp-results').innerHTML = '<div style="color:var(--dim)">Search failed (' + r.status + '). Try re-connecting Spotify, or just use YouTube/MP3.</div>'; return; }
+  if (!r.ok) {
+    let detail = ''; try { const ej = await r.json(); detail = (ej.error && (ej.error.message || ej.error)) || JSON.stringify(ej); } catch (e) {}
+    console.error('Spotify search ' + r.status + ':', detail);
+    if (r.status === 403) detail = 'Spotify hasn\'t approved this app for your account yet (dev-mode 25-user cap). ' + detail;
+    document.getElementById('sp-results').innerHTML = '<div style="color:var(--dim); font-size:0.68rem; line-height:1.5;">Spotify error <b>' + r.status + '</b>: ' + (detail || 'unknown') + '<br>Try <b style="color:#1DB954;">↻ Reconnect</b>, or use YouTube/MP3.</div>';
+    return;
+  }
   const d = await r.json(); const items = [];
   ((d.tracks && d.tracks.items) || []).filter(Boolean).forEach(tr => items.push({ uri: tr.uri, ctx: false, name: tr.name, sub: (tr.artists || []).map(a => a.name).join(', '), art: (tr.album && tr.album.images && tr.album.images[2] || {}).url }));
   ((d.playlists && d.playlists.items) || []).filter(Boolean).forEach(pl => items.push({ uri: pl.uri, id: pl.id, ctx: true, name: pl.name, sub: '▶ Playlist · ' + ((pl.tracks && pl.tracks.total) || 0) + ' songs', art: (pl.images && pl.images[0] || {}).url }));
