@@ -3526,7 +3526,7 @@ async function enterSpotifyMode() {
   const su = document.getElementById('sp-user'); if (su) su.textContent = window.spotifyUser ? (window.spotifyUser.display_name || '') : '';
   setTimeout(setupRibbon, 80);
   loadSpotifySDK();
-  loadMyPlaylists();
+  // (no auto-load of playlists — Spotify blocks their contents, so it was just clutter. Search is the way in.)
   startSpotifyLoop();
 }
 function exitSpotifyMode() {
@@ -3738,7 +3738,7 @@ function startYouTubeLoop() {
 function stopYouTubeLoop() { if (ytRAF) cancelAnimationFrame(ytRAF); ytRAF = null; }
 async function spotifySearch(q) {
   let t = await spotifyToken(); if (!t || !q) return;
-  const url = 'https://api.spotify.com/v1/search?type=track&limit=24&q=' + encodeURIComponent(q);   // no market=from_token (deprecated → 400s)
+  const url = 'https://api.spotify.com/v1/search?type=track&q=' + encodeURIComponent(q);   // no market/limit (Spotify now 400s on those)
   let r = await fetch(url, { headers: { Authorization: 'Bearer ' + t } });
   if (r.status === 401) {                       // token rejected → force a refresh and retry once
     if (await spotifyRefresh()) { t = localStorage.getItem('sp_token'); r = await fetch(url, { headers: { Authorization: 'Bearer ' + t } }); }
