@@ -1177,7 +1177,7 @@
       </div>
       <div class="panel" id="stem-panel" style="margin-top:10px;">
         <div class="panel-title" style="font-size:0.7rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-          <span>🎚️ STEM ISOLATOR <span style="font-size:0.5rem; color:#c084fc; border:1px solid #c084fc; border-radius:8px; padding:1px 6px; margin-left:4px;">✨ PREMIUM</span></span>
+          <span>🎚️ STEM ISOLATOR <span class="prem-badge" onclick="clickPremiumBadge(this,'Stem isolation')" title="Premium — click to unlock" style="cursor:pointer; font-size:0.5rem; color:#c084fc; border:1px solid #c084fc; border-radius:8px; padding:1px 6px; margin-left:4px;">✨ PREMIUM</span></span>
           <div style="display:flex; align-items:center; gap:6px;">
             <span style="font-size:0.5rem; color:var(--dim);">MUTE</span>
             <select id="stem-mute-select" style="font-size:0.55rem; background:rgba(0,0,0,0.4); color:#f0abfc; border:1px solid rgba(192,132,252,0.5); border-radius:5px; padding:2px 5px; outline:none;">
@@ -3299,7 +3299,9 @@ async function checkOwnerUnlock() {
 // Re-assert owner Premium on every load (bulletproof — works at any time once you've used your link on this device).
 if (localStorage.getItem('looperOwner') === '1') setPremium(true);
 checkOwnerUnlock();
-function updatePremiumUI(){ document.querySelectorAll('[data-premium-badge]').forEach(el=>{ el.textContent = isPremium ? '★ PREMIUM' : ''; }); }
+function updatePremiumUI(){ document.querySelectorAll('[data-premium-badge]').forEach(el=>{ el.textContent = isPremium ? '★ PREMIUM' : ''; }); if (isPremium) document.querySelectorAll('.prem-badge').forEach(el=>{ el.innerHTML='✓ PREMIUM'; el.style.color='#22c55e'; el.style.borderColor='#22c55e'; el.style.cursor='default'; el.title='Premium active'; }); }
+// Click a "✨ PREMIUM" badge → already Premium shows it's active; otherwise opens the upgrade modal.
+function clickPremiumBadge(el, feature){ if (isPremium){ el.innerHTML='✓ PREMIUM'; el.style.color='#22c55e'; el.style.borderColor='#22c55e'; el.style.cursor='default'; } else { showPremiumPrompt(feature || 'This'); } }
 
 // Activate a license key against Lemon Squeezy. No API secret needed — this endpoint is
 // designed for client apps and enforces the per-key device (activation) limit server-side.
