@@ -3683,7 +3683,11 @@ const LOOPER_API = (localStorage.getItem('looperApi') || (location.hostname.ends
 // auto-BPM, auto-chords, sample-precise loop). No YouTube player → no embedding restriction at all.
 function ytPlayVideo(id) {
   ytCurId = id;
-  const pl = document.getElementById('yt-player'); if (pl) pl.style.display = 'block';   // only show the video frame in VIDEO STUDIO
+  const pl = document.getElementById('yt-player');
+  if (pl) {
+    if (isVideoStudio()) pl.style.cssText = 'display:block; width:320px; height:180px; background:#000; border:1px solid var(--border); border-radius:8px;';
+    else pl.style.cssText = 'position:fixed; left:-9999px; top:0; width:320px; height:180px;';   // AUDIO mode: play hidden, the scrubber shows position (no video box)
+  }
   const box = document.getElementById('yt-results'); if (box) box.style.display = 'none';
   loadYouTubeAPI(() => {
     if (!ytPlayer) {
@@ -3711,7 +3715,7 @@ async function loadYouTubeAudioAsWaveform(id) {
     initMediaPipeline(file);   // full waveform + auto-chords + auto-BPM + loop + metronome, exactly like an MP3
   } catch (e) {
     // YouTube now token-blocks audio downloads → fall back to playing the VIDEO (with its scrubber), no dead-end.
-    if (status) status.textContent = '▶ Playing the video. (Live chords from YouTube are coming via the "listen" feature — for now, drop an MP3 for full auto-chords.)';
+    if (status) status.innerHTML = '▶ Playing (audio only). Hit <b style="color:#4ade80;">🎸 GET CHORDS</b> to auto-detect this song\'s chords.';
     ytPlayVideo(id);
   }
 }
@@ -3762,7 +3766,20 @@ function ytPickResult(it) {
     box.innerHTML = '<div style="padding:14px; color:var(--cyan); font-size:0.74rem; line-height:1.6;">⏳ Loading <b>' + (it.title || 'song') + '</b><br><span style="color:var(--dim);font-size:0.66rem;">pulling &amp; analyzing the audio — ~10s the first time, instant after…</span></div>';
   }
   window.__ytTitle = it.title || '';   // remember the title so saved loops can name + relink the song
+  autoLyricsFromTitle(it.title || '');  // auto-pull synced lyrics from the song title (no manual typing)
   ytPlayId(it.id);
+}
+// Parse a YouTube title ("Artist - Song (Official Video)") → fill the lyric fields + auto-fetch synced lyrics.
+function autoLyricsFromTitle(rawTitle) {
+  if (!rawTitle) return;
+  let t = String(rawTitle).replace(/\([^)]*\)|\[[^\]]*\]/g, '').replace(/official\s*(music\s*)?video|lyric[s]?\s*(video)?|audio|visualizer|hd|4k|hq|mv|\bm\/v\b/ig, '').replace(/\s{2,}/g, ' ').trim();
+  let artist = '', song = t;
+  const parts = t.split(/\s+[-–—|]\s+/);
+  if (parts.length >= 2) { artist = parts[0].trim(); song = parts.slice(1).join(' ').trim(); }
+  const ai = document.getElementById('input-lyric-artist'), si = document.getElementById('input-lyric-song');
+  if (ai) ai.value = artist; if (si) si.value = song;
+  const btn = document.getElementById('btn-fetch-lyrics');
+  if (btn && song) setTimeout(() => { try { btn.click(); } catch (e) {} }, 400);   // auto-fetch (slight delay so playback can start)
 }
 // Your own saved YouTube songs (a quick library) — persists in the browser, click a chip to reload directly.
 function savedYt() { try { return JSON.parse(localStorage.getItem('looperYtSaved') || '[]'); } catch (e) { return []; } }
