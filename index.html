@@ -1211,6 +1211,23 @@
         <div id="stem-status" style="font-size:0.55rem; color:var(--dim); min-height:13px; margin:5px 0 8px;">Pick the instrument you're learning, hit Isolate, then play along with everything else. (Set a loop first to do just that part — faster + less memory.)</div>
         <div id="stem-modes" style="display:none; gap:6px; margin-top:4px;"></div>
       </div>
+
+      <div class="panel" id="coach-panel" style="margin-top:10px;">
+        <div class="panel-title" style="font-size:0.7rem; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+          <span>🎤 CHORD COACH
+            <span class="prem-badge" onclick="clickPremiumBadge(this,'Chord coach')" title="Premium — click to unlock" style="cursor:pointer; font-size:0.5rem; color:#c084fc; border:1px solid #c084fc; border-radius:8px; padding:1px 6px;">✨ PREMIUM</span>
+            <span style="font-size:0.45rem; color:#fbbf24; border:1px solid #fbbf24; border-radius:6px; padding:0 5px;">BETA</span>
+          </span>
+          <button class="btn accent" id="btn-coach" style="padding:4px 10px; font-size:0.55rem;">🎤 LISTEN</button>
+        </div>
+        <div id="coach-status" style="font-size:0.55rem; color:var(--dim); min-height:13px; margin:5px 0;">Play along — I'll listen through your mic and check you're hitting the right notes for each chord. (Best for picked notes &amp; chord roots.)</div>
+        <div id="coach-readout" style="display:none; align-items:center; gap:12px; margin-top:4px;">
+          <div style="text-align:center;"><div style="font-size:0.45rem;color:var(--dim);">CHORD</div><div id="coach-target" style="font-size:1.3rem;color:var(--cyan);font-family:'Orbitron',sans-serif;">—</div></div>
+          <div style="text-align:center;"><div style="font-size:0.45rem;color:var(--dim);">HEARD</div><div id="coach-heard" style="font-size:1.3rem;color:#fff;">—</div></div>
+          <div id="coach-verdict" style="flex:1; text-align:center; font-size:0.65rem; font-weight:bold;">—</div>
+          <div style="text-align:center;"><div style="font-size:0.45rem;color:var(--dim);">IN-CHORD</div><div id="coach-score" style="font-size:1rem;color:#22c55e;font-family:'JetBrains Mono',monospace;">0%</div></div>
+        </div>
+      </div>
     </div>
 
     <div class="workspace-right" id="workspace-right-col">
@@ -2525,6 +2542,87 @@ async function separateStems() {
 document.getElementById('btn-separate-stems').addEventListener('click', separateStems);
 renderStemRows();
 
+// === Chord Coach (Beta) — listens via mic, detects the strongest pitch, checks it against the current chord. ===
+const COACH_PC = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+let coachCtx=null, coachStream=null, coachRAF=null, coachAnalyser=null, coachBuf=null, coachHits=0, coachTotal=0, coachLast=0;
+function chordPitchClasses(name){
+  const m = String(name||'').match(/^([A-G][#b]?)(.*)$/); if(!m) return null;
+  let root = m[1].replace('Db','C#').replace('Eb','D#').replace('Gb','F#').replace('Ab','G#').replace('Bb','A#');
+  const ri = COACH_PC.indexOf(root); if(ri<0) return null;
+  const q = m[2];
+  const minor = (/^m(?!aj)/.test(q)) || /min/.test(q) || /dim/.test(q);
+  const third = minor ? 3 : 4;
+  const fifth = /dim/.test(q) ? 6 : ((/aug|\+/.test(q)) ? 8 : 7);
+  const pcs = [ri, (ri+third)%12, (ri+fifth)%12];
+  if(/7/.test(q)) pcs.push((ri + (/maj7/.test(q) ? 11 : 10))%12);
+  return pcs;
+}
+function coachFreqToPc(f){ if(f<=0) return -1; const n = Math.round(12*Math.log2(f/440)); return (((n%12)+9)%12+12)%12; } // A440 → pc 9
+function coachDetectPitch(buf, sr){
+  let rms=0; for(let i=0;i<buf.length;i++) rms+=buf[i]*buf[i]; rms=Math.sqrt(rms/buf.length);
+  if(rms<0.012) return -1;                        // too quiet → no note
+  let r1=0,r2=buf.length-1; const thr=0.2;
+  for(let i=0;i<buf.length/2;i++){ if(Math.abs(buf[i])<thr){ r1=i; break; } }
+  for(let i=1;i<buf.length/2;i++){ if(Math.abs(buf[buf.length-i])<thr){ r2=buf.length-i; break; } }
+  const b = buf.slice(r1,r2), n = b.length; if(n<32) return -1;
+  const c = new Float32Array(n);
+  for(let i=0;i<n;i++){ let s=0; for(let j=0;j<n-i;j++) s+=b[j]*b[j+i]; c[i]=s; }
+  let d=0; while(d<n-1 && c[d]>c[d+1]) d++;
+  let maxv=-1,maxp=-1; for(let i=d;i<n;i++){ if(c[i]>maxv){ maxv=c[i]; maxp=i; } }
+  if(maxp<=0) return -1;
+  const x1=c[maxp-1]||0,x2=c[maxp]||0,x3=c[maxp+1]||0, a=(x1+x3-2*x2)/2, bb=(x3-x1)/2;
+  let T0=maxp; if(a) T0 = maxp - bb/(2*a);
+  const f = sr/T0; return (f>60 && f<1200) ? f : -1;   // guitar range
+}
+async function startCoach(){
+  if(!requirePremium('Chord coach')) return;
+  const st=document.getElementById('coach-status');
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){ st.textContent='🎤 Your browser blocks mic access. Use Chrome/Safari on https.'; return; }
+  try{ coachStream = await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:false,autoGainControl:false}}); }
+  catch(e){ st.textContent='🎤 Mic blocked — allow microphone access (needs https; works on looperdeluxe.com once the lock is on).'; return; }
+  coachCtx = new (window.AudioContext||window.webkitAudioContext)();
+  const src = coachCtx.createMediaStreamSource(coachStream);
+  coachAnalyser = coachCtx.createAnalyser(); coachAnalyser.fftSize=2048; src.connect(coachAnalyser);
+  coachBuf = new Float32Array(coachAnalyser.fftSize);
+  coachHits=0; coachTotal=0; coachLast=0;
+  document.getElementById('coach-readout').style.display='flex';
+  document.getElementById('btn-coach').textContent='⏹ STOP';
+  st.textContent='Listening… play the chords as they scroll by.';
+  coachLoop();
+}
+function coachLoop(){
+  coachRAF = requestAnimationFrame(coachLoop);
+  const now = performance.now(); if(now-coachLast < 110) return; coachLast=now;   // ~9 checks/sec
+  if(!coachAnalyser) return;
+  coachAnalyser.getFloatTimeDomainData(coachBuf);
+  const heardPc = coachFreqToPc(coachDetectPitch(coachBuf, coachCtx.sampleRate));
+  const t = (typeof ws!=='undefined' && ws) ? ws.getCurrentTime() : 0;
+  let chordName='—';
+  if(window.songChords && window.songChords.length){ const idx=stageChordIndexAt(t); if(idx>=0) chordName=window.songChords[idx].name; }
+  document.getElementById('coach-target').textContent = chordName;
+  const heardEl=document.getElementById('coach-heard'), vEl=document.getElementById('coach-verdict'), sEl=document.getElementById('coach-score');
+  if(heardPc<0){ heardEl.textContent='—'; return; }
+  heardEl.textContent = COACH_PC[heardPc];
+  const pcs = chordPitchClasses(chordName);
+  if(pcs){
+    coachTotal++; const inChord = pcs.includes(heardPc); if(inChord) coachHits++;
+    vEl.textContent = inChord ? ('✓ '+COACH_PC[heardPc]+' fits '+chordName) : ('✗ '+COACH_PC[heardPc]+' isn\'t in '+chordName);
+    vEl.style.color = inChord ? '#22c55e' : '#ff6b6b';
+    sEl.textContent = Math.round(coachHits/Math.max(1,coachTotal)*100)+'%';
+  }
+}
+function stopCoach(){
+  if(coachRAF) cancelAnimationFrame(coachRAF); coachRAF=null;
+  if(coachStream) coachStream.getTracks().forEach(t=>{ try{t.stop();}catch(e){} });
+  if(coachCtx) try{ coachCtx.close(); }catch(e){}
+  coachCtx=coachStream=coachAnalyser=null;
+  document.getElementById('btn-coach').textContent='🎤 LISTEN';
+  const st=document.getElementById('coach-status');
+  if(coachTotal>0) st.innerHTML='Session done — you hit notes that fit the chord <b style="color:#22c55e;">'+Math.round(coachHits/coachTotal*100)+'%</b> of the time. <span style="color:var(--dim);">(Beta: tracks your strongest note vs each chord — most accurate on single notes &amp; roots.)</span>';
+  else st.textContent='No clear notes heard — get closer to the mic and try again.';
+}
+(function(){ const b=document.getElementById('btn-coach'); if(b) b.addEventListener('click', ()=>{ if(coachCtx) stopCoach(); else startCoach(); }); })();
+
 const fCanvas = document.getElementById('fretboard-vector'); const fCtx = fCanvas.getContext('2d');
 function initFretboardCanvasDimensions() { if (!viewChords.classList.contains('active') || !fCanvas.parentElement) return; const rect = fCanvas.parentElement.getBoundingClientRect(); fCanvas.width = rect.width; fCanvas.height = rect.height; renderManualFretboard(); }
 window.addEventListener('resize', initFretboardCanvasDimensions);
@@ -3193,7 +3291,8 @@ const SPOTIFY_SCOPES = 'streaming user-read-email user-read-private user-modify-
 function spotifyRedirectUri() {
   const h = location.hostname;
   if (h === '127.0.0.1' || h === 'localhost') return 'http://127.0.0.1:9000/index.html';
-  return 'https://looperdeluxe.github.io/looperdeluxe/';
+  if (h.endsWith('github.io')) return 'https://looperdeluxe.github.io/looperdeluxe/';
+  return location.origin + '/';   // production custom domain → https://looperdeluxe.com/
 }
 function b64url(buf) { return btoa(String.fromCharCode.apply(null, new Uint8Array(buf))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
 async function sha256(str) { return await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str)); }
