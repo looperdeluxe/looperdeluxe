@@ -1006,6 +1006,14 @@
       <div id="landing-loops" class="landing-pick landing-loops-card"></div>
     </div>
 
+    <div id="setlist-panel" style="max-width:860px; margin:12px auto 0; background:rgba(124,58,237,0.07); border:1px solid rgba(147,51,234,0.3); border-radius:8px; padding:8px 12px;">
+      <div style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;" onclick="toggleSetlists()">
+        <span style="font-family:'Orbitron',sans-serif; font-size:0.7rem; color:#f0abfc; letter-spacing:1px;"><span id="setlist-toggle">▸</span> 🎵 MY SETLISTS</span>
+        <button class="btn" onclick="event.stopPropagation(); newSetlist();" style="padding:3px 10px; font-size:0.55rem;">+ NEW SETLIST <span style="color:#c084fc;">✨</span></button>
+      </div>
+      <div id="setlist-body" style="display:none; margin-top:8px;"></div>
+    </div>
+
     <div class="instruction-wrapper-row">
       <div class="box-instruction active-hud" id="info-box-audio">
         <h3>🎸 How To Play Along</h3>
@@ -2479,6 +2487,42 @@ function renderLandingLoops() {
   c.innerHTML = html;
 }
 renderLandingLoops();
+
+// ===== Setlists (Premium) — your own collapsible playlists of songs + their loops. =====
+function getSetlists(){ try{ return JSON.parse(localStorage.getItem('looperSetlists')||'[]'); }catch(e){ return []; } }
+function saveSetlistsData(s){ localStorage.setItem('looperSetlists', JSON.stringify(s)); renderSetlists(); }
+function newSetlist(){ if(!isPremium){ showPremiumPrompt('Custom setlists'); return; } const n=prompt('Name your setlist:', 'My Setlist'); if(n){ const s=getSetlists(); s.push({name:n, songs:[]}); saveSetlistsData(s); const b=document.getElementById('setlist-body'); if(b && b.style.display==='none') toggleSetlists(); } }
+function delSetlist(i){ if(!confirm('Delete this setlist?')) return; const s=getSetlists(); s.splice(i,1); saveSetlistsData(s); }
+function currentSongForSetlist(){
+  const title = window.__ytTitle || (window.__spNowTrack && window.__spNowTrack.name) || 'Current song';
+  return { title: title, ytId: window.__ytVideoId || null, ytTitle: window.__ytTitle || null, start: (typeof activeRegion!=='undefined'&&activeRegion)?activeRegion.start:0, end: (typeof activeRegion!=='undefined'&&activeRegion)?activeRegion.end:0 };
+}
+function addCurrentToSetlist(i){ if(!isPremium){ showPremiumPrompt('Custom setlists'); return; } const s=getSetlists(); if(!s[i])return; const song=currentSongForSetlist(); s[i].songs=s[i].songs||[]; s[i].songs.push(song); saveSetlistsData(s); }
+function delSetlistSong(si, gi){ const s=getSetlists(); if(s[si]&&s[si].songs){ s[si].songs.splice(gi,1); saveSetlistsData(s); } }
+function loadSetlistSong(si, gi){
+  const s=getSetlists(); const song=s[si]&&s[si].songs&&s[si].songs[gi]; if(!song) return;
+  if(song.ytId){ window.__pendingLoop={start:song.start,end:song.end}; window.__ytTitle=song.ytTitle||''; if(typeof enterYouTubeMode==='function') enterYouTubeMode(); setTimeout(()=>{ try{ loadYouTubeAudioAsWaveform(song.ytId); }catch(e){} }, 250); }
+  else { window.__pendingLoop={start:song.start,end:song.end}; alert('"'+song.title+'" was a local file — drop that audio file back in and your loop ('+fmt(song.start)+'–'+fmt(song.end)+') applies.'); }
+}
+function toggleSetlists(){ const b=document.getElementById('setlist-body'); if(!b)return; const open=b.style.display!=='none'; b.style.display=open?'none':'block'; const t=document.getElementById('setlist-toggle'); if(t) t.textContent=open?'▸':'▾'; localStorage.setItem('looperSetlistOpen', open?'0':'1'); }
+function esc2(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
+function renderSetlists(){
+  const c=document.getElementById('setlist-body'); if(!c) return;
+  const s=getSetlists();
+  if(!s.length){ c.innerHTML='<div style="font-size:0.6rem; color:var(--dim); line-height:1.5;">No setlists yet. Make one (Premium ✨), then hit <b>+ ADD CURRENT</b> while a song is loaded — each remembers its loop, so you open a setlist and everything is ready to play.</div>'; return; }
+  let html='';
+  s.forEach((sl, i)=>{
+    html+='<div style="border:1px solid rgba(147,51,234,0.25); border-radius:6px; padding:6px 8px; margin-bottom:6px;">';
+    html+='<div style="display:flex; align-items:center; justify-content:space-between; gap:6px;"><span style="color:var(--cyan); font-weight:bold; font-size:0.64rem;">'+esc2(sl.name)+' <span style="color:var(--dim); font-weight:normal;">('+((sl.songs||[]).length)+')</span></span><span style="display:flex; gap:4px; flex-shrink:0;"><button class="btn" onclick="addCurrentToSetlist('+i+')" title="Add the song/loop you have loaded" style="padding:2px 7px; font-size:0.5rem;">+ ADD CURRENT</button><button class="btn danger" onclick="delSetlist('+i+')" style="padding:2px 6px; font-size:0.5rem;">✕</button></span></div>';
+    (sl.songs||[]).forEach((song, gi)=>{
+      const rng = (song.end>song.start) ? (fmt(song.start)+'–'+fmt(song.end)) : '';
+      html+='<div style="display:flex; align-items:center; gap:6px; margin-top:4px; padding-left:6px;"><button class="btn" onclick="loadSetlistSong('+i+','+gi+')" style="flex:1; min-width:0; text-align:left; padding:3px 8px; font-size:0.56rem; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">▶ '+esc2(song.title)+' <span style="color:var(--dim);">'+rng+'</span></button><button class="btn danger" onclick="delSetlistSong('+i+','+gi+')" style="padding:2px 6px; font-size:0.5rem; flex-shrink:0;">✕</button></div>';
+    });
+    html+='</div>';
+  });
+  c.innerHTML=html;
+}
+(function(){ if(localStorage.getItem('looperSetlistOpen')==='1'){ const b=document.getElementById('setlist-body'); if(b){ b.style.display='block'; const t=document.getElementById('setlist-toggle'); if(t) t.textContent='▾'; } } renderSetlists(); })();
 window.loadLp = (i) => {
   const l = savedLoops[i]; if (!l) return;
   // Same song already open → just move the loop region, no reload.
