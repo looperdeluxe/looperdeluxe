@@ -2430,7 +2430,14 @@ window.loadLp = (i) => {
   }
 };
 window.delLp = (i) => { savedLoops.splice(i,1); localStorage.setItem('cosmicSavedLoopsMaster', JSON.stringify(savedLoops)); renderLoopBank(); };
-document.getElementById('btn-save-loop').addEventListener('click', () => { if(!activeRegion) return; const n = prompt("Name Loop:", `LOOP_${savedLoops.length+1}`); if(n) { savedLoops.push({name:n, start:activeRegion.start, end:activeRegion.end, ytId: window.__ytVideoId||null, ytTitle: window.__ytTitle||null}); localStorage.setItem('cosmicSavedLoopsMaster', JSON.stringify(savedLoops)); renderLoopBank(); } });
+const FREE_LOOP_CAP = 5;
+document.getElementById('btn-save-loop').addEventListener('click', () => {
+  if(!activeRegion) return;
+  // Free tier: cap saved loops at 5. The 6th prompts Premium (unlimited).
+  if(!isPremium && savedLoops.length >= FREE_LOOP_CAP) { showPremiumPrompt('Unlimited saved loops (free plan keeps ' + FREE_LOOP_CAP + ')'); return; }
+  const n = prompt("Name Loop:", `LOOP_${savedLoops.length+1}`);
+  if(n) { savedLoops.push({name:n, start:activeRegion.start, end:activeRegion.end, ytId: window.__ytVideoId||null, ytTitle: window.__ytTitle||null}); localStorage.setItem('cosmicSavedLoopsMaster', JSON.stringify(savedLoops)); renderLoopBank(); }
+});
 // Exit the current song without a page refresh → back to the picker.
 function ejectSong() {
   try { if (ws && ws.isPlaying && ws.isPlaying()) ws.pause(); } catch (e) {}
