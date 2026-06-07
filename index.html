@@ -3662,6 +3662,76 @@ let isPremium = (localStorage.getItem('looperPremium') === '1') || (localStorage
 function setPremium(v) { isPremium = !!v; localStorage.setItem('looperPremium', v ? '1' : '0'); try { updatePremiumUI(); } catch (e) {} return isPremium; }
 function requirePremium(feature) { if (isPremium) return true; showPremiumPrompt(feature); return false; }
 
+// ===== TIER SCAFFOLD (Free / Premium / Pro). Pro is IN BETA — not sellable until Premium is finished. =====
+// Pro ⊇ Premium. Owner unlock grants both. isPro persists via looperPro (or owner).
+let isPro = (localStorage.getItem('looperPro') === '1') || (localStorage.getItem('looperOwner') === '1');
+function setPro(v){ isPro = !!v; localStorage.setItem('looperPro', v ? '1' : '0'); if (v) setPremium(true); try { updatePremiumUI(); } catch(e){} return isPro; }
+// Pro features are in BETA → for now, requirePro shows the tier comparison with Pro marked "coming soon".
+// (Owner/tester gets through so we can build + QA the Pro features.)
+function requirePro(feature){ if (isPro) return true; showTiers(feature, 'pro'); return false; }
+const PRO_BETA = true;  // flip to false when Pro is finished + the Lemon Squeezy Pro product is live
+const TIERS = {
+  free:    { name:'Free',    price:'$0',                 color:'#9ca3af' },
+  premium: { name:'Premium', price:'$4.99/mo · $39.99/yr', color:'#c084fc' },
+  pro:     { name:'Pro',     price:'$9.99/mo · $79.99/yr', color:'#fbbf24', beta:true },
+};
+// The comparison rows (label, free, premium, pro). '✓' / '—' / text.
+const TIER_ROWS = [
+  ['Auto chords (7th-aware)', '✓','✓','✓'],
+  ['Use community chord versions', '✓','✓','✓'],
+  ['Publish your chord versions', '—','✓','✓'],
+  ['Saved loops', '5','unlimited','unlimited'],
+  ['Step-Up speed trainer', '✓','✓','✓'],
+  ['Slow-downer + transpose/capo', '✓','✓','✓'],
+  ['Setlists', 'basic','playlists','collaborative'],
+  ['Stem separation', '—','basic','Pro-grade + high quota'],
+  ['Isolate lead vs rhythm guitar', '—','—','✓'],
+  ['Auto bass + guitar tabs', '—','—','✓'],
+  ['Verified 100% chords', '—','—','✓'],
+  ['Band mode (shared set, missing-member, click)', '—','—','✓'],
+  ['Mic coach + fretboard animation', 'beta','full','full'],
+  ['Offline + priority + beta access', '—','—','✓'],
+];
+function showTiers(feature, highlight){
+  let m = document.getElementById('tiers-modal');
+  if (m) m.remove();
+  m = document.createElement('div');
+  m.id = 'tiers-modal';
+  m.style.cssText = 'position:fixed; inset:0; z-index:420; background:rgba(3,2,10,0.85); display:flex; align-items:center; justify-content:center; padding:14px; overflow:auto;';
+  const col = (key) => {
+    const t = TIERS[key]; const hot = key===highlight;
+    let cells = TIER_ROWS.map(r => {
+      const v = r[key==='free'?1:key==='premium'?2:3];
+      const on = v==='✓'; const off = v==='—';
+      return '<div style="padding:5px 8px; font-size:0.62rem; border-bottom:1px solid rgba(255,255,255,0.06); color:'+(off?'#52525b':on?'#22c55e':'#e4e4e7')+'; text-align:center;">'+v+'</div>';
+    }).join('');
+    let cta;
+    if (key==='free') cta = '<div style="font-size:0.6rem;color:var(--dim);padding:8px;text-align:center;">Current base</div>';
+    else if (key==='premium') cta = '<button class="btn accent" style="width:100%;padding:8px;font-size:0.65rem;" onclick="openCheckout()">Get Premium</button>';
+    else cta = '<button class="btn" disabled style="width:100%;padding:8px;font-size:0.6rem;opacity:0.7;cursor:default;">🚧 Pro — Beta (soon)</button>';
+    return '<div style="flex:1; min-width:150px; border:1px solid '+(hot?t.color:'rgba(255,255,255,0.1)')+'; border-radius:10px; overflow:hidden; '+(hot?'box-shadow:0 0 18px '+t.color+'55;':'')+'">'
+      + '<div style="padding:9px 8px; text-align:center; background:'+t.color+'18;">'
+      +   '<div style="font-family:\'Orbitron\',sans-serif; font-size:0.8rem; color:'+t.color+';">'+t.name+(t.beta?' <span style="font-size:0.5rem;background:'+t.color+'33;padding:1px 5px;border-radius:6px;">BETA</span>':'')+'</div>'
+      +   '<div style="font-size:0.58rem; color:var(--dim); margin-top:2px;">'+t.price+'</div>'
+      + '</div>' + cells + '<div style="padding:8px;">'+cta+'</div></div>';
+  };
+  const labels = '<div style="flex:0 0 168px; min-width:140px;"><div style="height:46px;"></div>'
+    + TIER_ROWS.map(r=>'<div style="padding:5px 8px; font-size:0.6rem; color:var(--dim); border-bottom:1px solid rgba(255,255,255,0.06); height:100%;">'+r[0]+'</div>').join('')
+    + '<div style="height:44px;"></div></div>';
+  m.innerHTML = '<div style="background:linear-gradient(160deg,#140a26,#0a0612); border:1px solid rgba(192,132,252,0.4); border-radius:14px; padding:18px; max-width:680px; width:100%; box-shadow:0 0 40px rgba(124,58,237,0.4);">'
+    + '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">'
+    +   '<div style="font-family:\'Orbitron\',sans-serif; font-size:1rem; color:#c084fc;">Choose your plan</div>'
+    +   '<button onclick="document.getElementById(\'tiers-modal\').remove()" style="background:none;border:none;color:var(--dim);font-size:1.1rem;cursor:pointer;">✕</button>'
+    + '</div>'
+    + (feature?'<div style="color:#fff; font-size:0.74rem; margin-bottom:12px;">🔓 <b>'+feature+'</b>'+(highlight==='pro'?' is a <b style="color:#fbbf24;">Pro</b> feature (coming soon in Beta).':' is in Premium.')+'</div>':'<div style="height:8px;"></div>')
+    + '<div style="display:flex; gap:8px; align-items:stretch;">'+labels+col('free')+col('premium')+col('pro')+'</div>'
+    + '<div style="text-align:center; margin-top:12px;"><span style="color:var(--dim); font-size:0.64rem;">Already bought? </span><button class="btn" style="padding:5px 12px; font-size:0.64rem;" onclick="document.getElementById(\'tiers-modal\').remove(); showPremiumPrompt(\''+(feature||'Premium')+'\')">Paste license key</button></div>'
+    + '</div>';
+  m.addEventListener('click', e => { if (e.target === m) m.remove(); });
+  document.body.appendChild(m);
+}
+window.showTiers = showTiers;
+
 // Owner unlock: visiting ?owner=<your secret passphrase> flips Premium on. Only the SHA-256 hash lives
 // in this (public) source — the passphrase itself never appears here, so no one can read it off the page.
 async function checkOwnerUnlock() {
@@ -3674,15 +3744,15 @@ async function checkOwnerUnlock() {
     if (hex === OWNER_HASH) {
       // ?owner=<secret>&free=1 locks it back to the free view for testing; ?owner=<secret> = permanent owner Premium.
       const lockBack = new URLSearchParams(location.search).get('free');
-      if (lockBack) { localStorage.removeItem('looperOwner'); setPremium(false); }
-      else { localStorage.setItem('looperOwner', '1'); setPremium(true); }
+      if (lockBack) { localStorage.removeItem('looperOwner'); setPremium(false); setPro(false); }
+      else { localStorage.setItem('looperOwner', '1'); setPremium(true); setPro(true); }
     }
     // strip the params either way so the secret never lingers in the address bar / history / shares
     history.replaceState(null, '', location.pathname);
   } catch (e) {}
 }
 // Re-assert owner Premium on every load (bulletproof — works at any time once you've used your link on this device).
-if (localStorage.getItem('looperOwner') === '1') setPremium(true);
+if (localStorage.getItem('looperOwner') === '1') { setPremium(true); setPro(true); }
 checkOwnerUnlock();
 function updatePremiumUI(){ document.querySelectorAll('[data-premium-badge]').forEach(el=>{ el.textContent = isPremium ? '★ PREMIUM' : ''; }); if (isPremium) document.querySelectorAll('.prem-badge').forEach(el=>{ el.innerHTML='✓ PREMIUM'; el.style.color='#22c55e'; el.style.borderColor='#22c55e'; el.style.cursor='default'; el.title='Premium active'; }); }
 // Click a "✨ PREMIUM" badge → already Premium shows it's active; otherwise opens the upgrade modal.
@@ -3751,11 +3821,13 @@ function showPremiumPrompt(feature) {
       +   '</div>'
       +   '<div id="premium-license-msg" style="font-size:0.66rem; margin-top:7px; min-height:14px;"></div>'
       + '</div>'
+      + '<div style="margin-top:10px;"><a href="#" id="premium-compare" style="color:#fbbf24; font-size:0.66rem; text-decoration:none;">Compare all plans (incl. Pro) →</a></div>'
       + '<button class="btn" id="premium-close" style="padding:7px 14px; font-size:0.68rem; margin-top:6px;">Maybe later</button>'
       + '</div>';
     document.body.appendChild(m);
     m.addEventListener('click', e => { if (e.target === m) m.style.display = 'none'; });
     m.querySelector('#premium-close').onclick = () => { m.style.display = 'none'; };
+    const _cmp = m.querySelector('#premium-compare'); if (_cmp) _cmp.onclick = (e) => { e.preventDefault(); m.style.display = 'none'; showTiers(); };
     m.querySelector('#premium-yearly').onclick = () => openCheckout();
     m.querySelector('#premium-monthly').onclick = () => openCheckout();
     const _act = m.querySelector('#premium-activate');
