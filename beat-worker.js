@@ -116,7 +116,8 @@ function detectChords(sig, sr, ticks) {
   // First pass: per-beat chroma + global chroma (for key estimation).
   const beatChroma = []; const globalChroma = new Array(12).fill(0);
   for (let i = 0; i < ticks.length - 1; i++) {
-    const s = Math.floor(ticks[i] * dsr), e = Math.floor(ticks[i+1] * dsr);
+    const _b0 = ticks[i], _b1 = ticks[i+1], _skip = (_b1 - _b0) * 0.25;   // skip the chord onset (reverb bleed from the previous chord) → analyze the settled part
+    const s = Math.floor((_b0 + _skip) * dsr), e = Math.floor(_b1 * dsr);
     if (e <= s) { beatChroma.push(null); continue; }
     const chroma = new Array(12).fill(0);
     for (let p = 0; p < pcFreqs.length; p++) chroma[pcFreqs[p].pc] += goertzel(s, e, pcFreqs[p].f);
@@ -136,7 +137,7 @@ function detectChords(sig, sr, ticks) {
       for (const n in counts) if (counts[n] > bc) { bc = counts[n]; bn = n; }
       beatChords[i] = bn ? { name: bn, conf: src[i] ? src[i].conf : 0.5 } : null;
     }
-  })(1);
+  })(2);   // median-filter window ±2 beats — stabilizes roots against walking bass / reverb (tested best vs ±1/±3)
   // Collapse to one chord per HALF-bar (majority over 2 beats) → chord changes land on time,
   // not quantized to whole bars (which made mid-bar changes show up to 2 beats late).
   const bars = [];
