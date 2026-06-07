@@ -1284,8 +1284,11 @@
             <span id="chord-source-badge" class="auto" title="Where these chords came from">⚠ AUTO-DETECTED · FIRST PASS</span>
             <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
               <button id="btn-getchords" onclick="getStreamingChords()" title="Get auto-detected chords for the playing Spotify/YouTube song (analyzes it once, then cached for everyone)" style="font-size:0.58rem; background:rgba(34,197,94,0.18); border:1px solid rgba(34,197,94,0.6); border-radius:5px; color:#4ade80; padding:3px 10px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap;">🎸 GET CHORDS</button>
+              <button id="btn-versions" onclick="loadCommunityVersions()" title="See player-submitted chord versions for this song (auto stays the default — these are optional alternatives you can rate)" style="font-size:0.58rem; background:rgba(99,102,241,0.18); border:1px solid rgba(129,140,248,0.6); border-radius:5px; color:#a5b4fc; padding:3px 10px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap;">👥 VERSIONS</button>
+              <button id="btn-publish-version" onclick="publishMyVersion()" title="Publish the chords currently on screen as YOUR version for others to use and rate" style="font-size:0.58rem; background:rgba(236,72,153,0.16); border:1px solid rgba(244,114,182,0.55); border-radius:5px; color:#f9a8d4; padding:3px 10px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap;">📤 PUBLISH MINE</button>
               <span id="chordget-status" style="font-size:0.5rem; color:var(--dim); max-width:320px;"></span>
             </div>
+            <div id="versions-list" style="display:none; flex-direction:column; gap:4px; max-height:180px; overflow-y:auto; padding:6px; border:1px solid rgba(129,140,248,0.3); border-radius:8px; background:rgba(99,102,241,0.05);"></div>
             <div style="display:flex; align-items:center; gap:5px;">
               <span style="font-size:0.5rem; color:var(--dim);" title="Slide to align lyrics with the vocal (LRCLIB timing vs your audio)">LYRIC SYNC</span>
               <input type="range" id="slider-lyric-offset" min="-30" max="30" step="0.1" value="0" style="width:110px;">
@@ -3431,10 +3434,102 @@ document.getElementById('slider-lyric-offset').addEventListener('input', (e) => 
 function updateChordSourceBadge(src) {
   window.chordSource = src;
   const b = document.getElementById('chord-source-badge'); if (!b) return;
-  b.className = src;
-  if (src === 'ug') b.textContent = '✓ UG · EXACT';
+  b.className = (src === 'community' ? 'ug' : src);
+  if (src === 'community') b.textContent = '👥 COMMUNITY VERSION';
+  else if (src === 'ug') b.textContent = '✓ UG · EXACT';
   else if (src === 'manual') b.textContent = '✎ YOUR CHORDS';
   else b.textContent = '⚠ AUTO · 1ST PASS';
+}
+
+// ===== Community chord versions (Ultimate-Guitar-style, but AUTO stays default; versions are opt-in + rated) =====
+function _verEsc(s){ return String(s||'').replace(/[<>&"]/g, c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c])); }
+async function loadCommunityVersions() {
+  const list = document.getElementById('versions-list');
+  const info = currentSongInfo();
+  if (!info.ok) { if (list){ list.style.display='flex'; list.innerHTML = '<div style="color:var(--dim);font-size:0.6rem;">Load a song first, then see its community chord versions.</div>'; } return; }
+  if (!LOOPER_API) return;
+  list.style.display='flex'; list.innerHTML = '<div style="color:var(--dim);font-size:0.6rem;">Loading versions…</div>';
+  try {
+    const r = await fetch(LOOPER_API + '/versions?v=' + encodeURIComponent(info.key));
+    const j = await r.json();
+    const vs = j.versions || [];
+    let html = '<div style="display:flex;justify-content:space-between;align-items:center;font-size:0.55rem;color:var(--dim);margin-bottom:2px;"><span>CHORD VERSIONS · rate them ▲▼ · auto is always the fallback</span>'
+      + '<button onclick="useAutoChords()" style="font-size:0.52rem;background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.5);border-radius:4px;color:#fbbf24;padding:2px 7px;cursor:pointer;">⚠ Back to AUTO</button></div>';
+    if (!vs.length) {
+      html += '<div style="color:var(--dim);font-size:0.6rem;padding:4px 0;">No community versions yet — be the first: fix the chords, then hit <b style="color:#f9a8d4;">📤 PUBLISH MINE</b>.</div>';
+    } else {
+      vs.forEach(v => {
+        const yv = v.your_vote;
+        html += '<div style="display:flex;align-items:center;gap:6px;padding:4px 5px;border:1px solid rgba(129,140,248,0.2);border-radius:6px;background:rgba(99,102,241,0.04);">'
+          + '<div style="display:flex;flex-direction:column;align-items:center;gap:0;min-width:26px;">'
+          +   '<button onclick="voteVersion(\''+v.id+'\',\'up\')" title="Upvote" style="background:none;border:none;cursor:pointer;font-size:0.7rem;color:'+(yv===1?'#4ade80':'var(--dim)')+';line-height:1;">▲</button>'
+          +   '<span style="font-size:0.62rem;font-weight:700;color:'+(v.score>0?'#4ade80':v.score<0?'#f87171':'var(--dim)')+';">'+v.score+'</span>'
+          +   '<button onclick="voteVersion(\''+v.id+'\',\'down\')" title="Downvote" style="background:none;border:none;cursor:pointer;font-size:0.7rem;color:'+(yv===-1?'#f87171':'var(--dim)')+';line-height:1;">▼</button>'
+          + '</div>'
+          + '<div style="flex:1;min-width:0;">'
+          +   '<div style="font-size:0.62rem;color:#e4e4e7;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+_verEsc(v.label)+'</div>'
+          +   '<div style="font-size:0.5rem;color:var(--dim);">by '+_verEsc(v.author)+' · '+v.n+' chords'+(v.key?' · '+_verEsc(v.key):'')+(v.bpm?' · '+v.bpm+'bpm':'')+'</div>'
+          + '</div>'
+          + '<button onclick="useCommunityVersion(\''+v.id+'\')" style="font-size:0.55rem;background:rgba(99,102,241,0.2);border:1px solid rgba(129,140,248,0.6);border-radius:5px;color:#a5b4fc;padding:3px 9px;cursor:pointer;white-space:nowrap;">USE</button>'
+          + '</div>';
+      });
+    }
+    list.innerHTML = html;
+  } catch (e) { list.innerHTML = '<div style="color:#f87171;font-size:0.6rem;">Couldn\'t load versions ('+(e.message||e)+').</div>'; }
+}
+let __autoChordsBackup = null;
+async function useCommunityVersion(id) {
+  const info = currentSongInfo(); if (!info.ok || !LOOPER_API) return;
+  try {
+    // stash the current auto chords so "Back to AUTO" is instant
+    if (window.chordSource !== 'community' && window.songChords) __autoChordsBackup = { chords: JSON.parse(JSON.stringify(window.songChords)), bpm: detectedBpm };
+    const r = await fetch(LOOPER_API + '/version?v=' + encodeURIComponent(info.key) + '&id=' + encodeURIComponent(id));
+    if (!r.ok) return;
+    const v = await r.json();
+    if (v.chords && v.chords.length) {
+      applyDetectedChords(v.chords);
+      if (v.bpm) { detectedBpm = v.bpm; const el = document.getElementById('input-metro-bpm'); if (el) el.value = v.bpm.toFixed(2); }
+      if (v.key && typeof setSongKey === 'function') setSongKey(v.key);
+      window.__stageDirty = true; if (typeof buildSongBars === 'function') buildSongBars();
+      updateChordSourceBadge('community');
+      const st = document.getElementById('chordget-status'); if (st) st.textContent = '👥 Using "'+(v.label||'community')+'" by '+(v.author||'anon')+'. (▲▼ to rate · Back to AUTO anytime.)';
+    }
+  } catch (e) {}
+}
+function useAutoChords() {
+  if (__autoChordsBackup && __autoChordsBackup.chords) {
+    applyDetectedChords(__autoChordsBackup.chords);
+    if (__autoChordsBackup.bpm) detectedBpm = __autoChordsBackup.bpm;
+    window.__stageDirty = true; if (typeof buildSongBars === 'function') buildSongBars();
+  }
+  updateChordSourceBadge('auto');
+  const st = document.getElementById('chordget-status'); if (st) st.textContent = '⚠ Back to auto-detected chords.';
+}
+async function voteVersion(id, dir) {
+  const info = currentSongInfo(); if (!info.ok || !LOOPER_API) return;
+  try {
+    await fetch(LOOPER_API + '/vote?v=' + encodeURIComponent(info.key) + '&id=' + encodeURIComponent(id) + '&dir=' + dir, { method:'POST' });
+    loadCommunityVersions(); // refresh counts + highlight
+  } catch (e) {}
+}
+async function publishMyVersion() {
+  const info = currentSongInfo(); const st = document.getElementById('chordget-status');
+  if (!info.ok) { if (st) st.textContent = 'Load a song first, then publish your chords for it.'; return; }
+  const chords = window.songChords || [];
+  if (!chords.length) { if (st) st.textContent = 'No chords on screen yet — auto-detect or type a progression first, then publish.'; return; }
+  let author = localStorage.getItem('looperAuthor');
+  if (!author) { author = (prompt('Your name/handle (shown on your published chords):','') || '').trim(); if (author) localStorage.setItem('looperAuthor', author); }
+  const label = (prompt('Name this version (e.g. "Easy capo 2", "Acoustic", "Full jazz voicings"):','') || '').trim();
+  if (!label) { if (st) st.textContent = 'Publish cancelled (needs a version name).'; return; }
+  const payload = { label, author: author||'anon', bpm: detectedBpm||0, key: (window.songKey||''),
+    chords: chords.map(c => ({ time: +(c.time||0), name: c.name })) };
+  try {
+    const r = await fetch(LOOPER_API + '/version?v=' + encodeURIComponent(info.key), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+    const j = await r.json();
+    if (j.ok) { if (st) st.textContent = '✅ Published "'+label+'"! Others can now use & rate it.'; loadCommunityVersions(); }
+    else if (r.status === 429) { if (st) st.textContent = '⏳ '+(j.detail||'Too many submissions this hour.'); }
+    else { if (st) st.textContent = '⚠ '+(j.detail || j.error || 'Could not publish.'); }
+  } catch (e) { if (st) st.textContent = '⚠ Publish failed ('+(e.message||e)+').'; }
 }
 
 // ½× / 2× fix for octave errors (metronome double/half real tempo) — re-scales the actual beat grid.
