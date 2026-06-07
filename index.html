@@ -3611,7 +3611,7 @@ function exitYouTubeMode() {
 function isVideoStudio() { const v = document.getElementById('opt-video'); return !!(v && v.classList.contains('active')); }
 // Configurable Phase-2 analysis-server base (set once live: localStorage.looperApi = 'https://your-box'). Empty = not live yet.
 // On the tailnet preview, auto-connect to the dev engine so search/audio just work; public domain stays clean (set localStorage.looperApi to override either way).
-const LOOPER_API = (localStorage.getItem('looperApi') || (location.hostname.endsWith('.ts.net') ? 'http://hermes-vps.tail2f597b.ts.net:8097' : '')).replace(/\/$/, '');
+const LOOPER_API = (localStorage.getItem('looperApi') || (location.hostname.endsWith('.ts.net') ? 'http://hermes-vps.tail2f597b.ts.net:8097' : 'https://engine.looperdeluxe.com')).replace(/\/$/, '');
 // AUDIO mode: the server pulls the song's audio → we load it into the SAME MP3 pipeline (real waveform,
 // auto-BPM, auto-chords, sample-precise loop). No YouTube player → no embedding restriction at all.
 function ytPlayVideo(id) {
@@ -3643,9 +3643,9 @@ async function loadYouTubeAudioAsWaveform(id) {
     window.__ytVideoId = id;   // tag the source so its analysis is cached/reused
     initMediaPipeline(file);   // full waveform + auto-chords + auto-BPM + loop + metronome, exactly like an MP3
   } catch (e) {
-    // No audio yet → DON'T dump the bulky video into Audio mode. Be honest about the one unlock.
-    if (status) status.textContent = '';
-    alert('🎵 Audio mode turns a YouTube song into a WAVEFORM — with loop, metronome and auto-chords. That needs the song\'s actual audio, which requires the one-time cookie unlock on the engine.\n\nUntil then:\n  • VIDEO STUDIO → play/watch it now\n  • or drop an MP3 for the full looper\n\nDo the 2-minute cookie step and Audio mode lights up completely.');
+    // YouTube now token-blocks audio downloads → fall back to playing the VIDEO (with its scrubber), no dead-end.
+    if (status) status.textContent = '▶ Playing the video. (Live chords from YouTube are coming via the "listen" feature — for now, drop an MP3 for full auto-chords.)';
+    ytPlayVideo(id);
   }
 }
 function ytPlayId(id) {
