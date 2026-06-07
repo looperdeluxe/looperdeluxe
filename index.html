@@ -2185,6 +2185,7 @@ function currentSongInfo() {
   return { key: 'song::' + norm, title, artist, ok: !!norm };
 }
 let __chordRec = null;
+let __captureAnchor = 0;   // song-clock position (s) where the current chord capture started
 async function getStreamingChords() {
   const st = document.getElementById('chordget-status'); const btn = document.getElementById('btn-getchords');
   const info = currentSongInfo();
@@ -2216,15 +2217,22 @@ async function getStreamingChords() {
       const audioBuf = await ac.decodeAudioData(buf);
       const map = await analyzeViaWorker(audioBuf);
       if (map && map.ticks && map.ticks.length > 4) {
+        // SYNC FIX: capture begins mid-song (after the picker dialog), so analysis t=0 is NOT song t=0.
+        // Anchor every tick/chord to the song's real clock at record-start so chords land on the song's timeline.
+        if (__captureAnchor > 0.05) {
+          map.ticks = map.ticks.map(t => t + __captureAnchor);
+          if (map.chords) map.chords = map.chords.map(c => ({ ...c, time: (c.time || 0) + __captureAnchor }));
+        }
         applyMap(map); window.__stageDirty = true;
         if (st) st.textContent = '✅ Full chords ready — scrolling in time. (Nudge the offset slider if they\'re early/late.)';
         if (LOOPER_API) fetch(LOOPER_API + '/analysis?v=' + encodeURIComponent(info.key), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ticks: map.ticks, bpm: map.bpm, confidence: map.confidence, chords: map.chords, key: map.key }) }).catch(() => {});
       } else if (st) st.textContent = '⚠ Couldn\'t detect chords clearly — try again with the song from the start.';
     } catch (e) { if (st) st.textContent = '⚠ Could not analyze the captured audio (' + (e.message || e) + ').'; }
   };
+  __captureAnchor = (typeof playTime === 'function' ? (playTime() || 0) : 0);  // song clock at record-start = where these chords begin
   rec.start();
   if (btn) { btn.textContent = '⏹ STOP & ANALYZE'; btn.onclick = () => { try { if (rec.state === 'recording') rec.stop(); } catch (e) {} }; }
-  if (st) st.innerHTML = '🎧 Listening… <b>restart the song from the beginning</b>, let it play through, then hit STOP (auto-stops at the end).';
+  if (st) st.innerHTML = '🎧 Listening from <b>' + (Math.floor(__captureAnchor/60)) + ':' + String(Math.floor(__captureAnchor%60)).padStart(2,'0') + '</b> — let it play to the end (tip: for full-song chords, seek to the very start first). Auto-stops at the end.';
   const dur = playDuration();
   if (dur > 5) setTimeout(() => { try { if (rec.state === 'recording') rec.stop(); } catch (e) {} }, (dur + 3) * 1000);
 }
