@@ -3574,12 +3574,21 @@ async function separateStems() {
       song_key: songKey,
       license_key: licenseKey
     });
-    const resp = await fetch(MODAL_STEM_URL + '?' + params.toString(), {
-      method: 'POST',
-      body: wavBlob,
-      headers: { 'Content-Type': 'audio/wav' }
-    });
-    clearInterval(tick);
+    // Hard 5-min timeout — Modal GPU separation should never need more than 3 min
+    const stemAbort = new AbortController();
+    const stemTimeout = setTimeout(() => stemAbort.abort(), 300_000);
+    let resp;
+    try {
+      resp = await fetch(MODAL_STEM_URL + '?' + params.toString(), {
+        method: 'POST', body: wavBlob, headers: { 'Content-Type': 'audio/wav' },
+        signal: stemAbort.signal
+      });
+    } catch (fetchErr) {
+      clearInterval(tick); clearTimeout(stemTimeout);
+      if (fetchErr.name === 'AbortError') throw new Error('Timed out after 5 min — Modal GPU may be overloaded. Try again in a moment.');
+      throw fetchErr;
+    }
+    clearInterval(tick); clearTimeout(stemTimeout);
 
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}));
