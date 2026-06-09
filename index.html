@@ -4828,27 +4828,28 @@ function updatePremiumUI(){ document.querySelectorAll('[data-premium-badge]').fo
 // Feature guide: clicking a tier badge takes you to that plan's pricing page.
 // Run after DOM is ready (this script block runs synchronously after the DOM).
 (function wireFeatureGuideBadges() {
-  // tier-prem spans in .instruction-item → show tiers modal highlighting Premium
-  document.querySelectorAll('.instruction-item .tier-prem').forEach(el => {
-    el.style.cursor = 'pointer';
-    el.title = 'Click to see Premium plan';
-    el.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const feat = el.closest('.instruction-item')?.querySelector('strong')?.textContent?.replace(/[★✨🔓]/g,'').trim() || 'Premium';
-      showTiers(feat, 'premium');
-    });
+  // Make the whole .instruction-item row clickable when it has a premium or elite badge
+  document.querySelectorAll('.instruction-item').forEach(row => {
+    const isPrem = row.querySelector('.tier-prem');
+    const isElite = row.querySelector('.tier-elite, .tier-pro');
+    if (!isPrem && !isElite) return;
+    row.style.cursor = 'pointer';
+    row.style.transition = 'background 0.15s';
+    row.addEventListener('mouseenter', () => { row.style.background = isElite ? 'rgba(251,191,36,0.07)' : 'rgba(192,132,252,0.07)'; });
+    row.addEventListener('mouseleave', () => { row.style.background = ''; });
+    const feat = row.querySelector('strong')?.textContent?.replace(/[★✨🔓]/g,'').trim() || (isElite ? 'Elite' : 'Premium');
+    row.addEventListener('click', () => showTiers(feat, isElite ? 'pro' : 'premium'));
   });
-  // tier-elite spans → show tiers modal highlighting Elite (tier-pro is legacy; tier-elite is what the guide uses)
-  document.querySelectorAll('.instruction-item .tier-elite, .instruction-item .tier-pro').forEach(el => {
+  // Section-label tier badges (e.g. "▸ ELITE EXCLUSIVE")
+  document.querySelectorAll('.feat-section-label .tier-elite, .feat-section-label .tier-pro').forEach(el => {
     el.style.cursor = 'pointer';
-    el.title = 'Click to see Elite plan';
-    el.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const feat = el.closest('.instruction-item')?.querySelector('strong')?.textContent?.replace(/[★✨🔓]/g,'').trim() || 'Elite';
-      showTiers(feat, 'pro');
-    });
+    el.addEventListener('click', (e) => { e.stopPropagation(); showTiers('Elite', 'pro'); });
   });
-  // Also tier-strip chips at the top
+  document.querySelectorAll('.feat-section-label .tier-prem').forEach(el => {
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', (e) => { e.stopPropagation(); showTiers('Premium', 'premium'); });
+  });
+  // Tier legend chips at the top of the guide
   document.querySelectorAll('.tier-chip.tier-prem-chip').forEach(el => {
     el.style.cursor = 'pointer';
     el.addEventListener('click', () => showTiers('Premium', 'premium'));
