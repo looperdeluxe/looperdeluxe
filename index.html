@@ -2003,13 +2003,39 @@
 
   <!-- ===== MY STUFF TAB ===== -->
   <div id="tab-uploads-panel" class="app-tab-panel">
+
+    <!-- SETLISTS -->
     <div class="info-card" style="flex-shrink:0;">
-      <h3>📁 MY PUBLISHED VERSIONS</h3>
-      <p style="font-size:0.7rem;color:var(--dim);margin-bottom:8px;">Chord versions you've published. Only stored on this device — delete anytime.</p>
-      <button class="btn" style="padding:4px 12px;font-size:0.6rem;margin-bottom:10px;" onclick="refreshMyUploads()">↻ REFRESH</button>
-      <div id="my-uploads-list" style="display:flex;flex-direction:column;gap:6px;"></div>
-      <p id="my-uploads-empty" style="color:var(--dim);font-size:0.68rem;display:none;">No published versions yet. Load a song, auto-detect chords, then hit 📤 PUBLISH MINE in the chord panel.</p>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <h3 style="margin:0;">🎵 MY SETLISTS</h3>
+        <button class="btn accent" style="padding:4px 14px;font-size:0.6rem;" onclick="newSetlist()">+ NEW SETLIST <span style="color:#c084fc;font-size:0.55rem;">✨</span></button>
+      </div>
+      <p style="font-size:0.65rem;color:var(--dim);margin-bottom:10px;">Group songs by gig or practice session. Each song remembers its loop — tap ▶ to load it instantly.</p>
+      <div id="mystuff-setlist-body"></div>
+      <p id="mystuff-setlist-empty" style="color:var(--dim);font-size:0.65rem;display:none;">No setlists yet. Hit + NEW SETLIST to start one, then load a song and tap + ADD CURRENT.</p>
     </div>
+
+    <!-- SAVED LOOPS -->
+    <div class="info-card" style="flex-shrink:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <h3 style="margin:0;">🔁 SAVED LOOPS</h3>
+        <span style="font-size:0.58rem;color:var(--dim);">save loops via the Play tab</span>
+      </div>
+      <div id="mystuff-loops-list" style="display:flex;flex-direction:column;gap:5px;"></div>
+      <p id="mystuff-loops-empty" style="color:var(--dim);font-size:0.65rem;display:none;">No saved loops yet. Load a song, set IN/OUT points, then hit 💾 SAVE LOOP in the Play tab.</p>
+    </div>
+
+    <!-- PUBLISHED CHORD VERSIONS -->
+    <div class="info-card" style="flex-shrink:0;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <h3 style="margin:0;">📤 MY CHORD VERSIONS</h3>
+        <button class="btn" style="padding:3px 10px;font-size:0.55rem;" onclick="refreshMyStuff()">↻ REFRESH</button>
+      </div>
+      <p style="font-size:0.65rem;color:var(--dim);margin-bottom:8px;">Chord versions you've published for the community.</p>
+      <div id="my-uploads-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+      <p id="my-uploads-empty" style="color:var(--dim);font-size:0.65rem;display:none;">No published versions yet. Load a song, auto-detect chords, then hit 📤 PUBLISH MINE in the chord panel.</p>
+    </div>
+
   </div>
 
 </div><!-- /#app-container -->
@@ -3513,7 +3539,7 @@ async function separateStems() {
   const muteSel = document.getElementById('stem-mute-select');
   const mutedStem = (muteSel && muteSel.value) || 'Guitar';
   const songKey = _stemSongKey();
-  const licenseKey = localStorage.getItem('looperLicense') || '';
+  const licenseKey = localStorage.getItem('looperLicense') || (localStorage.getItem('looperOwner') === '1' ? 'brooks-956bd142342d' : '');
 
   // Quota check (quota is also enforced server-side; client check is just UX)
   if (!_stemCheckQuota(songKey, false)) {
@@ -3537,7 +3563,7 @@ async function separateStems() {
     const params = new URLSearchParams({
       muted: mutedStem.toLowerCase(),
       song_key: songKey,
-      license_key: licenseKey || 'owner'   // owner bypass for testing; real key for paid users
+      license_key: licenseKey
     });
     const resp = await fetch(MODAL_STEM_URL + '?' + params.toString(), {
       method: 'POST',
@@ -4566,8 +4592,8 @@ async function verifyChords() {
   if (btn) btn.disabled = true;
 
   try {
-    const wavBlob = _bufToWavBlob(decoded);
-    const licKey = localStorage.getItem('looperLicense') || localStorage.getItem('looperOwner') && 'brooks-956bd142342d' || '';
+    const wavBlob = await _bufToWavBlob(decoded);
+    const licKey = localStorage.getItem('looperLicense') || (localStorage.getItem('looperOwner') === '1' ? 'brooks-956bd142342d' : '');
     const params = new URLSearchParams({ license_key: licKey || 'brooks-956bd142342d', song_key: info.key });
 
     if (st) st.textContent = '⏳ Sending to verification server (~30s)…';
@@ -5765,7 +5791,7 @@ function switchAppTab(name) {
     });
     const up = document.getElementById('tab-uploads-panel');
     if (up) up.classList.add('active');
-    refreshMyUploads();
+    refreshMyStuff();
   }
 }
 
@@ -5896,6 +5922,75 @@ function scaleExplorerFromSong() {
   renderScaleExplorer();
 }
 
+// ===== My Stuff tab — setlists, saved loops, published versions =====
+function refreshMyStuff() {
+  // Setlists
+  const slBody = document.getElementById('mystuff-setlist-body');
+  const slEmpty = document.getElementById('mystuff-setlist-empty');
+  const setlists = getSetlists ? getSetlists() : JSON.parse(localStorage.getItem('looperSetlists') || '[]');
+  if (slBody) {
+    if (!setlists.length) {
+      slBody.innerHTML = '';
+      if (slEmpty) slEmpty.style.display = '';
+    } else {
+      if (slEmpty) slEmpty.style.display = 'none';
+      let html = '';
+      setlists.forEach((sl, i) => {
+        const songs = sl.songs || [];
+        html += '<div style="border:1px solid rgba(147,51,234,0.3);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:rgba(147,51,234,0.05);">';
+        html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">'
+          + '<span style="color:#c084fc;font-family:Orbitron,sans-serif;font-size:0.68rem;font-weight:700;">' + esc2(sl.name) + '</span>'
+          + '<span style="display:flex;gap:5px;">'
+          + '<button class="btn" onclick="addCurrentToSetlist(' + i + ')" style="padding:2px 8px;font-size:0.5rem;" title="Add current song+loop">+ ADD</button>'
+          + '<button class="btn danger" onclick="delSetlist(' + i + ');refreshMyStuff();" style="padding:2px 7px;font-size:0.5rem;">✕</button>'
+          + '</span></div>';
+        if (!songs.length) {
+          html += '<div style="font-size:0.58rem;color:var(--dim);padding:2px 0;">Empty — tap + ADD while a song is loaded.</div>';
+        } else {
+          songs.forEach((song, gi) => {
+            const rng = (song.end > song.start) ? ' · ' + fmt(song.start) + '–' + fmt(song.end) : '';
+            html += '<div style="display:flex;align-items:center;gap:6px;margin-top:5px;">'
+              + '<button class="btn" onclick="loadSetlistSong(' + i + ',' + gi + ')" style="flex:1;min-width:0;text-align:left;padding:4px 10px;font-size:0.6rem;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">'
+              + '▶ ' + esc2(song.title) + '<span style="color:var(--dim);font-size:0.5rem;">' + rng + '</span></button>'
+              + '<button class="btn danger" onclick="delSetlistSong(' + i + ',' + gi + ');refreshMyStuff();" style="padding:3px 7px;font-size:0.5rem;flex-shrink:0;">✕</button>'
+              + '</div>';
+          });
+        }
+        html += '</div>';
+      });
+      slBody.innerHTML = html;
+    }
+  }
+
+  // Saved loops
+  const loopList = document.getElementById('mystuff-loops-list');
+  const loopEmpty = document.getElementById('mystuff-loops-empty');
+  const loops = JSON.parse(localStorage.getItem('cosmicSavedLoopsMaster') || '[]');
+  if (loopList) {
+    if (!loops.length) {
+      loopList.innerHTML = '';
+      if (loopEmpty) loopEmpty.style.display = '';
+    } else {
+      if (loopEmpty) loopEmpty.style.display = 'none';
+      let html = '';
+      loops.forEach((l, i) => {
+        const rng = (l.end > l.start) ? fmt(l.start) + '–' + fmt(l.end) : '—';
+        const song = l.ytTitle || l.name || 'Loop ' + (i + 1);
+        html += '<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid rgba(99,102,241,0.2);border-radius:7px;background:rgba(99,102,241,0.05);">'
+          + '<button onclick="window.loadLp(' + i + ')" style="flex:1;min-width:0;text-align:left;background:none;border:none;cursor:pointer;color:#e4e4e7;font-size:0.62rem;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0;">'
+          + '▶ ' + esc2(l.name || 'Loop') + ' <span style="color:var(--dim);font-size:0.52rem;">' + esc2(rng) + '</span>'
+          + (l.ytTitle ? '<br><span style="color:var(--dim);font-size:0.5rem;">' + esc2(l.ytTitle) + '</span>' : '')
+          + '</button>'
+          + '<button onclick="savedLoops.splice(' + i + ',1);localStorage.setItem(\'cosmicSavedLoopsMaster\',JSON.stringify(savedLoops));if(typeof renderLoopBank===\'function\')renderLoopBank();refreshMyStuff();" title="Delete loop" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);border-radius:5px;color:#f87171;padding:3px 7px;font-size:0.52rem;cursor:pointer;flex-shrink:0;">✕</button>'
+          + '</div>';
+      });
+      loopList.innerHTML = html;
+    }
+  }
+
+  refreshMyUploads();
+}
+
 // ===== My Uploads (published community versions) =====
 function refreshMyUploads() {
   const list = document.getElementById('my-uploads-list');
@@ -5931,7 +6026,7 @@ async function deleteMyVersion(id) {
   const mine = JSON.parse(localStorage.getItem('looperMyVersions') || '[]');
   const updated = mine.filter(v => v.id !== id);
   localStorage.setItem('looperMyVersions', JSON.stringify(updated));
-  refreshMyUploads();
+  refreshMyStuff();
 }
 
 async function findBackingTrack() {
