@@ -300,11 +300,12 @@
     }
 
     /* === Feature guide new styles === */
-    .tier-strip { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 20px; }
+    .tier-strip { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 20px; justify-content:center; }
     .tier-chip { font-size:0.72rem; font-weight:700; padding:5px 12px; border-radius:20px; font-family:'Orbitron',sans-serif; letter-spacing:0.5px; }
     .tier-free-chip  { color:#a3e635; border:1px solid rgba(163,230,53,0.5);  background:rgba(163,230,53,0.08);  }
     .tier-prem-chip  { color:#c084fc; border:1px solid rgba(192,132,252,0.5); background:rgba(192,132,252,0.08); }
     .tier-elite-chip { color:#fbbf24; border:1px solid rgba(251,191,36,0.5);  background:rgba(251,191,36,0.08);  }
+    .tier-free  { color:#a3e635; font-size:0.6em; font-weight:700; vertical-align:middle; }
     .tier-prem  { color:#c084fc; font-size:0.6em; font-weight:700; vertical-align:middle; }
     .tier-elite { color:#fbbf24; font-size:0.6em; font-weight:700; vertical-align:middle; }
     .feat-section-label { font-family:'Orbitron',sans-serif; font-size:0.68rem; color:#94a3b8; letter-spacing:1.5px; text-transform:uppercase; margin:22px 0 10px; border-left:2px solid rgba(147,51,234,0.6); padding-left:10px; }
@@ -912,18 +913,81 @@
       box-shadow: 0 0 10px rgba(192, 132, 252, 0.6);
     }
 
-    #countdown-overlay {
+    #countdown-overlay { display: none !important; } /* superseded by #loop-mode-view */
+
+    /* ── LOOP MODE VIEW ───────────────────────────────────────────────────── */
+    #loop-mode-view {
       position: absolute;
-      top: 40%;
-      left: 50%;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      display: none;
+      z-index: 95;
+      width: min(92%, 380px);
+      background: rgba(2, 6, 23, 0.97);
+      border: 1px solid rgba(99,102,241,0.5);
+      border-radius: 22px;
+      padding: 20px 22px 18px;
+      text-align: center;
+      box-shadow: 0 0 50px rgba(99,102,241,0.15), 0 10px 40px rgba(0,0,0,0.8);
+      backdrop-filter: blur(8px);
+      pointer-events: none;
+    }
+    #lmv-chord {
+      font-family: 'Orbitron', sans-serif;
+      font-size: clamp(3.5rem, 16vw, 5.8rem);
+      font-weight: 900;
+      color: var(--cyan);
+      letter-spacing: 4px;
+      line-height: 1;
+      filter: drop-shadow(0 0 20px rgba(34,211,238,0.6));
+      transition: color 0.18s, filter 0.18s;
+    }
+    #lmv-chord-label {
+      font-size: 0.55rem;
+      letter-spacing: 3px;
+      color: rgba(255,255,255,0.22);
+      font-family: 'Orbitron', sans-serif;
+      margin-top: 3px;
+    }
+    #lmv-ring-wrap {
+      margin: 12px auto 6px;
+      width: fit-content;
+      position: relative;
+    }
+    #lmv-ring-svg { display: block; }
+    #lmv-ring-track { fill: none; stroke: rgba(99,102,241,0.18); stroke-width: 6; }
+    #lmv-ring-arc   { fill: none; stroke: var(--cyan); stroke-width: 6; stroke-linecap: round;
+                       transform: rotate(-90deg); transform-origin: 50% 50%;
+                       transition: stroke-dashoffset 0.1s linear, stroke 0.3s; }
+    #lmv-ring-label {
+      position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       font-family: 'Orbitron', sans-serif;
-      font-size: 4rem;
-      color: var(--cyan);
-      display: none;
-      z-index: 100;
-      text-shadow: 0 0 20px var(--violet);
+      font-size: 0.6rem; letter-spacing: 2px;
+      color: rgba(255,255,255,0.45);
+      text-transform: uppercase;
     }
+    #lmv-status {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.6rem;
+      letter-spacing: 2px;
+      color: rgba(255,255,255,0.3);
+      margin-top: 4px;
+      min-height: 1.2em;
+    }
+    #lmv-pips {
+      display: flex; justify-content: center; gap: 12px; margin-top: 14px;
+    }
+    .lmv-pip {
+      width: 42px; height: 42px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      border: 2px solid rgba(34,211,238,0.18);
+      font-family: 'Orbitron', sans-serif; font-size: 0.85rem; font-weight: 700;
+      color: rgba(34,211,238,0.2);
+      transition: all 0.3s;
+    }
+    .lmv-pip.done   { border-color: var(--cyan); color: var(--cyan); background: rgba(34,211,238,0.08); }
+    .lmv-pip.active { border-color: var(--violet); color: var(--violet); background: rgba(147,51,234,0.12); box-shadow: 0 0 16px rgba(147,51,234,0.3); }
 
     #lyrics-container {
       flex: 1;
@@ -1024,6 +1088,25 @@
 <div id="particles"></div>
 <div id="countdown-overlay">READY</div>
 
+<!-- ── LOOP MODE VIEW ─────────────────────────────────────────────────────── -->
+<div id="loop-mode-view">
+  <div id="lmv-chord">—</div>
+  <div id="lmv-chord-label">CHORD</div>
+  <div id="lmv-ring-wrap">
+    <svg id="lmv-ring-svg" width="80" height="80" viewBox="0 0 80 80">
+      <circle id="lmv-ring-track" cx="40" cy="40" r="34"/>
+      <circle id="lmv-ring-arc"   cx="40" cy="40" r="34"
+              stroke-dasharray="213.6" stroke-dashoffset="0"/>
+    </svg>
+    <div id="lmv-ring-label">LOOP</div>
+  </div>
+  <div id="lmv-status">PLAYING</div>
+  <div id="lmv-pips">
+    <div class="lmv-pip" id="lmv-pip-1">1</div>
+    <div class="lmv-pip" id="lmv-pip-2">2</div>
+  </div>
+</div>
+
 <div id="app-container">
   <header>
     <h1><span class="looper-text">LOOPER</span> <span class="deluxe-text">DELUXE</span></h1>
@@ -1085,8 +1168,8 @@
         <!-- Section: Getting started -->
         <div class="feat-section-label">▸ LOADING A SONG</div>
         <div class="instruction-grid-2x2">
-          <div class="instruction-item"><strong>DROP A FILE</strong><span>Drag any MP3, WAV, or MP4 onto the page. Instant chords, BPM, and waveform.</span></div>
-          <div class="instruction-item"><strong>▶ YOUTUBE</strong><span>Search by title or paste a YouTube URL. The video plays here with chords overlaid.</span></div>
+          <div class="instruction-item"><strong>DROP A FILE <span class="tier-free">🔓 FREE</span></strong><span>Drag any MP3, WAV, or MP4 onto the page. Instant chords, BPM, and waveform.</span></div>
+          <div class="instruction-item"><strong>▶ YOUTUBE <span class="tier-free">🔓 FREE</span></strong><span>Search by title or paste a YouTube URL. The video plays here with chords overlaid.</span></div>
           <div class="instruction-item"><strong>🟢 SPOTIFY <span class="tier-prem">✨ PREMIUM</span></strong><span>Connect Spotify and stream any track with full chord + lyrics sync.</span></div>
           <div class="instruction-item"><strong>🎵 SETLISTS <span class="tier-prem">✨ PREMIUM</span></strong><span>Group songs by gig or practice session. One click loads any song in the list.</span></div>
         </div>
@@ -1094,31 +1177,31 @@
         <!-- Section: Playback controls -->
         <div class="feat-section-label">▸ PLAYBACK CONTROLS</div>
         <div class="instruction-grid-2x2">
-          <div class="instruction-item"><strong>[ SPACE ]</strong><span>Play / pause. Chords scroll in real time so you look at the neck, not the screen.</span></div>
-          <div class="instruction-item"><strong>[ ← ] / [ → ]</strong><span>Skip back or forward 5 seconds while playing.</span></div>
-          <div class="instruction-item"><strong>SLOW-DOWN SLIDER</strong><span>0.5× to 1.5×. Real pitch preserved — no chipmunk voice, no dropped notes.</span></div>
-          <div class="instruction-item"><strong>SCRUBBER</strong><span>Click anywhere on the waveform to jump to that spot. YouTube videos seek too.</span></div>
+          <div class="instruction-item"><strong>[ SPACE ] <span class="tier-free">🔓 FREE</span></strong><span>Play / pause. Chords scroll in real time so you look at the neck, not the screen.</span></div>
+          <div class="instruction-item"><strong>[ ← ] / [ → ] <span class="tier-free">🔓 FREE</span></strong><span>Skip back or forward 5 seconds while playing.</span></div>
+          <div class="instruction-item"><strong>SLOW-DOWN SLIDER <span class="tier-free">🔓 FREE</span></strong><span>0.5× to 1.5×. Real pitch preserved — no chipmunk voice, no dropped notes.</span></div>
+          <div class="instruction-item"><strong>SCRUBBER <span class="tier-free">🔓 FREE</span></strong><span>Click anywhere on the waveform to jump to that spot. YouTube videos seek too.</span></div>
         </div>
 
         <!-- Section: Loops & practice -->
         <div class="feat-section-label">▸ LOOPS &amp; PRACTICE</div>
         <div class="instruction-grid-2x2">
-          <div class="instruction-item"><strong>[ I ] — LOOP IN</strong><span>While playing, press I to mark the start of a tricky section.</span></div>
-          <div class="instruction-item"><strong>[ O ] — LOOP OUT</strong><span>Press O to mark the end. The section now loops on its own.</span></div>
-          <div class="instruction-item"><strong>[ L ] — LOCK LOOP</strong><span>Toggle the loop on/off without losing your markers.</span></div>
+          <div class="instruction-item"><strong>[ I ] — LOOP IN <span class="tier-free">🔓 FREE</span></strong><span>While playing, press I to mark the start of a tricky section.</span></div>
+          <div class="instruction-item"><strong>[ O ] — LOOP OUT <span class="tier-free">🔓 FREE</span></strong><span>Press O to mark the end. The section now loops on its own.</span></div>
+          <div class="instruction-item"><strong>[ L ] — LOCK LOOP <span class="tier-free">🔓 FREE</span></strong><span>Toggle the loop on/off without losing your markers.</span></div>
           <div class="instruction-item"><strong>SAVE LOOPS <span class="tier-prem">✨ PREMIUM</span></strong><span>Name and save unlimited loops per song. Free plan: 2 saved loops total.</span></div>
-          <div class="instruction-item"><strong>🚀 STEP-UP TRAINER</strong><span>Start slow, auto-ramp to full tempo as you nail each pass. The speed trainer for anything tough.</span></div>
-          <div class="instruction-item"><strong>TRANSPOSE / CAPO</strong><span>Type a capo number (0–7) in the capo box — every chord diagram updates instantly.</span></div>
+          <div class="instruction-item"><strong>🚀 STEP-UP TRAINER <span class="tier-free">🔓 FREE</span></strong><span>Start slow, auto-ramp to full tempo as you nail each pass. The speed trainer for anything tough.</span></div>
+          <div class="instruction-item"><strong>TRANSPOSE / CAPO <span class="tier-free">🔓 FREE</span></strong><span>Type a capo number (0–7) in the capo box — every chord diagram updates instantly.</span></div>
         </div>
 
         <!-- Section: Chords -->
         <div class="feat-section-label">▸ CHORD ANALYSIS</div>
         <div class="instruction-grid-2x2">
-          <div class="instruction-item"><strong>✨ AUTO-DETECT</strong><span>Drop a file — chords and BPM are automatically detected in ~30 seconds on your device.</span></div>
-          <div class="instruction-item"><strong>🎸 GET CHORDS</strong><span>For live YouTube or Spotify: click GET CHORDS and share the tab audio when prompted (see screen-capture guide below).</span></div>
-          <div class="instruction-item"><strong>👥 COMMUNITY VERSIONS</strong><span>See player-submitted chord versions for popular songs. Rate them up or down. Usually more accurate than auto-detect for well-known songs.</span></div>
-          <div class="instruction-item"><strong>📤 PUBLISH MINE</strong><span>Auto-detected something better? Publish your version and it shows up for everyone who plays that song.</span></div>
-          <div class="instruction-item"><strong>🔸 SHAPES TAB</strong><span>See the actual guitar chord diagram for every chord in the song. Tap ◀ ▶ to switch to an easier voicing.</span></div>
+          <div class="instruction-item"><strong>✨ AUTO-DETECT <span class="tier-free">🔓 FREE</span></strong><span>Drop a file — chords and BPM are automatically detected in ~30 seconds on your device.</span></div>
+          <div class="instruction-item"><strong>🎸 GET CHORDS <span class="tier-free">🔓 FREE</span></strong><span>For live YouTube or Spotify: click GET CHORDS and share the tab audio when prompted (see screen-capture guide below).</span></div>
+          <div class="instruction-item"><strong>👥 COMMUNITY VERSIONS <span class="tier-free">🔓 FREE</span></strong><span>See player-submitted chord versions for popular songs. Rate them up or down. Usually more accurate than auto-detect for well-known songs.</span></div>
+          <div class="instruction-item"><strong>📤 PUBLISH MINE <span class="tier-free">🔓 FREE</span></strong><span>Auto-detected something better? Publish your version and it shows up for everyone who plays that song.</span></div>
+          <div class="instruction-item"><strong>🔸 SHAPES TAB <span class="tier-free">🔓 FREE</span></strong><span>See the actual guitar chord diagram for every chord in the song. Tap ◀ ▶ to switch to an easier voicing.</span></div>
           <div class="instruction-item"><strong>🔬 VERIFY CHORDS <span class="tier-elite">★ ELITE</span></strong><span>Sends your audio to our server — a neural network reruns chord analysis at ~90% accuracy. Result is shared with all users of that song.</span></div>
         </div>
 
@@ -1134,10 +1217,10 @@
         <!-- Section: Lyrics & coaching -->
         <div class="feat-section-label">▸ LYRICS &amp; COACHING <span class="tier-prem" style="font-size:0.7rem;">✨ PREMIUM</span></div>
         <div class="instruction-grid-2x2">
-          <div class="instruction-item"><strong>🎤 LYRICS TAB</strong><span>Fetches synced lyrics and overlays them over the chords in the STAGE view — chords appear above the right words.</span></div>
-          <div class="instruction-item"><strong>LYRIC SYNC SLIDER</strong><span>If lyrics are a bit early or late, drag the sync slider to align them perfectly.</span></div>
+          <div class="instruction-item"><strong>🎤 LYRICS TAB <span class="tier-free">🔓 FREE</span></strong><span>Fetches synced lyrics and overlays them over the chords in the STAGE view — chords appear above the right words.</span></div>
+          <div class="instruction-item"><strong>LYRIC SYNC SLIDER <span class="tier-free">🔓 FREE</span></strong><span>If lyrics are a bit early or late, drag the sync slider to align them perfectly.</span></div>
           <div class="instruction-item"><strong>🎤 CHORD COACH <span class="tier-prem">✨ PREMIUM</span></strong><span>Mic listens to you playing and checks if you're hitting the right root notes for each chord. Real-time feedback.</span></div>
-          <div class="instruction-item"><strong>STAGE VIEW</strong><span>Full-screen chord + lyrics display — chords above words, scrolling in time. Meant to be readable from across the room.</span></div>
+          <div class="instruction-item"><strong>STAGE VIEW <span class="tier-free">🔓 FREE</span></strong><span>Full-screen chord + lyrics display — chords above words, scrolling in time. Meant to be readable from across the room.</span></div>
         </div>
 
         <!-- Screen capture guide -->
@@ -1161,18 +1244,18 @@
 
         <div class="feat-section-label">▸ LOADING A VIDEO</div>
         <div class="instruction-grid-2x2">
-          <div class="instruction-item"><strong>SEARCH ANY SONG</strong><span>Type a title or paste a YouTube URL in the search bar — it loads and plays here with chords overlaid in real time.</span></div>
-          <div class="instruction-item"><strong>SCRUB THE TIMELINE</strong><span>Click anywhere on the scrubber bar to jump to that moment. Chords update instantly.</span></div>
-          <div class="instruction-item"><strong>AUTO-SWITCH TO AUDIO</strong><span>Hit "AUDIO SYSTEM" at the top to load the video's audio as a waveform — gives you loops, slow-down, and full stem isolation.</span></div>
-          <div class="instruction-item"><strong>SEARCH RESULTS</strong><span>Results show title, channel, and duration. Pick the official version or a live recording — both work with GET CHORDS.</span></div>
+          <div class="instruction-item"><strong>SEARCH ANY SONG <span class="tier-free">🔓 FREE</span></strong><span>Type a title or paste a YouTube URL in the search bar — it loads and plays here with chords overlaid in real time.</span></div>
+          <div class="instruction-item"><strong>SCRUB THE TIMELINE <span class="tier-free">🔓 FREE</span></strong><span>Click anywhere on the scrubber bar to jump to that moment. Chords update instantly.</span></div>
+          <div class="instruction-item"><strong>AUTO-SWITCH TO AUDIO <span class="tier-free">🔓 FREE</span></strong><span>Hit "AUDIO SYSTEM" at the top to load the video's audio as a waveform — gives you loops, slow-down, and full stem isolation.</span></div>
+          <div class="instruction-item"><strong>SEARCH RESULTS <span class="tier-free">🔓 FREE</span></strong><span>Results show title, channel, and duration. Pick the official version or a live recording — both work with GET CHORDS.</span></div>
         </div>
 
         <div class="feat-section-label">▸ VIDEO DISPLAY OPTIONS</div>
         <div class="instruction-grid-2x2">
-          <div class="instruction-item"><strong>DEFAULT / HALF SCREEN</strong><span>Switch between a standard player and a larger view that fills the workspace — useful on big monitors.</span></div>
-          <div class="instruction-item"><strong>◫ MIRROR</strong><span>Flip the video horizontally — handy when watching a teacher or playing in front of a mirror.</span></div>
-          <div class="instruction-item"><strong>⧉ POP-OUT VIDEO</strong><span>Detach the video into a floating window. Practice full-screen while the chord chart stays on screen.</span></div>
-          <div class="instruction-item"><strong>CHORD RIBBON</strong><span>4-bar chord ribbon scrolls just above the video in real time. Look up and play — no need to read the whole chart.</span></div>
+          <div class="instruction-item"><strong>DEFAULT / HALF SCREEN <span class="tier-free">🔓 FREE</span></strong><span>Switch between a standard player and a larger view that fills the workspace — useful on big monitors.</span></div>
+          <div class="instruction-item"><strong>◫ MIRROR <span class="tier-free">🔓 FREE</span></strong><span>Flip the video horizontally — handy when watching a teacher or playing in front of a mirror.</span></div>
+          <div class="instruction-item"><strong>⧉ POP-OUT VIDEO <span class="tier-free">🔓 FREE</span></strong><span>Detach the video into a floating window. Practice full-screen while the chord chart stays on screen.</span></div>
+          <div class="instruction-item"><strong>CHORD RIBBON <span class="tier-free">🔓 FREE</span></strong><span>4-bar chord ribbon scrolls just above the video in real time. Look up and play — no need to read the whole chart.</span></div>
         </div>
 
         <div class="feat-section-label">▸ GETTING CHORDS FROM A YOUTUBE VIDEO</div>
@@ -1190,10 +1273,10 @@
 
         <div class="feat-section-label">▸ ALL FEATURES AVAILABLE IN VIDEO MODE</div>
         <div class="instruction-grid-2x2">
-          <div class="instruction-item"><strong>CHORDS + LYRICS</strong><span>Same full chord chart and lyrics sync as audio mode — just synced to the video timestamp.</span></div>
-          <div class="instruction-item"><strong>LOOP POINTS</strong><span>[ I ] / [ O ] / [ L ] work the same as audio. The video seeks back to your loop start automatically.</span></div>
-          <div class="instruction-item"><strong>SLOW-DOWN</strong><span>Slow the video to 0.5× — full pitch preservation. Great for fast licks where you need to see the fingers move slowly.</span></div>
-          <div class="instruction-item"><strong>COMMUNITY VERSIONS</strong><span>See and rate player-submitted chord versions for this song — tap 👥 VERSIONS in the chord panel.</span></div>
+          <div class="instruction-item"><strong>CHORDS + LYRICS <span class="tier-free">🔓 FREE</span></strong><span>Same full chord chart and lyrics sync as audio mode — just synced to the video timestamp.</span></div>
+          <div class="instruction-item"><strong>LOOP POINTS <span class="tier-free">🔓 FREE</span></strong><span>[ I ] / [ O ] / [ L ] work the same as audio. The video seeks back to your loop start automatically.</span></div>
+          <div class="instruction-item"><strong>SLOW-DOWN <span class="tier-free">🔓 FREE</span></strong><span>Slow the video to 0.5× — full pitch preservation. Great for fast licks where you need to see the fingers move slowly.</span></div>
+          <div class="instruction-item"><strong>COMMUNITY VERSIONS <span class="tier-free">🔓 FREE</span></strong><span>See and rate player-submitted chord versions for this song — tap 👥 VERSIONS in the chord panel.</span></div>
         </div>
       </div><!-- /info-box-video -->
 
