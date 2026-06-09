@@ -1485,7 +1485,9 @@
                 <button class="btn accent" id="yt-loop" style="padding:5px 10px; font-size:0.6rem;">⟳ LOOP OFF</button>
               </div>
               <div style="font-size:0.65rem; color:var(--cyan); font-family:'Orbitron',sans-serif;">IN: <span id="yt-a" style="color:#fff;">0:00</span> &nbsp;|&nbsp; OUT: <span id="yt-b" style="color:#fff;">END</span></div>
-              <div style="font-size:0.58rem; color:var(--dim); line-height:1.5;"><b style="color:var(--cyan);">AUDIO SYSTEM</b> → loads the song as a waveform like an MP3 (auto-chords/BPM/loop) — needs the Phase-2 engine. <b style="color:#ff4b4b;">VIDEO STUDIO</b> → plays the video here now. Toggle up top.</div>
+              <div style="font-size:0.58rem; color:var(--dim); line-height:1.5;"><b style="color:var(--cyan);">AUDIO SYSTEM</b> → loads the song as a waveform (auto-chords/BPM/loop). <b style="color:#ff4b4b;">VIDEO STUDIO</b> → plays the video. Toggle up top.</div>
+              <button id="btn-capture-yt-audio" onclick="captureYouTubeAsWaveform()" style="display:none; margin-top:6px; padding:6px 14px; font-size:0.6rem; font-family:'Orbitron',sans-serif; background:rgba(34,197,94,0.18); border:1px solid rgba(34,197,94,0.6); border-radius:6px; color:#4ade80; cursor:pointer; width:100%;" title="Capture this video's audio as a waveform — unlocks chords, BPM, loops, and all analysis features">⬇️ CAPTURE AUDIO AS WAVEFORM (tab share required)</button>
+              <div id="yt-capture-status" style="display:none; font-size:0.6rem; color:var(--dim); margin-top:4px;"></div>
             </div>
           </div>
         </div>
@@ -1685,6 +1687,99 @@
           <canvas id="fretboard-vector"></canvas>
         </div>
       </div>
+
+      <!-- ===== LEARN SIDEBAR VIEW (shows in right column when song loaded) ===== -->
+      <div class="sidebar-view" id="column-learn-view" style="overflow-y:auto; gap:14px; padding:4px 2px;">
+        <div class="info-card">
+          <h3>🎸 SCALE EXPLORER</h3>
+          <p id="learn-scale-info" style="color:#c084fc; font-size:0.8rem; font-family:'Orbitron',sans-serif; margin-bottom:6px;">Load a song to see its key &amp; scales.</p>
+          <div id="learn-scale-body" style="display:none;">
+            <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+              <div id="learn-key-badge" style="background:rgba(147,51,234,0.22); border:1px solid #a855f7; border-radius:6px; padding:6px 14px; font-family:'Orbitron',sans-serif; font-size:0.72rem; color:#e9d5ff;"></div>
+              <div id="learn-scale-name" style="font-size:0.72rem; color:var(--dim); padding:6px 0;"></div>
+            </div>
+            <div id="learn-chord-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;"></div>
+            <p style="font-size:0.65rem; color:var(--dim);">Detected chords above. Hit <b style="color:#c084fc;">🎸 GET CHORDS</b> on the STAGE tab first to populate this.</p>
+          </div>
+        </div>
+        <div class="info-card">
+          <h3>🔍 BACKING TRACK FINDER</h3>
+          <p style="font-size:0.7rem; color:var(--dim); margin-bottom:8px;">Search for a YouTube backing track in your song's key.</p>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="backing-query" class="cyber-input" placeholder="e.g. G major blues backing track…" style="flex:1; padding:5px;" />
+            <button class="btn accent" onclick="findBackingTrack()" style="padding:5px 12px; font-size:0.6rem;">FIND</button>
+          </div>
+          <div id="backing-results" style="margin-top:10px; display:flex; flex-direction:column; gap:6px;"></div>
+        </div>
+        <div class="info-card">
+          <h3>📖 PRACTICE TIPS</h3>
+          <ul style="padding-left:14px;">
+            <li>Loop a tricky section: set IN/OUT points, then loop. Press <b style="color:#c084fc;">ESC</b> or ✕ CLEAR to break out.</li>
+            <li>Slow it down with <b style="color:#c084fc;">SPEED GEAR</b>. 60% → muscle memory → ramp up.</li>
+            <li>Use <b style="color:#c084fc;">STEP IT UP</b> to auto-increase speed each loop pass.</li>
+            <li>Hit <b style="color:#c084fc;">🎸 GET CHORDS</b> on any YouTube song to stream its full chord map.</li>
+            <li>Elite: <b style="color:#c084fc;">🔬 VERIFY</b> for DNN-neural ~90%-accurate chord detection.</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- ===== COACH SIDEBAR VIEW ===== -->
+      <div class="sidebar-view" id="column-coach-view" style="overflow-y:auto; gap:12px; padding:4px 2px; display:none;">
+        <div class="info-card" style="flex-shrink:0;">
+          <h3>🤖 AI CHORD COACH</h3>
+          <p style="margin-bottom:10px; font-size:0.72rem; color:var(--dim);">Ask anything about chords, theory, or how to practice this song. Claude AI.</p>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <span style="font-size:0.58rem; padding:3px 8px; border:1px solid rgba(147,51,234,0.4); border-radius:12px; color:var(--dim);">✨ Premium · Haiku</span>
+            <span style="font-size:0.58rem; padding:3px 8px; border:1px solid rgba(251,191,36,0.4); border-radius:12px; color:#fbbf24;">★ Elite · Sonnet</span>
+          </div>
+        </div>
+        <div id="coach-chat-log">
+          <div class="coach-msg-ai"><span>👋 Load a song and ask me anything — chord shapes, theory, practice tips, what key this is in...</span></div>
+        </div>
+        <div class="coach-input-row">
+          <input type="text" id="coach-input" class="cyber-input" placeholder="Ask the coach… (e.g. What key is this? How do I play Cmaj7?)" onkeydown="if(event.key==='Enter')askCoach()" style="flex:1; padding:6px;" />
+          <button class="btn accent" onclick="askCoach()" style="padding:5px 14px; font-size:0.6rem;">ASK</button>
+        </div>
+        <div id="coach-status" style="font-size:0.65rem; color:var(--dim); min-height:18px;"></div>
+      </div>
+
+      <!-- ===== SETTINGS SIDEBAR VIEW ===== -->
+      <div class="sidebar-view" id="column-settings-view" style="overflow-y:auto; gap:12px; padding:4px 2px; display:none;">
+        <div class="info-card">
+          <h3>🔑 LICENSE &amp; TIER</h3>
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+            <span id="settings-tier-badge" style="font-family:'Orbitron',sans-serif; font-size:0.75rem; padding:5px 14px; border-radius:6px; background:rgba(147,51,234,0.15); border:1px solid rgba(147,51,234,0.4); color:#c084fc;">FREE</span>
+            <a href="https://looperdeluxe.com/#pricing" target="_blank" style="font-size:0.65rem; color:#a855f7;">→ Upgrade</a>
+          </div>
+          <div style="display:flex; gap:8px; margin-bottom:8px;">
+            <input type="text" id="settings-license-input" class="cyber-input" placeholder="Paste license key…" style="flex:1; padding:5px;" />
+            <button class="btn accent" onclick="activateLicenseFromSettings()" style="padding:5px 12px; font-size:0.6rem;">ACTIVATE</button>
+          </div>
+          <div id="settings-license-status" style="font-size:0.65rem; color:var(--dim); min-height:18px;"></div>
+        </div>
+        <div class="info-card">
+          <h3>⚙️ AUDIO PREFERENCES</h3>
+          <div style="display:flex; flex-direction:column; gap:10px;">
+            <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+              <input type="checkbox" id="pref-auto-chords" onchange="savePref('autoChords',this.checked)" style="width:16px;height:16px;accent-color:#a855f7;" />
+              <span style="font-size:0.72rem; color:var(--dim);">Auto-detect chords on load</span>
+            </label>
+            <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+              <input type="checkbox" id="pref-auto-bpm" onchange="savePref('autoBpm',this.checked)" style="width:16px;height:16px;accent-color:#a855f7;" />
+              <span style="font-size:0.72rem; color:var(--dim);">Auto-detect BPM on load</span>
+            </label>
+          </div>
+        </div>
+        <div class="info-card">
+          <h3>ℹ️ ABOUT</h3>
+          <p style="font-size:0.72rem; color:var(--dim); margin-bottom:8px;">Looper Deluxe — guitar practice tool.</p>
+          <div style="display:flex; gap:10px;">
+            <a href="https://looperdeluxe.com" target="_blank" style="color:#a855f7; font-size:0.7rem;">looperdeluxe.com</a>
+          </div>
+        </div>
+      </div>
+
+    </div>
     </div>
   </div>
   </div><!-- /#tab-play-panel -->
@@ -1862,10 +1957,30 @@ tabChords.addEventListener('click', () => { setSidebarView('chords'); if (typeof
 function setSidebarView(mode) {
   [tabStage, tabLyrics, tabChords].forEach(t => t.classList.remove('active'));
   [viewStage, viewLyrics, viewChords].forEach(v => v.classList.remove('active'));
+  // Hide extra sidebar views
+  ['learn','coach','settings'].forEach(id => {
+    const el = document.getElementById('column-' + id + '-view');
+    if (el) el.style.display = 'none';
+  });
+  // Make sure right column is visible
+  const rightCol = document.getElementById('workspace-right-col');
+  if (rightCol && rightCol.style.display === 'none') {
+    const dash = document.getElementById('main-dashboard');
+    if (dash) dash.style.gridTemplateColumns = '1fr 480px';
+    rightCol.style.display = 'flex';
+    sidebarOpen = true;
+  }
 
   if (mode === 'stage') { tabStage.classList.add('active'); viewStage.classList.add('active'); window.__stageDirty = true; renderStage(ws ? ws.getCurrentTime() : 0); }
-  if (mode === 'lyrics') { tabLyrics.classList.add('active'); viewLyrics.classList.add('active'); }
-  if (mode === 'chords') { tabChords.classList.add('active'); viewChords.classList.add('active'); renderChordPalette(); setTimeout(()=>{initFretboardCanvasDimensions(); renderManualFretboard();}, 50); }
+  else if (mode === 'lyrics') { tabLyrics.classList.add('active'); viewLyrics.classList.add('active'); }
+  else if (mode === 'chords') { tabChords.classList.add('active'); viewChords.classList.add('active'); renderChordPalette(); setTimeout(()=>{initFretboardCanvasDimensions(); renderManualFretboard();}, 50); }
+  else if (mode === 'learn' || mode === 'coach' || mode === 'settings') {
+    const el = document.getElementById('column-' + mode + '-view');
+    if (el) el.style.display = 'flex';
+    if (mode === 'learn') refreshLearnTab();
+    if (mode === 'settings') refreshSettingsTab();
+  }
+  window.sidebarMode = mode;
 }
 
 let sidebarOpen = true;
@@ -4811,19 +4926,99 @@ async function loadYouTubeAudioAsWaveform(id) {
   const status = document.getElementById('bpm-detect-status');
   try {
     if (!LOOPER_API) throw new Error('no engine');
-    if (status) status.textContent = 'Pulling YouTube audio…';
+    if (status) status.textContent = 'Pulling YouTube audio from engine…';
     const r = await fetch(LOOPER_API + '/audio?v=' + encodeURIComponent(id));
-    if (!r.ok) throw new Error('engine ' + r.status);
+    if (!r.ok) {
+      let detail = '';
+      try { const j = await r.json(); detail = j.detail || j.error || ''; } catch(e) {}
+      throw new Error('engine ' + r.status + (detail ? ': ' + detail.slice(0, 80) : ''));
+    }
     const blob = await r.blob();
     const file = new File([blob], 'youtube-' + id + '.m4a', { type: blob.type || 'audio/mp4' });
     if (status) status.textContent = '';
-    window.__ytVideoId = id;   // tag the source so its analysis is cached/reused
-    initMediaPipeline(file);   // full waveform + auto-chords + auto-BPM + loop + metronome, exactly like an MP3
+    window.__ytVideoId = id;
+    showYtCaptureBtn(false);
+    initMediaPipeline(file);
   } catch (e) {
-    // YouTube now token-blocks audio downloads → fall back to playing the VIDEO (with its scrubber), no dead-end.
-    if (status) status.innerHTML = '▶ Playing (audio only). Hit <b style="color:#4ade80;">🎸 GET CHORDS</b> to auto-detect this song\'s chords.';
+    // Engine can't download (expired cookies / bot block) — fall back to video + show CAPTURE button
+    if (status) {
+      const errHint = (e.message || '').includes('502') ? 'Engine cookies expired — ' : '';
+      status.innerHTML = errHint + '▶ Playing video. Hit <b style="color:#4ade80;">⬇️ CAPTURE AUDIO</b> to unlock waveform features.';
+    }
+    window.__ytVideoId = id;
+    showYtCaptureBtn(true);
     ytPlayVideo(id);
   }
+}
+
+function showYtCaptureBtn(show) {
+  const btn = document.getElementById('btn-capture-yt-audio');
+  const st = document.getElementById('yt-capture-status');
+  if (btn) btn.style.display = show ? 'block' : 'none';
+  if (st) st.style.display = show ? 'block' : 'none';
+}
+
+// Capture audio from the playing YouTube tab → load as waveform (no server auth needed)
+async function captureYouTubeAsWaveform() {
+  const btn = document.getElementById('btn-capture-yt-audio');
+  const st = document.getElementById('yt-capture-status');
+  if (st) { st.style.display = 'block'; st.textContent = '🎧 Requesting tab audio share…'; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+    if (st) st.textContent = '⚠ Needs Chrome/Edge desktop — tab audio capture not available here.';
+    return;
+  }
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({ video: false, audio: true, preferCurrentTab: true });
+  } catch (e) { if (st) st.textContent = 'Capture cancelled — click again to retry.'; return; }
+  const aTracks = stream.getAudioTracks();
+  if (!aTracks.length) { if (st) st.textContent = '⚠ No audio — retry and tick "Share tab audio" in the popup.'; return; }
+  if (btn) { btn.textContent = '⏹ STOP CAPTURE & LOAD WAVEFORM'; btn.onclick = () => stopCapture(); }
+  if (st) st.textContent = '⏺ Recording… play the song from the start. Click ⏹ STOP when done (or it auto-stops at song end).';
+  const chunks = [];
+  const rec = new MediaRecorder(new MediaStream(aTracks));
+  window.__ytCaptureRec = rec;
+  rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  rec.onstop = async () => {
+    aTracks.forEach(t => t.stop());
+    if (btn) { btn.textContent = '⬇️ CAPTURE AUDIO AS WAVEFORM'; btn.onclick = captureYouTubeAsWaveform; }
+    if (st) st.textContent = '⏳ Decoding captured audio…';
+    try {
+      const blob = new Blob(chunks, { type: 'audio/webm' });
+      const file = new File([blob], (window.__ytTitle || 'youtube-capture') + '.webm', { type: 'audio/webm' });
+      if (st) st.textContent = '✅ Audio captured! Loading waveform…';
+      showYtCaptureBtn(false);
+      initMediaPipeline(file);
+      // Cache the analysis so future users get it instantly
+      setTimeout(async () => {
+        if (LOOPER_API && window.__ytVideoId) {
+          const info = currentSongInfo();
+          if (info && info.ok) {
+            const decoded = ws && ws.getDecodedData ? ws.getDecodedData() : null;
+            if (decoded) {
+              const map = await analyzeViaWorker(decoded).catch(() => null);
+              if (map && map.ticks && map.ticks.length > 4) {
+                applyMap(map);
+                fetch(LOOPER_API + '/analysis?v=' + encodeURIComponent(info.key), {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ ticks: map.ticks, bpm: map.bpm, chords: map.chords, key: map.key })
+                }).catch(() => {});
+              }
+            }
+          }
+        }
+      }, 2000);
+    } catch (e) { if (st) { st.style.display = 'block'; st.textContent = '⚠ Could not decode: ' + (e.message || e); } }
+  };
+  rec.start();
+  function stopCapture() { try { if (rec.state === 'recording') rec.stop(); } catch(e) {} }
+  // Auto-stop when YouTube video ends (poll ytPlayer)
+  const watchEnd = setInterval(() => {
+    if (ytPlayer && ytPlayer.getPlayerState && ytPlayer.getPlayerState() === 0) {
+      clearInterval(watchEnd); stopCapture();
+    }
+    if (!window.__ytCaptureRec || window.__ytCaptureRec.state === 'inactive') clearInterval(watchEnd);
+  }, 1000);
 }
 function ytPlayId(id) {
   if (!id) return;
@@ -5084,16 +5279,40 @@ window.__looper = {
 // ===== APP-LEVEL TAB SYSTEM =====
 const APP_TABS = ['play','learn','coach','settings'];
 function switchAppTab(name) {
+  // Update top tab button active states
   APP_TABS.forEach(t => {
     const btn = document.getElementById('atab-' + t);
-    const panel = document.getElementById('tab-' + t + '-panel');
     if (btn) btn.classList.toggle('active', t === name);
-    if (panel) { panel.classList.toggle('active', t === name); }
   });
-  // On switching to LEARN, refresh scale/chord info
-  if (name === 'learn') refreshLearnTab();
-  // On switching to SETTINGS, refresh tier display
-  if (name === 'settings') refreshSettingsTab();
+
+  const dash = document.getElementById('main-dashboard');
+  const dashVisible = dash && dash.style.display !== 'none';
+
+  if (dashVisible) {
+    // Song is loaded — use sidebar view system, keep left panel (waveform/transport) always visible
+    // Keep play panel always visible
+    const playPanel = document.getElementById('tab-play-panel');
+    if (playPanel) playPanel.classList.add('active');
+    // Hide the standalone full-page panels (they're only for landing state)
+    ['learn','coach','settings'].forEach(t => {
+      const p = document.getElementById('tab-' + t + '-panel');
+      if (p) p.classList.remove('active');
+    });
+    // Route to sidebar
+    if (name === 'play') {
+      setSidebarView('stage');
+    } else {
+      setSidebarView(name);
+    }
+  } else {
+    // No song loaded — full-page panel switch
+    APP_TABS.forEach(t => {
+      const panel = document.getElementById('tab-' + t + '-panel');
+      if (panel) panel.classList.toggle('active', t === name);
+    });
+    if (name === 'learn') refreshLearnTab();
+    if (name === 'settings') refreshSettingsTab();
+  }
 }
 
 function refreshLearnTab() {
@@ -5116,7 +5335,7 @@ function refreshLearnTab() {
   if (chordList) {
     chordList.innerHTML = '';
     const seen = new Set();
-    (window.currentChords || []).forEach(c => {
+    (window.songChords || []).forEach(c => {
       if (!c || !c.name || seen.has(c.name)) return;
       seen.add(c.name);
       const chip = document.createElement('span');
@@ -5192,7 +5411,7 @@ async function askCoach() {
 
   // Build context
   const key = window.songKey || '';
-  const chordsCtx = (window.currentChords || []).slice(0,20).map(c => c.name).join(' ');
+  const chordsCtx = (window.songChords || []).slice(0,20).map(c => c.name).join(' ');
   const ctx = [key ? ('Key: ' + key) : '', chordsCtx ? ('Chords: ' + chordsCtx) : ''].filter(Boolean).join(' | ');
 
   try {
