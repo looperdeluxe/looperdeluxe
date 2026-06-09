@@ -1129,7 +1129,7 @@
     .app-tab-panel.active { display: flex; }
 
     /* LEARN / COACH / SETTINGS tab panels — must override .app-tab-panel overflow:hidden */
-    #tab-learn-panel, #tab-coach-panel, #tab-settings-panel {
+    #tab-learn-panel, #tab-coach-panel, #tab-settings-panel, #tab-uploads-panel {
       overflow-y: auto !important;
       overflow-x: hidden;
       gap: 14px;
@@ -1662,13 +1662,13 @@
               <button id="stage-instrument" title="Switch between guitar chord shapes and the bass root note (the foundational bassline)" style="font-size:0.58rem; background:rgba(124,58,237,0.18); border:1px solid rgba(192,132,252,0.5); border-radius:5px; color:#f0abfc; padding:2px 8px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap;">🎸 GUITAR</button>
             </div>
             <span id="chord-source-badge" class="auto" title="Where these chords came from">⚠ AUTO-DETECTED · FIRST PASS</span>
-            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-              <button id="btn-getchords" onclick="getStreamingChords()" title="Get auto-detected chords for the playing Spotify/YouTube song (analyzes it once, then cached for everyone)" style="font-size:0.58rem; background:rgba(34,197,94,0.18); border:1px solid rgba(34,197,94,0.6); border-radius:5px; color:#4ade80; padding:3px 10px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap;">🎸 GET CHORDS</button>
-              <button id="btn-versions" onclick="loadCommunityVersions()" title="See player-submitted chord versions for this song (auto stays the default — these are optional alternatives you can rate)" style="font-size:0.58rem; background:rgba(99,102,241,0.18); border:1px solid rgba(129,140,248,0.6); border-radius:5px; color:#a5b4fc; padding:3px 10px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap;">👥 VERSIONS</button>
-              <button id="btn-publish-version" onclick="publishMyVersion()" title="Publish the chords currently on screen as YOUR version for others to use and rate" style="font-size:0.58rem; background:rgba(236,72,153,0.16); border:1px solid rgba(244,114,182,0.55); border-radius:5px; color:#f9a8d4; padding:3px 10px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap;">📤 PUBLISH MINE</button>
-              <button id="btn-verify-chords" onclick="verifyChords()" title="Elite: run a server-side neural network chord analysis — ~90% accuracy, cached for everyone" style="font-size:0.58rem; background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.45); border-radius:5px; color:#86efac; padding:3px 10px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap;">🔬 VERIFY <span style="font-size:0.45rem; color:#fbbf24; border:1px solid rgba(251,191,36,0.5); border-radius:6px; padding:0 4px; margin-left:2px;">★ ELITE</span></button>
-              <span id="chordget-status" style="font-size:0.5rem; color:var(--dim); max-width:320px;"></span>
-            </div>
+            <div style="display:flex; align-items:center; gap:4px; flex-wrap:nowrap; overflow:hidden;">
+  <button id="btn-getchords" onclick="getStreamingChords()" title="Get auto-detected chords for the playing Spotify/YouTube song (analyzes it once, then cached for everyone)" style="font-size:0.56rem; background:rgba(34,197,94,0.18); border:1px solid rgba(34,197,94,0.6); border-radius:5px; color:#4ade80; padding:3px 8px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap; flex-shrink:0;">🎸 GET CHORDS</button>
+  <button id="btn-versions" onclick="loadCommunityVersions()" title="See player-submitted chord versions for this song" style="font-size:0.56rem; background:rgba(99,102,241,0.18); border:1px solid rgba(129,140,248,0.6); border-radius:5px; color:#a5b4fc; padding:3px 7px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap; flex-shrink:0;">👥 VER</button>
+  <button id="btn-publish-version" onclick="publishMyVersion()" title="Publish the chords currently on screen as YOUR version for others to use and rate" style="font-size:0.56rem; background:rgba(236,72,153,0.16); border:1px solid rgba(244,114,182,0.55); border-radius:5px; color:#f9a8d4; padding:3px 7px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap; flex-shrink:0;">📤 PUBLISH</button>
+  <button id="btn-verify-chords" onclick="verifyChords()" title="Elite: run a server-side neural network chord analysis — ~90% accuracy, cached for everyone" style="font-size:0.56rem; background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.45); border-radius:5px; color:#86efac; padding:3px 6px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap; flex-shrink:0;">🔬 VERIFY <span style="font-size:0.42rem; color:#fbbf24; border:1px solid rgba(251,191,36,0.5); border-radius:5px; padding:0 3px; margin-left:1px;">★ ELITE</span></button>
+  <span id="chordget-status" style="font-size:0.5rem; color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;"></span>
+</div>
             <div id="versions-list" style="display:none; flex-direction:column; gap:4px; max-height:180px; overflow-y:auto; padding:6px; border:1px solid rgba(129,140,248,0.3); border-radius:8px; background:rgba(99,102,241,0.05);"></div>
             <div style="display:flex; align-items:center; gap:5px;">
               <span style="font-size:0.5rem; color:var(--dim);" title="Slide to align lyrics with the vocal (LRCLIB timing vs your audio)">LYRIC SYNC</span>
@@ -2937,7 +2937,7 @@ async function getStreamingChords() {
   }
   // Spotify audio is DRM → capture would record SILENCE. So Spotify is cache-only: it gets chords once the
   // same song has been analyzed via YouTube (or a file). Guide the user there.
-  if (playSource === 'spotify') { if (st) st.innerHTML = '🎵 This song isn\'t analyzed yet. Play the <b>YouTube</b> version of it and hit Get Chords there once — then it\'ll be cached here too (Spotify\'s audio is locked, so we analyze a free copy).'; return; }
+  if (playSource === 'spotify') { if (st) st.innerHTML = '🎵 Spotify audio is DRM-locked — search the same song on <b style="color:#ff4b4b;">YouTube</b> and hit GET CHORDS there once. It caches for everyone (including Spotify playback).'; return; }
   // 2) YouTube fast path: pull audio from engine and analyze directly (no screen-capture popup needed)
   if (window.__ytVideoId && LOOPER_API) {
     // If waveform isn't loaded yet, auto-download it first
@@ -4223,6 +4223,11 @@ function setSongKey(keyName) {
   window.songKey = keyName;
   const sv = document.getElementById('stage-key-val'); if (sv) sv.textContent = keyName;
   const inp = document.getElementById('input-song-key'); if (inp) inp.value = keyName;
+  // Auto-update scale explorer root note and re-render
+  const _rSel = document.getElementById('scale-root');
+  if (_rSel && typeof SCALE_NOTES !== 'undefined' && SCALE_NOTES.includes(keyName)) { _rSel.value = keyName; }
+  if (typeof renderScaleExplorer === 'function') { try { renderScaleExplorer(); } catch(e) {} }
+  if (typeof refreshLearnTab === 'function') { try { refreshLearnTab(); } catch(e) {} }
 }
 // Capture the untransposed chords whenever they change, and reset transpose.
 function setOriginalChords(chords) { window.songChordsOriginal = (chords || []).map(c => ({ ...c })); window.transposeSemitones = 0; const el = document.getElementById('transpose-val'); if (el) el.textContent = '0 st'; const cap = document.getElementById('stage-capo-input'); if (cap) cap.value = ''; }
@@ -5782,6 +5787,7 @@ function switchAppTab(name) {
     });
     if (name === 'learn') refreshLearnTab();
     if (name === 'settings') refreshSettingsTab();
+    if (name === 'uploads') { if (typeof refreshMyStuff === 'function') refreshMyStuff(); }
   }
   // 'uploads' tab: always show as full panel regardless of dash state
   if (name === 'uploads') {
@@ -5800,8 +5806,10 @@ function refreshLearnTab() {
   const body = document.getElementById('learn-scale-body');
   const info = document.getElementById('learn-scale-info');
   if (!key) {
-    if (info) info.textContent = 'Load a song to see its key & scales.';
+    if (info) info.textContent = 'Pick a root note above to explore any scale.';
     if (body) body.style.display = 'none';
+    // Still render the fretboard even with no song loaded
+    if (typeof renderScaleExplorer === 'function') { try { renderScaleExplorer(); } catch(e) {} }
     return;
   }
   if (info) info.textContent = 'Key detected: ' + key;
