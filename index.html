@@ -159,16 +159,25 @@
 
     #landing-gate {
       flex: 1;
+      min-height: 0;          /* lets flex child shrink so overflow-y works */
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       gap: 24px;
       max-width: 1100px;
       margin: 0 auto;
       width: 100%;
       z-index: 20;
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 32px 16px 60px;
+      scroll-behavior: smooth;
     }
+    /* Subtle scrollbar so it doesn't look broken */
+    #landing-gate::-webkit-scrollbar { width: 4px; }
+    #landing-gate::-webkit-scrollbar-track { background: transparent; }
+    #landing-gate::-webkit-scrollbar-thumb { background: rgba(147,51,234,0.4); border-radius: 4px; }
     
     #dropzone {
       border: 2px dashed var(--border);
@@ -304,8 +313,8 @@
     .screen-cap-steps { display:flex; flex-direction:column; gap:8px; }
     .screen-cap-step { display:flex; align-items:flex-start; gap:12px; font-size:0.88rem; color:#e2e8f0; line-height:1.5; }
     .step-num { background:#22c55e; color:#000; font-weight:900; font-size:0.75rem; min-width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
-    /* Make the feature boxes scrollable on smaller viewports */
-    .box-instruction { max-height: 75vh; overflow-y: auto; }
+    /* Box scrolls with the page, not independently — remove inner scroll cap */
+    .box-instruction { max-height: none; overflow-y: visible; }
 
     .dashboard {
       display: grid;
@@ -1049,6 +1058,8 @@
       <button id="btn-use-spotify" class="btn landing-pick" style="color:#1DB954; border-color:#1DB954;"><span style="font-size:0.8rem;">🟢 SPOTIFY <span style="font-size:0.5rem;">✨ premium</span></span><span style="font-size:0.54rem; color:var(--dim);">search &amp; play</span></button>
       <div id="landing-loops" class="landing-pick landing-loops-card"></div>
     </div>
+
+    <div style="text-align:center; color:rgba(147,51,234,0.5); font-size:0.62rem; letter-spacing:1px; font-family:'Orbitron',sans-serif; margin-top:-8px;">↓ scroll for full feature guide</div>
 
     <div id="setlist-panel" style="max-width:860px; margin:12px auto 0; background:rgba(124,58,237,0.07); border:1px solid rgba(147,51,234,0.3); border-radius:8px; padding:8px 12px;">
       <div style="display:flex; align-items:center; justify-content:space-between; cursor:pointer;" onclick="toggleSetlists()">
