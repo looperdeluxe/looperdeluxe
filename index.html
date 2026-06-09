@@ -1331,14 +1331,23 @@
         <!-- Section: Stems -->
         <div class="feat-section-label">▸ STEM ISOLATION <span class="tier-prem" style="font-size:0.7rem;">✨ PREMIUM / ★ ELITE</span></div>
         <div class="instruction-grid-2x2">
-          <div class="instruction-item"><strong>🎚️ ISOLATE STEM</strong><span>Choose Guitar, Bass, Drums, Vocals, Piano, or Other. Our GPU server separates the track in ~60 seconds.</span></div>
-          <div class="instruction-item"><strong>BACKING TRACK MODE</strong><span>Mute just one instrument and practice over the real mix. E.g. remove guitar → play along with bass/drums/vocals.</span></div>
-          <div class="instruction-item"><strong>SOLO MODE</strong><span>Hear only the isolated stem. Useful for learning exact guitar parts or checking bass lines.</span></div>
-          <div class="instruction-item"><strong>QUOTA</strong><span>Premium: 5 new songs/month. Elite: unlimited. Repeat songs (same file) are always free — cached after first isolation.</span></div>
+          <div class="instruction-item"><strong>🎚️ ISOLATE STEM <span class="tier-prem">✨ PREMIUM</span></strong><span>Choose Guitar, Bass, Drums, Vocals, Piano, or Other. Our GPU server separates the track in ~60 seconds. Elite gets higher-quality separation.</span></div>
+          <div class="instruction-item"><strong>BACKING TRACK MODE <span class="tier-prem">✨ PREMIUM</span></strong><span>Mute just one instrument and practice over the real mix. E.g. remove guitar → play along with bass/drums/vocals.</span></div>
+          <div class="instruction-item"><strong>SOLO MODE <span class="tier-prem">✨ PREMIUM</span></strong><span>Hear only the isolated stem. Useful for learning exact guitar parts or checking bass lines.</span></div>
+          <div class="instruction-item"><strong>UNLIMITED STEMS <span class="tier-elite">★ ELITE</span></strong><span>Premium: 5 new songs/month. Elite: unlimited separations. Same song is always free — cached after first isolation.</span></div>
+        </div>
+
+        <!-- Section: Elite exclusive -->
+        <div class="feat-section-label">▸ ELITE EXCLUSIVE <span class="tier-elite" style="font-size:0.7rem;">★ ELITE — $9.99/mo</span></div>
+        <div class="instruction-grid-2x2">
+          <div class="instruction-item"><strong>🔬 VERIFY CHORDS <span class="tier-elite">★ ELITE</span></strong><span>Neural network re-runs chord detection on our server at ~90% accuracy. Result is cached and shared with all users of that song.</span></div>
+          <div class="instruction-item"><strong>🎸 ELITE STEM QUALITY <span class="tier-elite">★ ELITE</span></strong><span>Elite-grade GPU separation — cleaner isolation, less bleed between stems. The htdemucs_6s model running at full quality.</span></div>
+          <div class="instruction-item"><strong>⚡ OFFLINE + PRIORITY <span class="tier-elite">★ ELITE</span></strong><span>Priority server queue for stem jobs, early access to new features before public rollout.</span></div>
+          <div class="instruction-item"><strong>🎵 BAND MODE <span class="tier-elite">★ ELITE — coming soon</span></strong><span>Shared setlist for your whole band. Missing-member mode + click track so everyone plays in time even when the bassist bails.</span></div>
         </div>
 
         <!-- Section: Lyrics & coaching -->
-        <div class="feat-section-label">▸ LYRICS &amp; COACHING <span class="tier-prem" style="font-size:0.7rem;">✨ PREMIUM</span></div>
+        <div class="feat-section-label">▸ LYRICS &amp; COACHING <span class="tier-prem" style="font-size:0.7rem;">✨ PREMIUM / ★ ELITE</span></div>
         <div class="instruction-grid-2x2">
           <div class="instruction-item"><strong>🎤 LYRICS TAB <span class="tier-free">🔓 FREE</span></strong><span>Fetches synced lyrics and overlays them over the chords in the STAGE view — chords appear above the right words.</span></div>
           <div class="instruction-item"><strong>LYRIC SYNC SLIDER <span class="tier-free">🔓 FREE</span></strong><span>If lyrics are a bit early or late, drag the sync slider to align them perfectly.</span></div>
@@ -3005,7 +3014,7 @@ async function initMediaPipeline(file) {
   document.getElementById('scrubber').addEventListener('input', (e) => {
     const v = parseFloat(e.target.value);
     if (playSource === 'youtube') { if (ytPlayer && ytPlayer.seekTo) ytPlayer.seekTo(v, true); return; }
-    if (playSource === 'spotify') { if (window.spPlayer && spPlayer.seek) spPlayer.seek(v * 1000); return; }
+    if (playSource === 'spotify') { if (spPlayer && spPlayer.seek) spPlayer.seek(v * 1000); return; }
     if(ws) ws.setTime(v);
   });
   regionsPlugin.on('region-updated', (r) => { if(r === activeRegion) updateLbls(); });
@@ -3069,7 +3078,7 @@ function doCountIn(cb) {
 }
 document.getElementById('btn-play').addEventListener('click', () => {
   if (playSource === 'youtube') { if (!ytPlayer || !ytPlayer.getPlayerState) return; (ytPlayer.getPlayerState() === 1 ? ytPlayer.pauseVideo() : ytPlayer.playVideo()); return; }
-  if (playSource === 'spotify') { if (window.spPlayer && spPlayer.togglePlay) spPlayer.togglePlay(); return; }
+  if (playSource === 'spotify') { if (spPlayer && spPlayer.togglePlay) spPlayer.togglePlay(); return; }
   if (!ws) return;
   if (ws.isPlaying()) { ws.pause(); return; }
   const startPlay = () => { ws.play(); setTimeout(updateTempo, 10); };
@@ -3077,7 +3086,7 @@ document.getElementById('btn-play').addEventListener('click', () => {
 });
 document.getElementById('btn-stop').addEventListener('click', () => {
   if (playSource === 'youtube') { if (ytPlayer) { try { ytPlayer.pauseVideo(); ytPlayer.seekTo(0, true); } catch (e) {} } return; }
-  if (playSource === 'spotify') { if (window.spPlayer && spPlayer.pause) spPlayer.pause(); return; }
+  if (playSource === 'spotify') { if (spPlayer && spPlayer.pause) spPlayer.pause(); return; }
   if(!ws) return; ws.stop();
 });
 // ===== Loop quantize-to-bars: snap IN/OUT to the nearest bar line so loops are musically cohesive. =====
@@ -4869,9 +4878,14 @@ async function enterSpotifyMode() {
 function exitSpotifyMode() {
   playSource = 'file';
   stopSpotifyLoop();
+  spAnalysisTrackId = null;
+  // Remove Spotify canvas / playhead
+  ['sp-waveform-canvas','sp-playhead'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
+  const wsDivs = [document.getElementById('waveform'), document.getElementById('timeline')];
+  wsDivs.forEach(el => { if (el) el.style.display = ''; });
   document.getElementById('sp-browser').style.display = 'none';
   document.getElementById('sp-nowplaying').style.display = 'none';
-  const wfw = document.getElementById('waveform-wrap'); if (wfw) wfw.style.display = '';
+  const wfw = document.getElementById('waveform-wrap'); if (wfw) { wfw.style.display = ''; wfw.style.position = ''; }
   document.getElementById('main-dashboard').style.display = 'none';
   document.getElementById('landing-gate').style.display = '';
 }
@@ -4901,6 +4915,9 @@ function startSpotifyLoop() {
     if (sc && spDur) { sc.max = (spDur / 1000).toFixed(2); sc.value = t.toFixed(2); }
     if (cur) cur.textContent = fmt(t);
     if (tot && spDur) tot.textContent = fmt(spDur / 1000);
+    // Move playhead on the Spotify waveform canvas
+    const sph = document.getElementById('sp-playhead');
+    if (sph && spDur) sph.style.left = ((t / (spDur / 1000)) * 100) + '%';
     spRAF = requestAnimationFrame(draw);
   };
   spRAF = requestAnimationFrame(draw);
@@ -5283,6 +5300,130 @@ function updateSpotifyNowPlaying(state) {
   document.getElementById('sp-np-title').textContent = tr.name;
   document.getElementById('sp-np-artist').textContent = tr.artists.map(a => a.name).join(', ');
   document.getElementById('sp-np-art').src = (tr.album && tr.album.images && tr.album.images[0] || {}).url || '';
+  // Load audio matrix when a new track starts
+  if (tr.id && state.duration) loadSpotifyAudioMatrix(tr.id, state.duration);
+}
+
+// ===== SPOTIFY AUDIO MATRIX =====
+// Uses Spotify Audio Analysis API to build a visual waveform + auto-detect chords + BPM
+// without needing raw audio access (Spotify audio is DRM-locked).
+// Degrades gracefully if the API is unavailable — just no waveform visualization.
+let spAnalysisTrackId = null;
+
+const SP_NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const SP_CHORD_TMPL = (() => {
+  const t = {};
+  for (let i = 0; i < 12; i++) {
+    const maj = new Array(12).fill(0); [0,4,7].forEach(iv => maj[(i+iv)%12] = 1);
+    t[SP_NOTES[i]] = maj;
+    const min = new Array(12).fill(0); [0,3,7].forEach(iv => min[(i+iv)%12] = 1);
+    t[SP_NOTES[i] + 'm'] = min;
+    const dom7 = new Array(12).fill(0); [0,4,7,10].forEach(iv => dom7[(i+iv)%12] = 1);
+    t[SP_NOTES[i] + '7'] = dom7;
+  }
+  return t;
+})();
+
+function chordsFromSpotifySegments(segs) {
+  if (!segs || segs.length < 2) return [];
+  const out = []; let lastChord = null, lastTime = -10;
+  for (const seg of segs) {
+    if (!seg.pitches || seg.pitches.length < 12 || seg.duration < 0.25) continue;
+    let best = null, bestScore = 0;
+    for (const [name, tmpl] of Object.entries(SP_CHORD_TMPL)) {
+      let score = 0; for (let i = 0; i < 12; i++) score += seg.pitches[i] * tmpl[i];
+      if (score > bestScore) { bestScore = score; best = name; }
+    }
+    if (best && bestScore > 1.05 && best !== lastChord && seg.start - lastTime >= 0.35) {
+      out.push({ time: Math.round(seg.start * 100) / 100, name: best, conf: Math.min(0.95, bestScore / 3) });
+      lastChord = best; lastTime = seg.start;
+    }
+  }
+  return out;
+}
+
+function drawSpotifyWaveformCanvas(canvas, segs, duration) {
+  const W = canvas.width, H = canvas.height;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#0a0612'; ctx.fillRect(0, 0, W, H);
+  if (!segs || !segs.length) return;
+  const vals = segs.map(s => s.loudness_max || -60);
+  const minL = Math.min(...vals), range = (Math.max(...vals) - minL) || 1;
+  const midY = H / 2;
+  for (const seg of segs) {
+    const x = (seg.start / duration) * W;
+    const w = Math.max(1, (seg.duration / duration) * W - 0.5);
+    const norm = (seg.loudness_max - minL) / range;
+    const h = norm * midY * 0.88;
+    ctx.fillStyle = `rgba(74,222,128,${0.3 + norm * 0.7})`;
+    ctx.fillRect(x, midY - h, w, h * 2);
+  }
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, 'rgba(10,6,18,0.3)'); g.addColorStop(0.5, 'rgba(10,6,18,0)'); g.addColorStop(1, 'rgba(10,6,18,0.3)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
+async function loadSpotifyAudioMatrix(trackId, durationMs) {
+  if (!trackId || spAnalysisTrackId === trackId) return;
+  spAnalysisTrackId = trackId;
+  const t = await spotifyToken(); if (!t) return;
+  let analysis;
+  try {
+    const r = await fetch('https://api.spotify.com/v1/audio-analysis/' + trackId, { headers: { Authorization: 'Bearer ' + t } });
+    if (!r.ok) return; // API deprecated for this app key — degrade silently
+    analysis = await r.json();
+  } catch (e) { return; }
+
+  const { segments, track } = analysis;
+  const dur = durationMs / 1000;
+
+  // Build / update waveform canvas inside waveform-wrap
+  const wfw = document.getElementById('waveform-wrap');
+  if (wfw && segments && segments.length) {
+    // Hide WaveSurfer's own divs (no real audio for Spotify)
+    ['waveform','timeline'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+    let cvs = document.getElementById('sp-waveform-canvas');
+    if (!cvs) {
+      cvs = document.createElement('canvas');
+      cvs.id = 'sp-waveform-canvas';
+      cvs.style.cssText = 'display:block; border-radius:6px; cursor:crosshair; width:100%; height:80px;';
+      wfw.appendChild(cvs);
+      cvs.addEventListener('click', e => {
+        const rect = cvs.getBoundingClientRect();
+        if (spPlayer) spPlayer.seek(Math.round(((e.clientX - rect.left) / rect.width) * (spDur || 0)));
+      });
+    }
+    // Playhead div (updated each frame by startSpotifyLoop)
+    if (!document.getElementById('sp-playhead')) {
+      const ph = document.createElement('div');
+      ph.id = 'sp-playhead';
+      ph.style.cssText = 'position:absolute; top:0; left:0; width:2px; height:80px; background:#ef4444; pointer-events:none; opacity:0.85; border-radius:1px;';
+      wfw.style.position = 'relative';
+      wfw.appendChild(ph);
+    }
+    wfw.style.display = '';
+    requestAnimationFrame(() => {
+      cvs.width = wfw.offsetWidth || 800; cvs.height = 80;
+      drawSpotifyWaveformCanvas(cvs, segments, dur);
+    });
+  }
+
+  // Chord detection from chroma vectors
+  const chords = chordsFromSpotifySegments(segments);
+  if (chords.length > 4) {
+    applyDetectedChords(chords);
+    const st = document.getElementById('bpm-detect-status');
+    if (st) st.textContent = `🎵 ${chords.length} chords detected · Spotify analysis`;
+  }
+
+  // BPM
+  if (track && track.tempo > 0) {
+    detectedBpm = track.tempo;
+    const bmpEl = document.getElementById('input-metro-bpm');
+    if (bmpEl) bmpEl.value = track.tempo.toFixed(2);
+    const st = document.getElementById('bpm-detect-status');
+    if (st) st.textContent = (st.textContent || '') + `  ·  🔒 ${Math.round(track.tempo)} BPM`;
+  }
 }
 document.getElementById('btn-use-spotify').addEventListener('click', enterSpotifyMode);
 document.getElementById('sp-close').addEventListener('click', exitSpotifyMode);
