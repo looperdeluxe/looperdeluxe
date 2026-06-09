@@ -1265,6 +1265,7 @@
     <button class="app-tab-btn active" id="atab-play" onclick="switchAppTab('play')"><span class="tab-icon">🎸</span> PLAY</button>
     <button class="app-tab-btn" id="atab-learn" onclick="switchAppTab('learn')"><span class="tab-icon">🎼</span> LEARN</button>
     <button class="app-tab-btn" id="atab-coach" onclick="switchAppTab('coach')"><span class="tab-icon">🤖</span> COACH</button>
+    <button class="app-tab-btn" id="atab-uploads" onclick="switchAppTab('uploads')"><span class="tab-icon">📁</span> MY STUFF</button>
     <button class="app-tab-btn" id="atab-settings" onclick="switchAppTab('settings')"><span class="tab-icon">⚙️</span> SETTINGS</button>
   </div>
 
@@ -1889,16 +1890,29 @@
       </div>
     </div>
     <div class="info-card">
-      <h3>🎸 SCALE EXPLORER</h3>
-      <p id="learn-scale-info" style="color:#c084fc; font-size:0.8rem; font-family:'Orbitron',sans-serif; margin-bottom:6px;">Load a song to see its key &amp; scales.</p>
-      <div id="learn-scale-body" style="display:none;">
-        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
-          <div id="learn-key-badge" style="background:rgba(147,51,234,0.22); border:1px solid #a855f7; border-radius:6px; padding:6px 14px; font-family:'Orbitron',sans-serif; font-size:0.72rem; color:#e9d5ff;"></div>
-          <div id="learn-scale-name" style="font-size:0.72rem; color:var(--dim); padding:6px 0;"></div>
-        </div>
-        <div id="learn-chord-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;"></div>
-        <p style="font-size:0.65rem; color:var(--dim);">These are the chords detected in this song. Practice them in the <b style="color:#c084fc;">CHORDS</b> tab on the right panel.</p>
+      <h3>🎵 SCALE EXPLORER</h3>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;align-items:center;">
+        <select id="scale-root" class="cyber-input" style="width:72px;padding:4px 6px;" onchange="renderScaleExplorer()">
+          <option>C</option><option>C#</option><option>D</option><option>D#</option>
+          <option>E</option><option>F</option><option>F#</option><option selected>G</option>
+          <option>G#</option><option>A</option><option>A#</option><option>B</option>
+        </select>
+        <select id="scale-type" class="cyber-input" style="width:155px;padding:4px 6px;" onchange="renderScaleExplorer()">
+          <option value="major">Major</option>
+          <option value="minor">Natural Minor</option>
+          <option value="pent_maj">Major Pentatonic</option>
+          <option value="pent_min" selected>Minor Pentatonic</option>
+          <option value="blues">Blues Scale</option>
+          <option value="dorian">Dorian Mode</option>
+          <option value="mixolydian">Mixolydian</option>
+        </select>
+        <button class="btn" style="padding:4px 10px;font-size:0.58rem;" onclick="scaleExplorerFromSong()" title="Auto-fill from loaded song's key">↗ USE SONG KEY</button>
       </div>
+      <div id="scale-notes-chips" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;"></div>
+      <div id="scale-fretboard-wrap" style="overflow-x:auto;">
+        <table id="scale-fretboard" style="border-collapse:collapse;min-width:400px;width:100%;font-size:0.52rem;font-family:monospace;"></table>
+      </div>
+      <p id="scale-tip" style="font-size:0.62rem;color:var(--dim);margin-top:8px;"></p>
     </div>
     <div class="info-card">
       <h3>🔍 BACKING TRACK FINDER</h3>
@@ -1984,6 +1998,17 @@
         <a href="https://looperdeluxe.com" target="_blank" style="color:#a855f7; font-size:0.7rem;">looperdeluxe.com</a>
         <a href="https://looperdeluxe.com/#roadmap" target="_blank" style="color:var(--dim); font-size:0.7rem;">Roadmap</a>
       </div>
+    </div>
+  </div>
+
+  <!-- ===== MY STUFF TAB ===== -->
+  <div id="tab-uploads-panel" class="app-tab-panel">
+    <div class="info-card" style="flex-shrink:0;">
+      <h3>📁 MY PUBLISHED VERSIONS</h3>
+      <p style="font-size:0.7rem;color:var(--dim);margin-bottom:8px;">Chord versions you've published. Only stored on this device — delete anytime.</p>
+      <button class="btn" style="padding:4px 12px;font-size:0.6rem;margin-bottom:10px;" onclick="refreshMyUploads()">↻ REFRESH</button>
+      <div id="my-uploads-list" style="display:flex;flex-direction:column;gap:6px;"></div>
+      <p id="my-uploads-empty" style="color:var(--dim);font-size:0.68rem;display:none;">No published versions yet. Load a song, auto-detect chords, then hit 📤 PUBLISH MINE in the chord panel.</p>
     </div>
   </div>
 
@@ -4408,6 +4433,7 @@ async function loadCommunityVersions() {
     if (!vs.length) {
       html += '<div style="color:var(--dim);font-size:0.6rem;padding:4px 0;">No community versions yet — be the first: fix the chords, then hit <b style="color:#f9a8d4;">📤 PUBLISH MINE</b>.</div>';
     } else {
+      const myIds = new Set((JSON.parse(localStorage.getItem('looperMyVersions') || '[]')).map(m => m.id));
       vs.forEach(v => {
         const yv = v.your_vote;
         html += '<div style="display:flex;align-items:center;gap:6px;padding:4px 5px;border:1px solid rgba(129,140,248,0.2);border-radius:6px;background:rgba(99,102,241,0.04);">'
@@ -4421,6 +4447,7 @@ async function loadCommunityVersions() {
           +   '<div style="font-size:0.5rem;color:var(--dim);">by '+_verEsc(v.author)+' · '+v.n+' chords'+(v.key?' · '+_verEsc(v.key):'')+(v.bpm?' · '+v.bpm+'bpm':'')+'</div>'
           + '</div>'
           + '<button onclick="useCommunityVersion(\''+v.id+'\')" style="font-size:0.55rem;background:rgba(99,102,241,0.2);border:1px solid rgba(129,140,248,0.6);border-radius:5px;color:#a5b4fc;padding:3px 9px;cursor:pointer;white-space:nowrap;">USE</button>'
+          + (myIds.has(v.id) ? '<button onclick="deleteMyVersion(\''+v.id+'\')" title="Delete your version" style="font-size:0.55rem;background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.4);border-radius:5px;color:#f87171;padding:3px 7px;cursor:pointer;">✕</button>' : '')
           + '</div>';
       });
     }
@@ -4477,7 +4504,14 @@ async function publishMyVersion() {
   try {
     const r = await fetch(LOOPER_API + '/version?v=' + encodeURIComponent(info.key), { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
     const j = await r.json();
-    if (j.ok) { if (st) st.textContent = '✅ Published "'+label+'"! Others can now use & rate it.'; loadCommunityVersions(); }
+    if (j.ok) {
+      // Track in localStorage so user can delete it from My Stuff tab
+      const mine = JSON.parse(localStorage.getItem('looperMyVersions') || '[]');
+      mine.push({ id: j.id, label: label, songKey: info.key, songTitle: info.title });
+      localStorage.setItem('looperMyVersions', JSON.stringify(mine));
+      if (st) st.textContent = '✅ Published "'+label+'"! Others can now use & rate it. (View in MY STUFF tab)';
+      loadCommunityVersions();
+    }
     else if (r.status === 429) { if (st) st.textContent = '⏳ '+(j.detail||'Too many submissions this hour.'); }
     else { if (st) st.textContent = '⚠ '+(j.detail || j.error || 'Could not publish.'); }
   } catch (e) { if (st) st.textContent = '⚠ Publish failed ('+(e.message||e)+').'; }
@@ -5687,7 +5721,7 @@ window.__looper = {
 };
 
 // ===== APP-LEVEL TAB SYSTEM =====
-const APP_TABS = ['play','learn','coach','settings'];
+const APP_TABS = ['play','learn','coach','uploads','settings'];
 function switchAppTab(name) {
   // Update top tab button active states
   APP_TABS.forEach(t => {
@@ -5722,6 +5756,16 @@ function switchAppTab(name) {
     });
     if (name === 'learn') refreshLearnTab();
     if (name === 'settings') refreshSettingsTab();
+  }
+  // 'uploads' tab: always show as full panel regardless of dash state
+  if (name === 'uploads') {
+    ['learn','coach','settings'].forEach(t => {
+      const p = document.getElementById('tab-' + t + '-panel');
+      if (p) p.classList.remove('active');
+    });
+    const up = document.getElementById('tab-uploads-panel');
+    if (up) up.classList.add('active');
+    refreshMyUploads();
   }
 }
 
@@ -5758,6 +5802,7 @@ function refreshLearnTab() {
   // Pre-fill backing track search
   const bq = document.getElementById('backing-query');
   if (bq && !bq.value && key) bq.value = key + ' guitar backing track';
+  renderScaleExplorer();
 }
 
 function relativeMinor(root) {
@@ -5765,6 +5810,128 @@ function relativeMinor(root) {
   const idx = notes.indexOf(root.replace('b','').replace('#','#'));
   if (idx < 0) return '?';
   return notes[(idx + 9) % 12] + 'm';
+}
+
+// ===== Scale Explorer =====
+const SCALE_NOTES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const SCALE_INTERVALS = {
+  major:      [0,2,4,5,7,9,11],
+  minor:      [0,2,3,5,7,8,10],
+  pent_maj:   [0,2,4,7,9],
+  pent_min:   [0,3,5,7,10],
+  blues:      [0,3,5,6,7,10],
+  dorian:     [0,2,3,5,7,9,10],
+  mixolydian: [0,2,4,5,7,9,10],
+};
+const SCALE_TIPS = {
+  major:      'The foundation of Western music. Bright, happy sound. Roman numerals I–VII.',
+  minor:      'Natural minor — darker, emotional. vi relative to its major key.',
+  pent_maj:   '5-note major scale. Great for country, classic rock solos.',
+  pent_min:   '5-note minor scale — the most common rock/blues soloing scale.',
+  blues:      'Pentatonic minor + ♭5 "blue note". Instant blues/rock flavor.',
+  dorian:     'Minor-feel with a raised 6th. Funk, jazz, Santana-style rock.',
+  mixolydian: 'Major with a ♭7. Southern rock, blues-rock, Grateful Dead vibe.',
+};
+// Guitar open strings: E A D G B e (low to high). Chromatic index (C=0):
+const OPEN_NOTES = [4, 9, 2, 7, 11, 4]; // E A D G B E
+const STRING_NAMES = ['E','A','D','G','B','e'];
+
+function renderScaleExplorer() {
+  const rootSel = document.getElementById('scale-root');
+  const typeSel = document.getElementById('scale-type');
+  if (!rootSel || !typeSel) return;
+  const root = SCALE_NOTES.indexOf(rootSel.value);
+  const intervals = SCALE_INTERVALS[typeSel.value] || SCALE_INTERVALS.pent_min;
+  const scaleSet = new Set(intervals.map(i => (root + i) % 12));
+
+  // Note chips
+  const chips = document.getElementById('scale-notes-chips');
+  if (chips) {
+    chips.innerHTML = '';
+    intervals.forEach(i => {
+      const n = SCALE_NOTES[(root + i) % 12];
+      const isRoot = i === 0;
+      const chip = document.createElement('span');
+      chip.style.cssText = 'padding:3px 10px;border-radius:20px;font-family:Orbitron,sans-serif;font-size:0.65rem;cursor:default;'
+        + (isRoot ? 'background:#7c3aed;border:1px solid #a855f7;color:#fff;font-weight:700;'
+                  : 'background:rgba(147,51,234,0.15);border:1px solid rgba(147,51,234,0.35);color:#c084fc;');
+      chip.textContent = n;
+      chips.appendChild(chip);
+    });
+  }
+
+  // Fretboard table (6 strings × frets 0-12)
+  const tbl = document.getElementById('scale-fretboard');
+  if (!tbl) return;
+  let html = '<thead><tr><th style="color:var(--dim);padding:2px 6px;text-align:right;border-right:1px solid rgba(99,102,241,0.25);">str</th>';
+  for (let f = 0; f <= 12; f++) html += '<th style="color:var(--dim);padding:2px 4px;text-align:center;">' + (f === 0 ? 'O' : f) + '</th>';
+  html += '</tr></thead><tbody>';
+  for (let s = 0; s < 6; s++) {
+    html += '<tr>';
+    html += '<td style="color:var(--dim);padding:2px 6px;text-align:right;border-right:1px solid rgba(99,102,241,0.25);white-space:nowrap;">' + STRING_NAMES[s] + '</td>';
+    for (let f = 0; f <= 12; f++) {
+      const noteIdx = (OPEN_NOTES[s] + f) % 12;
+      const inScale = scaleSet.has(noteIdx);
+      const isRt = noteIdx === root;
+      const noteName = inScale ? SCALE_NOTES[noteIdx] : '·';
+      const bg = isRt ? 'background:#7c3aed;color:#fff;'
+                : inScale ? 'background:rgba(147,51,234,0.35);color:#e9d5ff;'
+                : 'background:transparent;color:rgba(75,85,99,0.6);';
+      html += '<td style="padding:2px 3px;text-align:center;border-radius:3px;min-width:20px;' + bg + '">' + noteName + '</td>';
+    }
+    html += '</tr>';
+  }
+  html += '</tbody>';
+  tbl.innerHTML = html;
+
+  const tip = document.getElementById('scale-tip');
+  if (tip) tip.textContent = SCALE_TIPS[typeSel.value] || '';
+}
+
+function scaleExplorerFromSong() {
+  const key = window.songKey || localStorage.getItem('looperLastKey') || '';
+  if (!key) { alert('Load a song first — VERIFY or GET CHORDS to detect the key.'); return; }
+  const rootSel = document.getElementById('scale-root');
+  if (rootSel && SCALE_NOTES.includes(key)) rootSel.value = key;
+  renderScaleExplorer();
+}
+
+// ===== My Uploads (published community versions) =====
+function refreshMyUploads() {
+  const list = document.getElementById('my-uploads-list');
+  const empty = document.getElementById('my-uploads-empty');
+  if (!list) return;
+  const mine = JSON.parse(localStorage.getItem('looperMyVersions') || '[]');
+  if (!mine.length) {
+    list.innerHTML = '';
+    if (empty) empty.style.display = '';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  list.innerHTML = '';
+  mine.slice().reverse().forEach(v => {
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:7px 10px;border:1px solid rgba(129,140,248,0.25);border-radius:8px;background:rgba(99,102,241,0.06);';
+    row.innerHTML = '<div style="flex:1;min-width:0;">'
+      + '<div style="font-size:0.67rem;color:#e4e4e7;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _verEsc(v.label) + '</div>'
+      + '<div style="font-size:0.54rem;color:var(--dim);margin-top:2px;">' + _verEsc(v.songTitle || v.songKey || '') + '</div>'
+      + '</div>'
+      + '<button onclick="deleteMyVersion(\'' + v.id + '\')" title="Delete this version" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:5px;color:#f87171;padding:3px 9px;font-size:0.58rem;cursor:pointer;white-space:nowrap;">✕ DELETE</button>';
+    list.appendChild(row);
+  });
+}
+
+async function deleteMyVersion(id) {
+  if (!LOOPER_API) return;
+  if (!confirm('Delete this version? It will be removed for everyone.')) return;
+  try {
+    await fetch(LOOPER_API + '/version?id=' + encodeURIComponent(id), { method: 'DELETE' });
+  } catch(e) {}
+  // Remove from localStorage regardless
+  const mine = JSON.parse(localStorage.getItem('looperMyVersions') || '[]');
+  const updated = mine.filter(v => v.id !== id);
+  localStorage.setItem('looperMyVersions', JSON.stringify(updated));
+  refreshMyUploads();
 }
 
 async function findBackingTrack() {
@@ -5904,6 +6071,9 @@ async function activateLicenseFromSettings() {
 function savePref(key, val) {
   localStorage.setItem('pref' + key.charAt(0).toUpperCase() + key.slice(1), String(val));
 }
+
+// Initial render of scale explorer on page load
+renderScaleExplorer();
 
 // Mobile detection: add body class for CSS targeting
 (function() {
