@@ -1200,7 +1200,7 @@
           <div class="instruction-item"><strong>✨ AUTO-DETECT <span class="tier-free">🔓 FREE</span></strong><span>Drop a file — chords and BPM are automatically detected in ~30 seconds on your device.</span></div>
           <div class="instruction-item"><strong>🎸 GET CHORDS <span class="tier-free">🔓 FREE</span></strong><span>For live YouTube or Spotify: click GET CHORDS and share the tab audio when prompted (see screen-capture guide below).</span></div>
           <div class="instruction-item"><strong>👥 COMMUNITY VERSIONS <span class="tier-free">🔓 FREE</span></strong><span>See player-submitted chord versions for popular songs. Rate them up or down. Usually more accurate than auto-detect for well-known songs.</span></div>
-          <div class="instruction-item"><strong>📤 PUBLISH MINE <span class="tier-free">🔓 FREE</span></strong><span>Auto-detected something better? Publish your version and it shows up for everyone who plays that song.</span></div>
+          <div class="instruction-item"><strong>📤 PUBLISH MINE <span class="tier-prem">✨ PREMIUM</span></strong><span>Auto-detected something better? Publish your version and it shows up for everyone who plays that song. Free users can browse and use community versions.</span></div>
           <div class="instruction-item"><strong>🔸 SHAPES TAB <span class="tier-free">🔓 FREE</span></strong><span>See the actual guitar chord diagram for every chord in the song. Tap ◀ ▶ to switch to an easier voicing.</span></div>
           <div class="instruction-item"><strong>🔬 VERIFY CHORDS <span class="tier-elite">★ ELITE</span></strong><span>Sends your audio to our server — a neural network reruns chord analysis at ~90% accuracy. Result is shared with all users of that song.</span></div>
         </div>
@@ -1261,7 +1261,7 @@
         <div class="feat-section-label">▸ GETTING CHORDS FROM A YOUTUBE VIDEO</div>
         <div class="screen-cap-guide">
           <div class="screen-cap-title">📱 SCREEN CAPTURE — HOW IT WORKS</div>
-          <p style="color:var(--dim); font-size:0.85rem; margin:0 0 12px;">YouTube audio can't be read directly by the app (browser security). Instead, you share the tab's audio stream — Looper analyzes it in real time and builds the chord chart. Takes about 2 minutes. Only needs to happen once per song.</p>
+          <p style="color:var(--dim); font-size:0.85rem; margin:0 0 12px;"><b style="color:#4ade80;">Most songs are already analyzed</b> — popular tracks load chords instantly. For a song that hasn't been done yet, you share just that tab's audio stream once. Looper analyzes in real time, caches the result, and every future user gets it instantly. Most people never need to do this.</p>
           <div class="screen-cap-steps">
             <div class="screen-cap-step"><span class="step-num">1</span><span>Start the YouTube video from the beginning. Click <b style="color:#4ade80;">🎸 GET CHORDS</b></span></div>
             <div class="screen-cap-step"><span class="step-num">2</span><span>Browser dialog: choose <b style="color:#fff;">Chrome Tab</b>, select the YouTube tab, click <b style="color:#fff;">Share</b></span></div>
@@ -3975,6 +3975,7 @@ async function voteVersion(id, dir) {
   } catch (e) {}
 }
 async function publishMyVersion() {
+  if (!requirePremium('Publishing chord versions')) return;
   const info = currentSongInfo(); const st = document.getElementById('chordget-status');
   if (!info.ok) { if (st) st.textContent = 'Load a song first, then publish your chords for it.'; return; }
   const chords = window.songChords || [];
