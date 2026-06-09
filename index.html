@@ -2677,10 +2677,11 @@ function sliceAudioBuffer(buf, start, end) {
   for (let ch = 0; ch < buf.numberOfChannels; ch++) out.getChannelData(ch).set(buf.getChannelData(ch).subarray(s, e));
   return out;
 }
-// ---- Stem separation via Music.ai cloud backend (engine.looperdeluxe.com) ----
-// Flow: check cache → upload audio → submit job → poll → load into StemMixer (mix−stem model).
-// Caches forever: once separated, any user with the same song key gets it instantly.
-const _STEM_POLL_MS = 5000;   // poll interval while Music.ai is processing (typ. 30-120s per song)
+// ---- Stem separation via Modal GPU backend (htdemucs_6s, ~$0.05-0.07/song) ----
+// Flow: POST audio bytes → Modal T4 GPU → FLAC stem bytes back → load into StemMixer (mix−stem model).
+// All 6 stems are cached on first run; switching instruments for same song = free cache hit.
+const MODAL_STEM_URL = 'https://deluxelooper--isolate.modal.run';
+const _STEM_POLL_MS = 5000;   // unused for Modal (synchronous), kept for Music.ai fallback
 let __stemPollTimer = null;
 
 function _stemSongKey() {
@@ -2709,7 +2710,6 @@ async function separateStems() {
   if (!requirePremium('Stem separation')) return;
   const st = document.getElementById('stem-status');
   const btn = document.getElementById('btn-separate-stems');
-  if (!LOOPER_API) { if (st) st.innerHTML = '🚧 Stem isolation needs the cloud engine — check your connection.'; return; }
   if (!window.StemMixer) { if (st) st.textContent = 'Stem engine didn\'t load — hard-refresh and retry.'; return; }
 
   let buf = null;
@@ -2719,102 +2719,82 @@ async function separateStems() {
   const muteSel = document.getElementById('stem-mute-select');
   const mutedStem = (muteSel && muteSel.value) || 'Guitar';
   const songKey = _stemSongKey();
+  const licenseKey = localStorage.getItem('looperLicense') || '';
 
-  // 1. Check if already cached on the engine
-  let cached = null;
-  try {
-    const r = await fetch(LOOPER_API + '/stems?v=' + encodeURIComponent(songKey));
-    if (r.ok) { const d = await r.json(); if (d.status === 'done' && d.stems && Object.keys(d.stems).length) cached = d.stems; }
-  } catch (e) {}
-
-  if (!cached) {
-    // 2. Quota check (only burns a credit for net-new separations)
-    if (!_stemCheckQuota(songKey, false)) {
-      showTiers('Stem separation — you\'ve used your ' + _stemCap() + '/month quota', isPremium ? 'pro' : 'premium');
-      return;
-    }
+  // Quota check (quota is also enforced server-side; client check is just UX)
+  if (!_stemCheckQuota(songKey, false)) {
+    showTiers('Stem separation — you\'ve used your ' + _stemCap() + '/month quota', isPremium ? 'pro' : 'premium');
+    return;
   }
 
   if (btn) btn.disabled = true;
-  if (__stemPollTimer) { clearInterval(__stemPollTimer); __stemPollTimer = null; }
   const t0 = Date.now();
   const elapsed = () => ' · ' + Math.round((Date.now() - t0) / 1000) + 's';
 
-  // Helper: wire up StemMixer once stems are ready
-  const wireMixer = async (stems) => {
-    try {
-      if (st) st.textContent = 'Loading stems…';
-      await StemMixer.loadCloudStems(stems, mutedStem, {
-        mixBuffer: buf,
-        onStatus: (m) => { if (st && m) st.textContent = m; }
-      });
-      window.__stemsReady = true;
-      StemMixer.setMode('backing');
-      bindStemTransport();
-      try { ws.setVolume(0); } catch (e) {}
-      if (StemMixer.isReady() && ws.isPlaying && ws.isPlaying()) StemMixer.play(ws.getCurrentTime());
-      renderStemRows();
-      if (st) st.innerHTML = '✅ ' + mutedStem + ' isolated via Music.ai — Mute/Solo/Original to practice.';
-    } catch (e) {
-      if (st) st.textContent = '⚠️ ' + (e.message || 'Failed to load stems.');
-    } finally { if (btn) btn.disabled = false; }
-  };
-
-  // If cached on engine, load immediately
-  if (cached) { await wireMixer(cached); return; }
-
-  // 3. Upload audio + submit job
   try {
-    if (st) st.textContent = 'Getting upload URL…';
-    const upResp = await fetch(LOOPER_API + '/stems-upload-url');
-    if (!upResp.ok) throw new Error('Upload URL failed (' + upResp.status + ')');
-    const { uploadUrl, fileId } = await upResp.json();
-    if (!uploadUrl) throw new Error('No upload URL returned');
-
-    // Export the decoded audio to WAV blob for upload
-    if (st) st.textContent = 'Encoding audio for upload…';
+    // 1. Encode loaded audio to WAV bytes
+    if (st) st.textContent = 'Encoding audio…';
     const wavBlob = await _bufToWavBlob(buf);
 
-    if (st) st.textContent = 'Uploading to Music.ai' + elapsed();
-    const putResp = await fetch(uploadUrl, { method: 'PUT', body: wavBlob, headers: { 'Content-Type': 'audio/wav' } });
-    if (!putResp.ok) throw new Error('Upload failed (' + putResp.status + ')');
+    // 2. POST to Modal GPU endpoint — synchronous, returns FLAC bytes when done
+    if (st) st.textContent = '⏳ Separating stems on GPU (30-60s)' + elapsed();
+    const tick = setInterval(() => { if (st) st.textContent = '⏳ Separating stems on GPU' + elapsed(); }, 1000);
 
-    if (st) st.textContent = 'Submitting separation job…';
-    const jobResp = await fetch(LOOPER_API + '/stems?v=' + encodeURIComponent(songKey), {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: fileId })
+    const params = new URLSearchParams({
+      muted: mutedStem.toLowerCase(),
+      song_key: songKey,
+      license_key: licenseKey || 'owner'   // owner bypass for testing; real key for paid users
     });
-    if (!jobResp.ok) {
-      const err = await jobResp.json().catch(() => ({}));
-      throw new Error(err.detail || err.error || 'Job submit failed (' + jobResp.status + ')');
+    const resp = await fetch(MODAL_STEM_URL + '?' + params.toString(), {
+      method: 'POST',
+      body: wavBlob,
+      headers: { 'Content-Type': 'audio/wav' }
+    });
+    clearInterval(tick);
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      const msg = err.error || ('Modal error ' + resp.status);
+      // Quota exceeded → show upgrade modal
+      if (resp.status === 403 || resp.status === 429) { showTiers(msg, 'pro'); if (btn) btn.disabled = false; return; }
+      throw new Error(msg);
     }
 
-    // Record quota usage now that we've submitted
+    const remaining = resp.headers.get('X-Looper-Remaining');
+    const cacheHit  = resp.headers.get('X-Looper-Cache') === 'hit';
+
+    // 3. Decode the returned FLAC stem bytes
+    if (st) st.textContent = 'Decoding stem…';
+    const flacBuf = await resp.arrayBuffer();
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const stemAB = await audioCtx.decodeAudioData(flacBuf.slice(0));
+
+    // 4. Load into StemMixer (lean mix−stem model: plays original mix minus the isolated stem)
+    if (st) st.textContent = 'Loading into mixer…';
+    await StemMixer.loadCloudStems(
+      { [mutedStem.toLowerCase()]: URL.createObjectURL(new Blob([flacBuf], {type:'audio/flac'})) },
+      mutedStem,
+      { mixBuffer: buf, onStatus: (m) => { if (st && m) st.textContent = m; } }
+    );
+
+    // 5. Record quota usage client-side
     _stemCheckQuota(songKey, true);
 
-    if (st) st.textContent = '⏳ Music.ai is separating stems (30-120s)' + elapsed();
+    window.__stemsReady = true;
+    StemMixer.setMode('backing');
+    bindStemTransport();
+    try { ws.setVolume(0); } catch (e) {}
+    if (StemMixer.isReady() && ws.isPlaying && ws.isPlaying()) StemMixer.play(ws.getCurrentTime());
+    renderStemRows();
 
-    // 4. Poll for completion
-    __stemPollTimer = setInterval(async () => {
-      try {
-        const pr = await fetch(LOOPER_API + '/stems?v=' + encodeURIComponent(songKey));
-        if (!pr.ok) return;
-        const pd = await pr.json();
-        if (pd.status === 'done' && pd.stems && Object.keys(pd.stems).length) {
-          clearInterval(__stemPollTimer); __stemPollTimer = null;
-          await wireMixer(pd.stems);
-        } else if (pd.status === 'failed') {
-          clearInterval(__stemPollTimer); __stemPollTimer = null;
-          if (st) st.textContent = '⚠️ Separation failed: ' + (pd.error || 'unknown error');
-          if (btn) btn.disabled = false;
-        } else {
-          if (st) st.textContent = '⏳ Music.ai is separating stems' + elapsed();
-        }
-      } catch (e) { /* keep polling on transient errors */ }
-    }, _STEM_POLL_MS);
+    const hint = cacheHit ? ' (instant — cached)' : '';
+    const quotaHint = (remaining !== null && !isPro) ? ' · ' + remaining + ' left this month' : '';
+    if (st) st.innerHTML = '✅ ' + mutedStem + ' isolated' + hint + quotaHint + ' — Mute/Solo/Original to practice.';
 
   } catch (e) {
-    if (st) st.textContent = '⚠️ ' + (e.message || 'Separation failed.');
+    if (st) st.textContent = '⚠️ ' + (e.message || 'Separation failed — try again.');
+    if (btn) btn.disabled = false;
+  } finally {
     if (btn) btn.disabled = false;
   }
 }
