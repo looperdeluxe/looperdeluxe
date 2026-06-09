@@ -2677,53 +2677,165 @@ function sliceAudioBuffer(buf, start, end) {
   for (let ch = 0; ch < buf.numberOfChannels; ch++) out.getChannelData(ch).set(buf.getChannelData(ch).subarray(s, e));
   return out;
 }
-// Cloud GPU backend URL — set this once the Modal stem endpoint is live (localStorage.looperStemBackend or hardcode).
-// Until then the in-browser engine is DISABLED (it's too slow/crashes), so the feature shows "coming soon".
-const STEM_BACKEND = (localStorage.getItem('looperStemBackend') || '').trim();
+// ---- Stem separation via Music.ai cloud backend (engine.looperdeluxe.com) ----
+// Flow: check cache → upload audio → submit job → poll → load into StemMixer (mix−stem model).
+// Caches forever: once separated, any user with the same song key gets it instantly.
+const _STEM_POLL_MS = 5000;   // poll interval while Music.ai is processing (typ. 30-120s per song)
+let __stemPollTimer = null;
+
+function _stemSongKey() {
+  const info = currentSongInfo();
+  return (info && info.ok) ? info.key : ('stem::' + (window.__loadedSongName || 'unknown'));
+}
+
+// Stem quota: Premium=5/mo, Elite=unlimited. Tracked by month+songKey in localStorage.
+// A song already in the cache doesn't count — only new separations burn a credit.
+function _stemGetUsage() {
+  const d = new Date(); const mo = d.getFullYear() + '-' + (d.getMonth() + 1);
+  try { const u = JSON.parse(localStorage.getItem('looperStemUse') || '{}'); if (u.mo !== mo) return {mo, songs:[]}; return u; } catch (e) { return {mo: new Date().getFullYear() + '-' + (new Date().getMonth()+1), songs:[]}; }
+}
+function _stemSaveUsage(u) { try { localStorage.setItem('looperStemUse', JSON.stringify(u)); } catch (e) {} }
+function _stemCap() { return isPro ? Infinity : (isPremium ? 5 : 0); }
+function _stemCheckQuota(key, recordUse) {
+  if (isPro) return true;
+  const u = _stemGetUsage(); const cap = _stemCap();
+  if (u.songs.indexOf(key) !== -1) return true;   // already separated this song this month
+  if (u.songs.length >= cap) return false;
+  if (recordUse) { u.songs.push(key); _stemSaveUsage(u); }
+  return true;
+}
+
 async function separateStems() {
   if (!requirePremium('Stem separation')) return;
   const st = document.getElementById('stem-status');
   const btn = document.getElementById('btn-separate-stems');
-  if (!STEM_BACKEND) { if (st) st.innerHTML = '🚧 Instrument isolation is coming very soon — we\'re moving it to a fast cloud engine (splits a song in seconds, no lag). Stay tuned.'; return; }
+  if (!LOOPER_API) { if (st) st.innerHTML = '🚧 Stem isolation needs the cloud engine — check your connection.'; return; }
   if (!window.StemMixer) { if (st) st.textContent = 'Stem engine didn\'t load — hard-refresh and retry.'; return; }
-  if (!STEM_MODEL_URL) { if (st) st.innerHTML = '⚙️ Engine is wired — last step is hosting the AI model file (see STEM_MODEL_URL). Then this lights up.'; return; }
+
   let buf = null;
   try { buf = ws && ws.getDecodedData ? ws.getDecodedData() : null; } catch (e) {}
   if (!buf) { if (st) st.textContent = 'Load a song into AUDIO mode (the waveform) first, then isolate.'; return; }
+
   const muteSel = document.getElementById('stem-mute-select');
   const mutedStem = (muteSel && muteSel.value) || 'Guitar';
-  if (btn) btn.disabled = true;
-  const t0 = Date.now();
-  let lastMsg = '';
-  const tick = setInterval(() => { if (st && lastMsg) st.textContent = lastMsg + ' · ' + Math.round((Date.now() - t0) / 1000) + 's'; }, 1000);
-  // When a phase lands (the priority section first, then the full song), wire the mixer into the transport.
-  const wirePhase = (phase, meta) => {
-    window.__stemsReady = true;
-    StemMixer.setMode('backing');                       // default: mute the chosen instrument so you can play its part
-    bindStemTransport();
-    try { ws.setVolume(0); } catch (e) {}               // the mixer carries the sound now (mix − muted stem)
-    if (StemMixer.isReady() && ws.isPlaying && ws.isPlaying()) StemMixer.play(ws.getCurrentTime());
-    renderStemRows();
-    if (st && phase === 'full') {
-      lastMsg = '';
-      const m = (meta && meta.mutedName) || mutedStem;
-      if (meta && meta.sectionMode) st.innerHTML = '✅ Isolated a ' + (meta.spanSec || 90) + 's section. <span style="color:var(--dim)">(Limited-RAM device — kept it safe.)</span> ' + m + ' is muted — play its part, or Solo to hear it.';
-      else st.innerHTML = '✅ Done — ' + m + ' is muted across the song. Play its part, hit Original, or Solo ' + m + ' to learn it.';
-    }
-  };
+  const songKey = _stemSongKey();
+
+  // 1. Check if already cached on the engine
+  let cached = null;
   try {
-    await StemMixer.separate(buf, {
-      modelUrl: STEM_MODEL_URL,
-      mutedStem: mutedStem,
-      playheadTime: (ws.getCurrentTime ? ws.getCurrentTime() : 0),
-      onStatus: (m) => { lastMsg = m || ''; if (st && m) st.textContent = m; },
-      onPhase: wirePhase
+    const r = await fetch(LOOPER_API + '/stems?v=' + encodeURIComponent(songKey));
+    if (r.ok) { const d = await r.json(); if (d.status === 'done' && d.stems && Object.keys(d.stems).length) cached = d.stems; }
+  } catch (e) {}
+
+  if (!cached) {
+    // 2. Quota check (only burns a credit for net-new separations)
+    if (!_stemCheckQuota(songKey, false)) {
+      showTiers('Stem separation — you\'ve used your ' + _stemCap() + '/month quota', isPremium ? 'pro' : 'premium');
+      return;
+    }
+  }
+
+  if (btn) btn.disabled = true;
+  if (__stemPollTimer) { clearInterval(__stemPollTimer); __stemPollTimer = null; }
+  const t0 = Date.now();
+  const elapsed = () => ' · ' + Math.round((Date.now() - t0) / 1000) + 's';
+
+  // Helper: wire up StemMixer once stems are ready
+  const wireMixer = async (stems) => {
+    try {
+      if (st) st.textContent = 'Loading stems…';
+      await StemMixer.loadCloudStems(stems, mutedStem, {
+        mixBuffer: buf,
+        onStatus: (m) => { if (st && m) st.textContent = m; }
+      });
+      window.__stemsReady = true;
+      StemMixer.setMode('backing');
+      bindStemTransport();
+      try { ws.setVolume(0); } catch (e) {}
+      if (StemMixer.isReady() && ws.isPlaying && ws.isPlaying()) StemMixer.play(ws.getCurrentTime());
+      renderStemRows();
+      if (st) st.innerHTML = '✅ ' + mutedStem + ' isolated via Music.ai — Mute/Solo/Original to practice.';
+    } catch (e) {
+      if (st) st.textContent = '⚠️ ' + (e.message || 'Failed to load stems.');
+    } finally { if (btn) btn.disabled = false; }
+  };
+
+  // If cached on engine, load immediately
+  if (cached) { await wireMixer(cached); return; }
+
+  // 3. Upload audio + submit job
+  try {
+    if (st) st.textContent = 'Getting upload URL…';
+    const upResp = await fetch(LOOPER_API + '/stems-upload-url');
+    if (!upResp.ok) throw new Error('Upload URL failed (' + upResp.status + ')');
+    const { uploadUrl, fileId } = await upResp.json();
+    if (!uploadUrl) throw new Error('No upload URL returned');
+
+    // Export the decoded audio to WAV blob for upload
+    if (st) st.textContent = 'Encoding audio for upload…';
+    const wavBlob = await _bufToWavBlob(buf);
+
+    if (st) st.textContent = 'Uploading to Music.ai' + elapsed();
+    const putResp = await fetch(uploadUrl, { method: 'PUT', body: wavBlob, headers: { 'Content-Type': 'audio/wav' } });
+    if (!putResp.ok) throw new Error('Upload failed (' + putResp.status + ')');
+
+    if (st) st.textContent = 'Submitting separation job…';
+    const jobResp = await fetch(LOOPER_API + '/stems?v=' + encodeURIComponent(songKey), {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: fileId })
     });
-    clearInterval(tick);
+    if (!jobResp.ok) {
+      const err = await jobResp.json().catch(() => ({}));
+      throw new Error(err.detail || err.error || 'Job submit failed (' + jobResp.status + ')');
+    }
+
+    // Record quota usage now that we've submitted
+    _stemCheckQuota(songKey, true);
+
+    if (st) st.textContent = '⏳ Music.ai is separating stems (30-120s)' + elapsed();
+
+    // 4. Poll for completion
+    __stemPollTimer = setInterval(async () => {
+      try {
+        const pr = await fetch(LOOPER_API + '/stems?v=' + encodeURIComponent(songKey));
+        if (!pr.ok) return;
+        const pd = await pr.json();
+        if (pd.status === 'done' && pd.stems && Object.keys(pd.stems).length) {
+          clearInterval(__stemPollTimer); __stemPollTimer = null;
+          await wireMixer(pd.stems);
+        } else if (pd.status === 'failed') {
+          clearInterval(__stemPollTimer); __stemPollTimer = null;
+          if (st) st.textContent = '⚠️ Separation failed: ' + (pd.error || 'unknown error');
+          if (btn) btn.disabled = false;
+        } else {
+          if (st) st.textContent = '⏳ Music.ai is separating stems' + elapsed();
+        }
+      } catch (e) { /* keep polling on transient errors */ }
+    }, _STEM_POLL_MS);
+
   } catch (e) {
-    clearInterval(tick);
     if (st) st.textContent = '⚠️ ' + (e.message || 'Separation failed.');
-  } finally { if (btn) btn.disabled = false; }
+    if (btn) btn.disabled = false;
+  }
+}
+
+// Encode an AudioBuffer to a WAV Blob (minimal 16-bit PCM encoder, no dependencies).
+function _bufToWavBlob(buf) {
+  const sr = buf.sampleRate, nc = Math.min(buf.numberOfChannels, 2), ns = buf.length;
+  const byteRate = sr * nc * 2, blockAlign = nc * 2, dataLen = ns * nc * 2;
+  const ab = new ArrayBuffer(44 + dataLen); const v = new DataView(ab);
+  const s = (o, c) => { for (let i = 0; i < c.length; i++) v.setUint8(o + i, c.charCodeAt(i)); };
+  s(0,'RIFF'); v.setUint32(4, 36 + dataLen, true); s(8,'WAVE'); s(12,'fmt ');
+  v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, nc, true);
+  v.setUint32(24, sr, true); v.setUint32(28, byteRate, true); v.setUint16(32, blockAlign, true);
+  v.setUint16(34, 16, true); s(36,'data'); v.setUint32(40, dataLen, true);
+  const ch = []; for (let c = 0; c < nc; c++) ch.push(buf.getChannelData(c));
+  let offset = 44;
+  for (let i = 0; i < ns; i++) for (let c = 0; c < nc; c++) {
+    const s = Math.max(-1, Math.min(1, ch[c][i]));
+    v.setInt16(offset, s < 0 ? s * 32768 : s * 32767, true); offset += 2;
+  }
+  return Promise.resolve(new Blob([ab], { type: 'audio/wav' }));
 }
 document.getElementById('btn-separate-stems').addEventListener('click', separateStems);
 renderStemRows();

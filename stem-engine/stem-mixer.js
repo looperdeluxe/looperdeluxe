@@ -152,7 +152,57 @@
   function isReady() { return ready; }
   function teardown() { stopSources(); ready = false; mixAB = targetAB = null; mixGain = targetGain = master = null; segOffset = 0; mode = 'backing'; }
 
-  window.StemMixer = { separate, play, pause, seek, setRate, setMode, getMode, setMaster, isReady, teardown,
+  // Load pre-separated cloud stems (Music.ai result) instead of running the local model.
+  // stemUrls = {vocals:url, drums:url, bass:url, guitars:url, other:url, ...} from Music.ai result.
+  // mixBuffer = the original full-song AudioBuffer (from ws.getDecodedData()).
+  // Same mix−stem cancellation trick as separate() — no model download needed.
+  async function loadCloudStems(stemUrls, mutedStemName, opts) {
+    opts = opts || {};
+    const onStatus = opts.onStatus || function () {};
+    mutedName = mutedStemName || 'Guitar';
+    // Map our UI choices to Music.ai result keys (in priority order)
+    const keyMap = {
+      'Guitar': ['guitars', 'guitar', 'other'],
+      'Bass':   ['bass'],
+      'Drums':  ['drums', 'drum'],
+      'Vocals': ['vocals', 'vocal'],
+      'Piano':  ['piano', 'keys'],
+      'Other':  ['other', 'guitars']
+    };
+    const candidates = keyMap[mutedName] || ['other'];
+    const stemKey = candidates.find(k => stemUrls[k]) || candidates[0];
+    const stemUrl = stemUrls[stemKey];
+    if (!stemUrl) throw new Error('No ' + mutedName + ' stem in Music.ai result (tried: ' + candidates.join(', ') + ')');
+    const mixBuffer = opts.mixBuffer;
+    if (!mixBuffer) throw new Error('No mix buffer provided — load the song first');
+    const c = audioCtx();
+    onStatus('Downloading ' + mutedName + ' stem…');
+    const resp = await fetch(stemUrl);
+    if (!resp.ok) throw new Error('Stem download failed (' + resp.status + ')');
+    const arrBuf = await resp.arrayBuffer();
+    onStatus('Decoding…');
+    let decoded = await c.decodeAudioData(arrBuf);
+    // Resample stem to 44100 if needed
+    if (decoded.sampleRate !== SR) {
+      const off = new OfflineAudioContext(2, Math.ceil(decoded.duration * SR), SR);
+      const n = off.createBufferSource(); n.buffer = decoded; n.connect(off.destination); n.start();
+      decoded = await off.startRendering();
+    }
+    // Align lengths to the shorter of mix vs stem (they should be ~equal for the same song)
+    const mixLen = Math.min(mixBuffer.length, decoded.length);
+    mixAB = c.createBuffer(2, mixLen, SR);
+    for (let ch = 0; ch < Math.min(mixBuffer.numberOfChannels, 2); ch++)
+      mixAB.copyToChannel(mixBuffer.getChannelData(ch).subarray(0, mixLen), ch);
+    targetAB = c.createBuffer(2, mixLen, SR);
+    for (let ch = 0; ch < Math.min(decoded.numberOfChannels, 2); ch++)
+      targetAB.copyToChannel(decoded.getChannelData(ch).subarray(0, mixLen), ch);
+    duration = mixLen / SR; segOffset = 0;
+    ready = true; buildGraph();
+    onStatus('');
+    return { mutedName };
+  }
+
+  window.StemMixer = { separate, loadCloudStems, play, pause, seek, setRate, setMode, getMode, setMaster, isReady, teardown,
     get duration() { return duration; }, get segmentStart() { return segOffset; }, get mutedName() { return mutedName; },
     STEM_CHOICES: ['Guitar', 'Bass', 'Drums', 'Vocals', 'Piano', 'Other'] };
 })();
