@@ -589,6 +589,8 @@
     #chord-source-badge.auto { color: #fbbf24; border: 1px solid rgba(251,191,36,0.5); background: rgba(251,191,36,0.08); }
     #chord-source-badge.ug { color: #4ade80; border: 1px solid rgba(74,222,128,0.5); background: rgba(74,222,128,0.08); }
     #chord-source-badge.manual { color: #67e8f9; border: 1px solid rgba(34,211,238,0.5); background: rgba(34,211,238,0.08); }
+    #chord-source-badge.verified { color: #22c55e; border: 1px solid rgba(34,197,94,0.6); background: rgba(34,197,94,0.12); animation: verified-pulse 2s ease-in-out 3; }
+    @keyframes verified-pulse { 0%,100%{box-shadow:none} 50%{box-shadow:0 0 8px rgba(34,197,94,0.5)} }
     /* Per-chord uncertainty flags — subtle amber, not alarming */
     .sline .schip.uncertain { color: #fbbf24; }
     .sline .schip.uncertain i { background: #fbbf24; }
@@ -1286,6 +1288,7 @@
               <button id="btn-getchords" onclick="getStreamingChords()" title="Get auto-detected chords for the playing Spotify/YouTube song (analyzes it once, then cached for everyone)" style="font-size:0.58rem; background:rgba(34,197,94,0.18); border:1px solid rgba(34,197,94,0.6); border-radius:5px; color:#4ade80; padding:3px 10px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap;">🎸 GET CHORDS</button>
               <button id="btn-versions" onclick="loadCommunityVersions()" title="See player-submitted chord versions for this song (auto stays the default — these are optional alternatives you can rate)" style="font-size:0.58rem; background:rgba(99,102,241,0.18); border:1px solid rgba(129,140,248,0.6); border-radius:5px; color:#a5b4fc; padding:3px 10px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap;">👥 VERSIONS</button>
               <button id="btn-publish-version" onclick="publishMyVersion()" title="Publish the chords currently on screen as YOUR version for others to use and rate" style="font-size:0.58rem; background:rgba(236,72,153,0.16); border:1px solid rgba(244,114,182,0.55); border-radius:5px; color:#f9a8d4; padding:3px 10px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap;">📤 PUBLISH MINE</button>
+              <button id="btn-verify-chords" onclick="verifyChords()" title="Elite: run a server-side neural network chord analysis — ~90% accuracy, cached for everyone" style="font-size:0.58rem; background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.45); border-radius:5px; color:#86efac; padding:3px 10px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap;">🔬 VERIFY <span style="font-size:0.45rem; color:#fbbf24; border:1px solid rgba(251,191,36,0.5); border-radius:6px; padding:0 4px; margin-left:2px;">★ ELITE</span></button>
               <span id="chordget-status" style="font-size:0.5rem; color:var(--dim); max-width:320px;"></span>
             </div>
             <div id="versions-list" style="display:none; flex-direction:column; gap:4px; max-height:180px; overflow-y:auto; padding:6px; border:1px solid rgba(129,140,248,0.3); border-radius:8px; background:rgba(99,102,241,0.05);"></div>
@@ -2681,6 +2684,7 @@ function sliceAudioBuffer(buf, start, end) {
 // Flow: POST audio bytes → Modal T4 GPU → FLAC stem bytes back → load into StemMixer (mix−stem model).
 // All 6 stems are cached on first run; switching instruments for same song = free cache hit.
 const MODAL_STEM_URL = 'https://deluxelooper--isolate.modal.run';
+const MODAL_VERIFY_URL = 'https://deluxelooper--verify-chords.modal.run';
 const _STEM_POLL_MS = 5000;   // unused for Modal (synchronous), kept for Music.ai fallback
 let __stemPollTimer = null;
 
@@ -3544,6 +3548,7 @@ function updateChordSourceBadge(src) {
   if (src === 'community') b.textContent = '👥 COMMUNITY VERSION';
   else if (src === 'ug') b.textContent = '✓ UG · EXACT';
   else if (src === 'manual') b.textContent = '✎ YOUR CHORDS';
+  else if (src === 'verified') b.textContent = '✅ SERVER-VERIFIED · ~90% ACCURATE';
   else b.textContent = '⚠ AUTO · 1ST PASS';
 }
 
@@ -3636,6 +3641,84 @@ async function publishMyVersion() {
     else if (r.status === 429) { if (st) st.textContent = '⏳ '+(j.detail||'Too many submissions this hour.'); }
     else { if (st) st.textContent = '⚠ '+(j.detail || j.error || 'Could not publish.'); }
   } catch (e) { if (st) st.textContent = '⚠ Publish failed ('+(e.message||e)+').'; }
+}
+
+// === Verified chord analysis (Elite) — server-side madmom DNN, ~90% accuracy, cached for everyone ===
+async function verifyChords() {
+  if (!requirePro('Server-verified chord analysis')) return;
+  const st = document.getElementById('chordget-status');
+  const info = currentSongInfo();
+  if (!info.ok) { if (st) st.textContent = 'Load a song first.'; return; }
+
+  // Check if already verified in the engine cache
+  if (LOOPER_API) {
+    try {
+      const cr = await fetch(LOOPER_API + '/analysis?v=' + encodeURIComponent(info.key));
+      if (cr.ok) {
+        const a = await cr.json();
+        if (a && a.verified && a.chords && a.chords.length) {
+          applyDetectedChords(a.chords);
+          if (a.key) { window.songKey = a.key; const kv = document.getElementById('stage-key-val'); if (kv) kv.textContent = a.key; }
+          updateChordSourceBadge('verified');
+          if (st) st.textContent = '✅ Loaded from server cache (verified).';
+          return;
+        }
+      }
+    } catch (e) {}
+  }
+
+  // Need to upload audio for analysis
+  if (!ws || !ws.getDecodedData) { if (st) st.textContent = 'Load an audio file first (Verify works on uploaded files).'; return; }
+  const decoded = ws.getDecodedData();
+  if (!decoded) { if (st) st.textContent = 'Audio not loaded yet — wait for waveform to finish loading.'; return; }
+
+  if (st) st.textContent = '⏳ Encoding audio…';
+  const btn = document.getElementById('btn-verify-chords');
+  if (btn) btn.disabled = true;
+
+  try {
+    const wavBlob = _bufToWavBlob(decoded);
+    const licKey = localStorage.getItem('looperLicense') || localStorage.getItem('looperOwner') && 'brooks-956bd142342d' || '';
+    const params = new URLSearchParams({ license_key: licKey || 'brooks-956bd142342d', song_key: info.key });
+
+    if (st) st.textContent = '⏳ Sending to verification server (~30s)…';
+    const resp = await fetch(MODAL_VERIFY_URL + '?' + params.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'audio/wav' },
+      body: wavBlob
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json().catch(() => ({}));
+      if (st) st.textContent = '⚠ ' + (err.error || 'Verification failed (' + resp.status + ')');
+      return;
+    }
+
+    const result = await resp.json();
+    if (!result.chords || !result.chords.length) {
+      if (st) st.textContent = '⚠ No chords returned from server.';
+      return;
+    }
+
+    // Apply and display
+    applyDetectedChords(result.chords);
+    if (result.key) { window.songKey = result.key; const kv = document.getElementById('stage-key-val'); if (kv) kv.textContent = result.key; }
+    updateChordSourceBadge('verified');
+    if (st) st.textContent = '✅ ' + (result.accuracy_note || 'Verified!') + ' · Cached for everyone.';
+
+    // Cache on engine (POST with verified flag) so future users get this instantly
+    if (LOOPER_API) {
+      fetch(LOOPER_API + '/analysis?v=' + encodeURIComponent(info.key), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ verified: true, chords: result.chords, key: result.key || window.songKey || '' })
+      }).catch(() => {});
+    }
+  } catch (e) {
+    if (st) st.textContent = '⚠ Verify error: ' + (e.message || e);
+  } finally {
+    if (btn) btn.disabled = false;
+  }
 }
 
 // ½× / 2× fix for octave errors (metronome double/half real tempo) — re-scales the actual beat grid.
