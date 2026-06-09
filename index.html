@@ -1502,8 +1502,8 @@
               </div>
               <div style="font-size:0.65rem; color:var(--cyan); font-family:'Orbitron',sans-serif;">IN: <span id="yt-a" style="color:#fff;">0:00</span> &nbsp;|&nbsp; OUT: <span id="yt-b" style="color:#fff;">END</span></div>
               <div style="font-size:0.58rem; color:var(--dim); line-height:1.5;"><b style="color:var(--cyan);">AUDIO SYSTEM</b> → loads the song as a waveform (auto-chords/BPM/loop). <b style="color:#ff4b4b;">VIDEO STUDIO</b> → plays the video. Toggle up top.</div>
-              <button id="btn-capture-yt-audio" onclick="captureYouTubeAsWaveform()" style="display:none; margin-top:6px; padding:6px 14px; font-size:0.6rem; font-family:'Orbitron',sans-serif; background:rgba(34,197,94,0.18); border:1px solid rgba(34,197,94,0.6); border-radius:6px; color:#4ade80; cursor:pointer; width:100%;" title="Capture this video's audio as a waveform — unlocks chords, BPM, loops, and all analysis features">⬇️ CAPTURE AUDIO AS WAVEFORM (tab share required)</button>
-              <div id="yt-capture-status" style="display:none; font-size:0.6rem; color:var(--dim); margin-top:4px;"></div>
+              <button id="btn-capture-yt-audio" onclick="captureYouTubeAsWaveform()" style="display:none; margin-top:8px; padding:8px 14px; font-size:0.62rem; font-family:'Orbitron',sans-serif; font-weight:700; background:linear-gradient(135deg,#15803d,#166534); border:1px solid #4ade80; border-radius:8px; color:#4ade80; cursor:pointer; width:100%; text-align:center;" title="Capture this tab's audio → auto-chords + waveform in ~90s">⬇️ ANALYZE AUDIO — auto-chords + waveform</button>
+              <div id="yt-capture-status" style="display:none; font-size:0.6rem; color:var(--dim); margin-top:5px; line-height:1.5;"></div>
             </div>
           </div>
         </div>
@@ -4683,33 +4683,48 @@ function showTiers(feature, highlight){
   m = document.createElement('div');
   m.id = 'tiers-modal';
   m.style.cssText = 'position:fixed; inset:0; z-index:420; background:rgba(3,2,10,0.85); display:flex; align-items:flex-start; justify-content:center; padding:14px; overflow-y:auto;';
-  const col = (key) => {
-    const t = TIERS[key]; const hot = key===highlight;
-    let cells = TIER_ROWS.map(r => {
-      const v = r[key==='free'?1:key==='premium'?2:3];
-      const on = v==='✓'; const off = v==='—';
-      return '<div style="padding:3px 6px; font-size:0.6rem; border-bottom:1px solid rgba(255,255,255,0.06); color:'+(off?'#52525b':on?'#22c55e':'#e4e4e7')+'; text-align:center; line-height:1.4;">'+v+'</div>';
+
+  // Grid-based table: each logical row uses display:contents so cells align perfectly across all columns
+  const K = ['free','premium','pro'];
+  const headerCells = K.map(k => {
+    const t=TIERS[k], hot=k===highlight;
+    return '<div style="padding:7px 6px;text-align:center;background:'+t.color+'18;'
+      +'border:1px solid '+(hot?t.color:'rgba(255,255,255,0.15)')+';border-radius:10px 10px 0 0;'
+      +(hot?'box-shadow:0 0 18px '+t.color+'55;':'')+'vertical-align:bottom;">'
+      +'<div style="font-family:\'Orbitron\',sans-serif;font-size:0.72rem;color:'+t.color+';">'+t.name+'</div>'
+      +'<div style="font-size:0.54rem;color:var(--dim);margin-top:2px;">'+t.price+'</div>'
+      +'</div>';
+  }).join('');
+
+  const featureRows = TIER_ROWS.map(r => {
+    const valCells = [r[1],r[2],r[3]].map(v => {
+      const on=v==='✓', off=v==='—';
+      return '<div style="padding:5px 6px;font-size:0.6rem;color:'
+        +(off?'#52525b':on?'#22c55e':'#e4e4e7')
+        +';text-align:center;line-height:1.4;border-bottom:1px solid rgba(255,255,255,0.06);">'+v+'</div>';
     }).join('');
-    let cta;
-    if (key==='free') cta = '<div style="font-size:0.58rem;color:var(--dim);padding:6px;text-align:center;">Current base</div>';
-    else if (key==='premium') cta = '<button class="btn accent" style="width:100%;padding:6px;font-size:0.62rem;" onclick="openCheckout()">Get Premium</button>';
-    else cta = '<button class="btn accent" style="width:100%;padding:6px;font-size:0.62rem;background:linear-gradient(135deg,#b45309,#92400e);border-color:#fbbf24;" onclick="openCheckout(\'elite\')">Get Elite ★</button>';
-    return '<div style="flex:1; min-width:120px; border:1px solid '+(hot?t.color:'rgba(255,255,255,0.1)')+'; border-radius:10px; overflow:hidden; '+(hot?'box-shadow:0 0 18px '+t.color+'55;':'')+'">'
-      + '<div style="padding:7px 6px; text-align:center; background:'+t.color+'18;">'
-      +   '<div style="font-family:\'Orbitron\',sans-serif; font-size:0.72rem; color:'+t.color+';">'+t.name+'</div>'
-      +   '<div style="font-size:0.54rem; color:var(--dim); margin-top:1px;">'+t.price+'</div>'
-      + '</div>' + cells + '<div style="padding:6px;">'+cta+'</div></div>';
-  };
-  const labels = '<div style="flex:0 0 155px; min-width:120px;"><div style="height:42px;"></div>'
-    + TIER_ROWS.map(r=>'<div style="padding:3px 6px; font-size:0.58rem; color:var(--dim); border-bottom:1px solid rgba(255,255,255,0.06); line-height:1.4;">'+r[0]+'</div>').join('')
-    + '<div style="height:36px;"></div></div>';
-  m.innerHTML = '<div style="background:linear-gradient(160deg,#140a26,#0a0612); border:1px solid rgba(192,132,252,0.4); border-radius:14px; padding:16px; max-width:680px; width:100%; max-height:88vh; overflow-y:auto; box-shadow:0 0 40px rgba(124,58,237,0.4);">'
-    + '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">'
+    return '<div style="display:contents">'
+      +'<div style="padding:5px 8px;font-size:0.58rem;color:#d1d5db;line-height:1.4;border-bottom:1px solid rgba(255,255,255,0.06);">'+r[0]+'</div>'
+      +valCells+'</div>';
+  }).join('');
+
+  const ctaCells = [
+    '<div style="padding:7px 6px;text-align:center;font-size:0.58rem;color:var(--dim);">Your base</div>',
+    '<div style="padding:7px 6px;"><button class="btn accent" style="width:100%;padding:6px;font-size:0.62rem;" onclick="openCheckout()">Get Premium ✨</button></div>',
+    '<div style="padding:7px 6px;"><button class="btn accent" style="width:100%;padding:6px;font-size:0.62rem;background:linear-gradient(135deg,#b45309,#92400e);border-color:#fbbf24;" onclick="openCheckout(\'elite\')">Get Elite ★</button></div>'
+  ].join('');
+
+  m.innerHTML = '<div style="background:linear-gradient(160deg,#140a26,#0a0612); border:1px solid rgba(192,132,252,0.4); border-radius:14px; padding:16px; max-width:640px; width:100%; max-height:88vh; overflow-y:auto; box-shadow:0 0 40px rgba(124,58,237,0.4);">'
+    + '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">'
     +   '<div style="font-family:\'Orbitron\',sans-serif; font-size:1rem; color:#c084fc;">Choose your plan</div>'
     +   '<button onclick="document.getElementById(\'tiers-modal\').remove()" style="background:none;border:none;color:var(--dim);font-size:1.1rem;cursor:pointer;">✕</button>'
     + '</div>'
-    + (feature?'<div style="color:#fff; font-size:0.74rem; margin-bottom:12px;">🔓 <b>'+feature+'</b>'+(highlight==='pro'?' is an <b style="color:#fbbf24;">Elite</b> feature.':' is a Premium feature.')+'</div>':'<div style="height:8px;"></div>')
-    + '<div style="display:flex; gap:8px; align-items:stretch;">'+labels+col('free')+col('premium')+col('pro')+'</div>'
+    + (feature?'<div style="color:#fff; font-size:0.74rem; margin-bottom:12px;">🔓 <b>'+feature+'</b>'+(highlight==='pro'?' is an <b style="color:#fbbf24;">Elite</b> feature.':' is a Premium feature.')+'</div>':'<div style="height:6px;"></div>')
+    + '<div style="display:grid; grid-template-columns:145px repeat(3,1fr); gap:0;">'
+    + '<div style="display:contents"><div></div>'+headerCells+'</div>'
+    + featureRows
+    + '<div style="display:contents"><div></div>'+ctaCells+'</div>'
+    + '</div>'
     + '<div style="text-align:center; margin-top:12px;"><span style="color:var(--dim); font-size:0.64rem;">Already bought? </span><button class="btn" style="padding:5px 12px; font-size:0.64rem;" onclick="document.getElementById(\'tiers-modal\').remove(); showPremiumPrompt(\''+(feature||'Premium')+'\')">Paste license key</button></div>'
     + '</div>';
   m.addEventListener('click', e => { if (e.target === m) m.remove(); });
@@ -4998,7 +5013,7 @@ async function loadYouTubeAudioAsWaveform(id) {
   const status = document.getElementById('bpm-detect-status');
   try {
     if (!LOOPER_API) throw new Error('no engine');
-    if (status) status.textContent = 'Pulling YouTube audio from engine…';
+    if (status) status.textContent = 'Checking song library…';
     const r = await fetch(LOOPER_API + '/audio?v=' + encodeURIComponent(id));
     if (!r.ok) {
       let detail = '';
@@ -5012,14 +5027,34 @@ async function loadYouTubeAudioAsWaveform(id) {
     showYtCaptureBtn(false);
     initMediaPipeline(file);
   } catch (e) {
-    // Engine can't download (expired cookies / bot block) — fall back to video + show CAPTURE button
-    if (status) {
-      const errHint = (e.message || '').includes('502') ? 'Engine cookies expired — ' : '';
-      status.innerHTML = errHint + '▶ Playing video. Hit <b style="color:#4ade80;">⬇️ CAPTURE AUDIO</b> to unlock waveform features.';
-    }
+    // Engine can't download (bot-blocked) — start video immediately + show guided audio capture panel
     window.__ytVideoId = id;
-    showYtCaptureBtn(true);
     ytPlayVideo(id);
+    if (status) status.textContent = '';
+    _showYtCaptureGuide();
+  }
+}
+
+function _showYtCaptureGuide() {
+  const wrap = document.getElementById('btn-capture-yt-audio');
+  const st   = document.getElementById('yt-capture-status');
+  // Restyle the existing button to be prominent
+  if (wrap) {
+    wrap.style.display = 'block';
+    wrap.style.cssText = [
+      'display:block','margin-top:8px','padding:8px 14px','font-size:0.62rem',
+      'font-family:\'Orbitron\',sans-serif','font-weight:700',
+      'background:linear-gradient(135deg,#15803d,#166534)',
+      'border:1px solid #4ade80','border-radius:8px',
+      'color:#4ade80','cursor:pointer','width:100%','text-align:center'
+    ].join(';');
+    wrap.textContent = '⬇️ ANALYZE AUDIO — auto-chords + waveform';
+    wrap.onclick = captureYouTubeAsWaveform;
+  }
+  if (st) {
+    st.style.display = 'block';
+    st.style.cssText = 'display:block;margin-top:5px;font-size:0.6rem;color:#9ca3af;line-height:1.5;';
+    st.innerHTML = '🎵 Your song is loading. Click <b style="color:#4ade80;">ANALYZE AUDIO</b> above → pick <b>"This Tab"</b> in Chrome → Looper auto-captures ~90s and loads everything.';
   }
 }
 
@@ -5030,38 +5065,73 @@ function showYtCaptureBtn(show) {
   if (st) st.style.display = show ? 'block' : 'none';
 }
 
-// Capture audio from the playing YouTube tab → load as waveform (no server auth needed)
+// Capture audio from the playing YouTube tab → load as waveform (no server needed)
+// Auto-stops after MAX_CAPTURE_SECS — no need to play the whole song.
+const MAX_CAPTURE_SECS = 90;
+
 async function captureYouTubeAsWaveform() {
   const btn = document.getElementById('btn-capture-yt-audio');
-  const st = document.getElementById('yt-capture-status');
-  if (st) { st.style.display = 'block'; st.textContent = '🎧 Requesting tab audio share…'; }
+  const st  = document.getElementById('yt-capture-status');
+  if (st) { st.style.display = 'block'; st.textContent = '🎧 Opening tab audio share…'; }
   if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-    if (st) st.textContent = '⚠ Needs Chrome/Edge desktop — tab audio capture not available here.';
+    if (st) st.textContent = '⚠ Needs Chrome/Edge desktop — tab capture not available here.';
     return;
   }
   let stream;
   try {
     stream = await navigator.mediaDevices.getDisplayMedia({ video: false, audio: true, preferCurrentTab: true });
-  } catch (e) { if (st) st.textContent = 'Capture cancelled — click again to retry.'; return; }
+  } catch (e) {
+    if (st) { st.style.cssText = 'display:block;margin-top:5px;font-size:0.6rem;color:#9ca3af;line-height:1.5;'; st.innerHTML = '⚠ Cancelled — click <b style="color:#4ade80;">ANALYZE AUDIO</b> again to retry.'; }
+    _showYtCaptureGuide();
+    return;
+  }
   const aTracks = stream.getAudioTracks();
-  if (!aTracks.length) { if (st) st.textContent = '⚠ No audio — retry and tick "Share tab audio" in the popup.'; return; }
-  if (btn) { btn.textContent = '⏹ STOP CAPTURE & LOAD WAVEFORM'; btn.onclick = () => stopCapture(); }
-  if (st) st.textContent = '⏺ Recording… play the song from the start. Click ⏹ STOP when done (or it auto-stops at song end).';
+  if (!aTracks.length) {
+    if (st) st.textContent = '⚠ No audio track — retry and tick "Share tab audio" in the dialog.';
+    return;
+  }
+
+  // Switch button to STOP mode
+  if (btn) {
+    btn.textContent = '⏹ STOP & LOAD WAVEFORM NOW';
+    btn.style.background = 'linear-gradient(135deg,#7c3aed,#5b21b6)';
+    btn.style.borderColor = '#a78bfa';
+    btn.style.color = '#e9d5ff';
+    btn.onclick = () => stopCapture();
+  }
+
+  // Live timer
+  let elapsed = 0;
+  const timer = setInterval(() => {
+    elapsed++;
+    const rem = MAX_CAPTURE_SECS - elapsed;
+    if (st) st.innerHTML = '⏺ Recording <b style="color:#4ade80;">' + elapsed + 's</b> — auto-stops at ' + MAX_CAPTURE_SECS + 's  ·  <span style="color:#9ca3af;">or click STOP when you\'ve heard enough</span>';
+    if (elapsed >= MAX_CAPTURE_SECS) { clearInterval(timer); stopCapture(); }
+  }, 1000);
+  if (st) st.innerHTML = '⏺ Recording — auto-stops at ' + MAX_CAPTURE_SECS + 's';
+
   const chunks = [];
   const rec = new MediaRecorder(new MediaStream(aTracks));
   window.__ytCaptureRec = rec;
   rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
   rec.onstop = async () => {
+    clearInterval(timer);
     aTracks.forEach(t => t.stop());
-    if (btn) { btn.textContent = '⬇️ CAPTURE AUDIO AS WAVEFORM'; btn.onclick = captureYouTubeAsWaveform; }
-    if (st) st.textContent = '⏳ Decoding captured audio…';
+    if (btn) {
+      btn.textContent = '⬇️ ANALYZE AUDIO — auto-chords + waveform';
+      btn.style.background = 'linear-gradient(135deg,#15803d,#166534)';
+      btn.style.borderColor = '#4ade80';
+      btn.style.color = '#4ade80';
+      btn.onclick = captureYouTubeAsWaveform;
+    }
+    if (st) st.textContent = '⏳ Decoding audio…';
     try {
       const blob = new Blob(chunks, { type: 'audio/webm' });
       const file = new File([blob], (window.__ytTitle || 'youtube-capture') + '.webm', { type: 'audio/webm' });
-      if (st) st.textContent = '✅ Audio captured! Loading waveform…';
+      if (st) st.textContent = '✅ Got it! Loading waveform + detecting chords…';
       showYtCaptureBtn(false);
       initMediaPipeline(file);
-      // Cache the analysis so future users get it instantly
+      // Cache analysis on engine so future visitors get it instantly
       setTimeout(async () => {
         if (LOOPER_API && window.__ytVideoId) {
           const info = currentSongInfo();
@@ -5080,15 +5150,15 @@ async function captureYouTubeAsWaveform() {
           }
         }
       }, 2000);
-    } catch (e) { if (st) { st.style.display = 'block'; st.textContent = '⚠ Could not decode: ' + (e.message || e); } }
+    } catch (e) {
+      if (st) { st.style.display = 'block'; st.textContent = '⚠ Could not decode: ' + (e.message || e); }
+    }
   };
   rec.start();
   function stopCapture() { try { if (rec.state === 'recording') rec.stop(); } catch(e) {} }
-  // Auto-stop when YouTube video ends (poll ytPlayer)
+  // Also auto-stop when YouTube video ends
   const watchEnd = setInterval(() => {
-    if (ytPlayer && ytPlayer.getPlayerState && ytPlayer.getPlayerState() === 0) {
-      clearInterval(watchEnd); stopCapture();
-    }
+    if (ytPlayer && ytPlayer.getPlayerState && ytPlayer.getPlayerState() === 0) { clearInterval(watchEnd); stopCapture(); }
     if (!window.__ytCaptureRec || window.__ytCaptureRec.state === 'inactive') clearInterval(watchEnd);
   }, 1000);
 }
