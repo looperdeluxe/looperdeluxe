@@ -1385,6 +1385,7 @@
             <button class="btn accent" id="btn-play">▶ PLAY</button>
             <button class="btn" id="btn-stop">■ STOP</button>
             <button class="btn accent" id="btn-toggle-loop">⟳ LOOP ON</button>
+            <button class="btn" id="btn-clear-loop" title="Clear loop points and exit loop mode [ ESC ]" style="color:#f87171; border-color:rgba(248,113,113,0.5); padding:6px 8px; font-size:0.6rem;">✕ CLEAR</button>
             <button class="btn" id="btn-set-a">◀ IN</button>
             <div style="display:flex; align-items:center; gap:4px; margin: 0 4px;">
               <span style="font-size:0.6rem; color:var(--dim); font-family:'Orbitron', sans-serif;">KEY:</span>
@@ -2734,7 +2735,35 @@ btnToggleLoop.addEventListener('click', () => {
   if (!loopModeActive) { lmvHideView(); lmvLoopPass = 0; } else { lmvShowView(); }
 });
 
-document.addEventListener('keydown', (e) => { const t = document.activeElement.tagName.toLowerCase(); if (t === 'input' || t === 'textarea' || t === 'select') return; if (e.key.toLowerCase() === 'i') document.getElementById('btn-set-a').click(); if (e.key.toLowerCase() === 'o') document.getElementById('btn-set-b').click(); if (e.key.toLowerCase() === 'l') document.getElementById('btn-toggle-loop').click(); if (e.code === 'Space') { e.preventDefault(); document.getElementById('btn-play').click(); } });
+// Clear loop: resets all loop state for both audio and YouTube modes
+function clearLoop() {
+  // Audio (WaveSurfer) mode
+  if (ws && activeRegion) {
+    const dur = ws.getDuration() || 0;
+    activeRegion.setOptions({ start: 0, end: dur });
+    updateLbls();
+  }
+  // YouTube mode
+  ytLoopOn = false; ytLoopA = 0; ytLoopB = 0;
+  const ytA = document.getElementById('yt-a'), ytB = document.getElementById('yt-b');
+  if (ytA) ytA.textContent = '0:00'; if (ytB) ytB.textContent = '0:00';
+  const ytLoopBtn = document.getElementById('yt-loop');
+  if (ytLoopBtn) { ytLoopBtn.textContent = '⟳ LOOP OFF'; ytLoopBtn.classList.remove('accent'); }
+  // Turn off loop mode display
+  loopModeActive = false;
+  const btnTL = document.getElementById('btn-toggle-loop');
+  if (btnTL) { btnTL.className = 'btn danger'; btnTL.innerText = '✕ LOOP OFF'; }
+  lmvHideView(); lmvLoopPass = 0;
+}
+document.getElementById('btn-clear-loop').addEventListener('click', clearLoop);
+
+document.addEventListener('keydown', (e) => { const t = document.activeElement.tagName.toLowerCase(); if (t === 'input' || t === 'textarea' || t === 'select') return;
+  if (e.key === 'Escape') { clearLoop(); return; }
+  if (e.key.toLowerCase() === 'i') document.getElementById('btn-set-a').click();
+  if (e.key.toLowerCase() === 'o') document.getElementById('btn-set-b').click();
+  if (e.key.toLowerCase() === 'l') document.getElementById('btn-toggle-loop').click();
+  if (e.code === 'Space') { e.preventDefault(); document.getElementById('btn-play').click(); }
+});
 
 function renderLoopBank() { const c = document.getElementById('loop-bank-list'); c.innerHTML = ''; savedLoops.forEach((l, i) => {
   const song = l.ytTitle ? l.ytTitle : (l.ytId ? ('YouTube ' + l.ytId) : '');
@@ -2943,7 +2972,30 @@ async function separateStems() {
 
   let buf = null;
   try { buf = ws && ws.getDecodedData ? ws.getDecodedData() : null; } catch (e) {}
-  if (!buf) { if (st) st.textContent = 'Load a song into AUDIO mode (the waveform) first, then isolate.'; return; }
+  if (!buf) {
+    // If a YouTube video is playing, offer to load its audio automatically
+    if (window.__ytVideoId && LOOPER_API) {
+      if (st) st.textContent = '⏳ Loading YouTube audio for stem isolation…';
+      if (btn) btn.disabled = true;
+      try {
+        const audioUrl = LOOPER_API + '/audio?v=' + encodeURIComponent(window.__ytVideoId);
+        const r = await fetch(audioUrl);
+        if (!r.ok) throw new Error('Audio download failed (' + r.status + ') — try switching to AUDIO SYSTEM mode manually.');
+        const blob = await r.blob();
+        const file = new File([blob], (window.__ytTitle || 'youtube') + '.webm', { type: blob.type });
+        await initMediaPipeline(file);
+        // Now try to get the buffer again after load
+        await new Promise(res => setTimeout(res, 800));
+        try { buf = ws && ws.getDecodedData ? ws.getDecodedData() : null; } catch(e) {}
+      } catch(e) {
+        if (st) st.textContent = '⚠ ' + (e.message || 'Could not load audio. Switch to AUDIO SYSTEM mode first.');
+        if (btn) btn.disabled = false;
+        return;
+      }
+      if (btn) btn.disabled = false;
+    }
+    if (!buf) { if (st) st.textContent = 'Switch to AUDIO SYSTEM mode (top toggle) to load the waveform, then isolate.'; return; }
+  }
 
   const muteSel = document.getElementById('stem-mute-select');
   const mutedStem = (muteSel && muteSel.value) || 'Guitar';
@@ -3368,7 +3420,9 @@ function sizeRibbon() {
 // ── Loop Mode View helpers ──────────────────────────────────────────────────
 function lmvShowView() {
   const el = document.getElementById('loop-mode-view');
-  if (el && loopModeActive && activeRegion) el.style.display = 'block';
+  if (!el) return;
+  // Show for audio loop (activeRegion) OR YouTube loop (ytLoopOn with valid points)
+  if ((loopModeActive && activeRegion) || (ytLoopOn && ytLoopB > ytLoopA)) el.style.display = 'block';
 }
 function lmvHideView() {
   const el = document.getElementById('loop-mode-view');
@@ -4583,6 +4637,9 @@ function startYouTubeLoop() {
     const t = ytPlayer.getCurrentTime() || 0;
     if (ytLoopOn && ytLoopB > ytLoopA && t >= ytLoopB) { ytPlayer.seekTo(ytLoopA, true); }
     window.__stageDirty = true; try { renderStage(t); } catch (e) {}
+    // Drive Loop Mode View for YouTube loops
+    if (ytLoopOn && ytLoopB > ytLoopA) { lmvShowView(); try { lmvUpdateView(t, false); } catch(e) {} }
+    else if (playSource === 'youtube') { lmvHideView(); }
     const dur = ytPlayer.getDuration ? (ytPlayer.getDuration() || 0) : 0;
     const sc = document.getElementById('scrubber'), cur = document.getElementById('scrub-current'), tot = document.getElementById('scrub-total');
     if (sc && dur) { sc.max = dur.toFixed(2); sc.value = t.toFixed(2); }
@@ -4723,7 +4780,7 @@ document.getElementById('yt-play').addEventListener('click', () => { if (ytPlaye
 document.getElementById('yt-pause').addEventListener('click', () => { if (ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo(); });
 document.getElementById('yt-in').addEventListener('click', () => { if (ytPlayer && ytPlayer.getCurrentTime) { ytLoopA = ytPlayer.getCurrentTime() || 0; document.getElementById('yt-a').textContent = fmt(ytLoopA); } });
 document.getElementById('yt-out').addEventListener('click', () => { if (ytPlayer && ytPlayer.getCurrentTime) { ytLoopB = ytPlayer.getCurrentTime() || 0; document.getElementById('yt-b').textContent = fmt(ytLoopB); } });
-document.getElementById('yt-loop').addEventListener('click', e => { ytLoopOn = !ytLoopOn; e.target.textContent = ytLoopOn ? '⟳ LOOP ON' : '⟳ LOOP OFF'; e.target.classList.toggle('accent', ytLoopOn); });
+document.getElementById('yt-loop').addEventListener('click', e => { ytLoopOn = !ytLoopOn; e.target.textContent = ytLoopOn ? '⟳ LOOP ON' : '⟳ LOOP OFF'; e.target.classList.toggle('accent', ytLoopOn); if (ytLoopOn && ytLoopB > ytLoopA) lmvShowView(); else lmvHideView(); });
 document.getElementById('sp-playpause').addEventListener('click', () => { if (spPlayer) spPlayer.togglePlay(); });
 document.getElementById('sp-prev').addEventListener('click', () => { if (spPlayer) spPlayer.previousTrack(); });
 document.getElementById('sp-next').addEventListener('click', () => { if (spPlayer) spPlayer.nextTrack(); });
