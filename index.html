@@ -1079,6 +1079,120 @@
       #stage-now-name { font-size: 1.3rem; }
       .panel-title { font-size: 0.62rem; }
     }
+
+    /* === APP-LEVEL TAB NAV === */
+    #app-tab-bar {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+      padding: 4px 0 8px;
+      border-bottom: 1px solid rgba(147,51,234,0.25);
+      flex-wrap: wrap;
+    }
+    .app-tab-btn {
+      background: transparent;
+      border: 1px solid rgba(147,51,234,0.4);
+      border-radius: 6px;
+      color: var(--dim);
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.58rem;
+      padding: 5px 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.05em;
+    }
+    .app-tab-btn.active {
+      background: rgba(147,51,234,0.22);
+      border-color: #a855f7;
+      color: #e9d5ff;
+    }
+    .app-tab-btn:hover { border-color: #a855f7; color: #e9d5ff; }
+
+    /* Tab content panels */
+    .app-tab-panel { display: none; flex: 1; min-height: 0; flex-direction: column; overflow: hidden; }
+    .app-tab-panel.active { display: flex; }
+
+    /* LEARN tab */
+    #tab-learn-panel { overflow-y: auto; gap: 14px; padding: 4px 0; }
+    /* COACH tab */
+    #tab-coach-panel { overflow-y: auto; gap: 14px; padding: 4px 0; }
+    /* SETTINGS tab */
+    #tab-settings-panel { overflow-y: auto; gap: 14px; padding: 4px 0; }
+
+    /* Shared card style for new tab panels */
+    .info-card {
+      background: rgba(124,58,237,0.07);
+      border: 1px solid rgba(147,51,234,0.3);
+      border-radius: 10px;
+      padding: 14px 18px;
+    }
+    .info-card h3 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.72rem;
+      color: #c084fc;
+      margin-bottom: 8px;
+      letter-spacing: 0.05em;
+    }
+    .info-card p, .info-card li { font-size: 0.72rem; color: var(--dim); line-height: 1.7; }
+    .info-card ul { padding-left: 16px; }
+
+    /* Coach chat area */
+    #coach-chat-log {
+      flex: 1;
+      min-height: 180px;
+      max-height: 340px;
+      overflow-y: auto;
+      background: rgba(3,1,10,0.6);
+      border: 1px solid rgba(147,51,234,0.25);
+      border-radius: 8px;
+      padding: 10px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 0.72rem;
+      line-height: 1.6;
+    }
+    .coach-msg-user { color: #e9d5ff; text-align: right; }
+    .coach-msg-user span { background: rgba(147,51,234,0.22); padding: 4px 10px; border-radius: 8px; display: inline-block; }
+    .coach-msg-ai { color: #4ade80; }
+    .coach-msg-ai span { background: rgba(34,197,94,0.08); padding: 4px 10px; border-radius: 8px; display: inline-block; }
+    .coach-input-row { display: flex; gap: 8px; margin-top: 8px; }
+    .coach-input-row input { flex: 1; }
+
+    /* Mobile: bottom nav, single-column */
+    @media (max-width: 767px) {
+      #app-tab-bar {
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        z-index: 200;
+        background: rgba(3,1,10,0.97);
+        border-top: 1px solid rgba(147,51,234,0.45);
+        border-bottom: none;
+        padding: 8px 12px 10px;
+        justify-content: space-around;
+        gap: 0;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+      }
+      .app-tab-btn {
+        flex-direction: column;
+        align-items: center;
+        gap: 3px;
+        font-size: 0.48rem;
+        padding: 6px 10px;
+        border: none;
+        background: transparent;
+        color: rgba(167,139,250,0.6);
+        min-width: 58px;
+        border-radius: 8px;
+      }
+      .app-tab-btn .tab-icon { font-size: 1.1rem; line-height: 1; }
+      .app-tab-btn.active { color: #c084fc; background: rgba(147,51,234,0.15); border: none; }
+      #app-container { padding-bottom: 68px; }
+      .dashboard { grid-template-columns: 1fr !important; }
+      .workspace-right { min-height: 60vh; }
+      #app-tab-bar ~ * { }
+    }
   </style>
   <link rel="icon" type="image/png" href="favicon.png">
   <link rel="apple-touch-icon" href="favicon.png">
@@ -1121,6 +1235,13 @@
     </div>
   </header>
 
+  <div id="app-tab-bar">
+    <button class="app-tab-btn active" id="atab-play" onclick="switchAppTab('play')"><span class="tab-icon">🎸</span> PLAY</button>
+    <button class="app-tab-btn" id="atab-learn" onclick="switchAppTab('learn')"><span class="tab-icon">🎼</span> LEARN</button>
+    <button class="app-tab-btn" id="atab-coach" onclick="switchAppTab('coach')"><span class="tab-icon">🤖</span> COACH</button>
+    <button class="app-tab-btn" id="atab-settings" onclick="switchAppTab('settings')"><span class="tab-icon">⚙️</span> SETTINGS</button>
+  </div>
+
   <div id="sp-nowplaying" style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:120; background:#0d0d16; border-top:1px solid #1DB954; padding:8px 16px; align-items:center; gap:12px;">
     <img id="sp-np-art" style="width:42px; height:42px; border-radius:4px; object-fit:cover; background:#222;">
     <div style="flex:1; overflow:hidden;"><div id="sp-np-title" style="color:#fff; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div><div id="sp-np-artist" style="color:var(--dim); font-size:0.7rem;"></div></div>
@@ -1130,6 +1251,7 @@
     <span id="sp-user" style="color:var(--dim); font-size:0.6rem; margin-left:8px;"></span>
   </div>
 
+  <div id="tab-play-panel" class="app-tab-panel active">
   <div id="landing-gate">
     <div id="dropzone">
       <p id="lbl-gate-primary" style="font-size: 1.3rem; color: #fff; font-family: 'Orbitron', sans-serif; letter-spacing: 0.08em; margin-bottom: 4px;">🌌 START A SONG</p>
@@ -1565,7 +1687,110 @@
       </div>
     </div>
   </div>
-</div>
+  </div><!-- /#tab-play-panel -->
+
+  <!-- ===== LEARN TAB ===== -->
+  <div id="tab-learn-panel" class="app-tab-panel">
+    <div class="info-card">
+      <h3>🎸 SCALE EXPLORER</h3>
+      <p id="learn-scale-info" style="color:#c084fc; font-size:0.8rem; font-family:'Orbitron',sans-serif; margin-bottom:6px;">Load a song to see its key &amp; scales.</p>
+      <div id="learn-scale-body" style="display:none;">
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+          <div id="learn-key-badge" style="background:rgba(147,51,234,0.22); border:1px solid #a855f7; border-radius:6px; padding:6px 14px; font-family:'Orbitron',sans-serif; font-size:0.72rem; color:#e9d5ff;"></div>
+          <div id="learn-scale-name" style="font-size:0.72rem; color:var(--dim); padding:6px 0;"></div>
+        </div>
+        <div id="learn-chord-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;"></div>
+        <p style="font-size:0.65rem; color:var(--dim);">These are the chords detected in this song. Practice them in the <b style="color:#c084fc;">CHORDS</b> tab on the right panel.</p>
+      </div>
+    </div>
+    <div class="info-card">
+      <h3>🔍 BACKING TRACK FINDER</h3>
+      <p style="font-size:0.7rem; color:var(--dim); margin-bottom:8px;">Find a YouTube backing track in your song's key to jam along to.</p>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="backing-query" class="cyber-input" placeholder="e.g. G major blues backing track…" style="flex:1;" />
+        <button class="btn accent" onclick="findBackingTrack()" style="padding:5px 14px; font-size:0.6rem;">FIND</button>
+      </div>
+      <div id="backing-results" style="margin-top:10px; display:flex; flex-direction:column; gap:6px;"></div>
+    </div>
+    <div class="info-card">
+      <h3>📖 PRACTICE TIPS</h3>
+      <ul>
+        <li>Use <b style="color:#c084fc;">Loop Mode</b> to isolate tricky sections — set IN/OUT points then press ESC to break out.</li>
+        <li>Slow the track with <b style="color:#c084fc;">SPEED GEAR</b> slider. Build muscle memory at 60%, then ramp up.</li>
+        <li>Use <b style="color:#c084fc;">STEP IT UP</b> to gradually increase speed each loop pass.</li>
+        <li>Hit <b style="color:#c084fc;">🎸 GET CHORDS</b> on any YouTube song to auto-detect and scroll chords live.</li>
+        <li>Elite: run <b style="color:#c084fc;">🔬 VERIFY</b> for DNN-powered ~90% accurate chord detection.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== COACH TAB ===== -->
+  <div id="tab-coach-panel" class="app-tab-panel">
+    <div class="info-card" style="flex-shrink:0;">
+      <h3>🤖 AI CHORD COACH</h3>
+      <p style="margin-bottom:10px;">Ask anything about the chords, theory, or how to practice this song. Powered by Claude AI.</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+        <span style="font-size:0.6rem; padding:3px 8px; border:1px solid rgba(147,51,234,0.4); border-radius:12px; color:var(--dim);">✨ Premium · Claude Haiku</span>
+        <span style="font-size:0.6rem; padding:3px 8px; border:1px solid rgba(251,191,36,0.4); border-radius:12px; color:#fbbf24;">★ Elite · Claude Sonnet (deeper)</span>
+      </div>
+    </div>
+    <div id="coach-chat-log">
+      <div class="coach-msg-ai"><span>👋 Load a song and ask me anything — chord shapes, theory, practice tips, what key this is in, how to play a tricky section...</span></div>
+    </div>
+    <div class="coach-input-row">
+      <input type="text" id="coach-input" class="cyber-input" placeholder="Ask the coach… (e.g. What are these chords in? How do I play Cmaj7?)" onkeydown="if(event.key==='Enter')askCoach()" />
+      <button class="btn accent" onclick="askCoach()" style="padding:5px 14px; font-size:0.6rem;">ASK</button>
+    </div>
+    <div id="coach-status" style="font-size:0.65rem; color:var(--dim); margin-top:4px; min-height:18px;"></div>
+  </div>
+
+  <!-- ===== SETTINGS TAB ===== -->
+  <div id="tab-settings-panel" class="app-tab-panel">
+    <div class="info-card">
+      <h3>🔑 LICENSE &amp; TIER</h3>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+        <span id="settings-tier-badge" style="font-family:'Orbitron',sans-serif; font-size:0.8rem; padding:6px 16px; border-radius:6px; background:rgba(147,51,234,0.15); border:1px solid rgba(147,51,234,0.4); color:#c084fc;">FREE</span>
+        <a href="https://looperdeluxe.com/#pricing" target="_blank" style="font-size:0.65rem; color:#a855f7;">→ Upgrade at looperdeluxe.com</a>
+      </div>
+      <div style="display:flex; gap:8px; margin-bottom:8px;">
+        <input type="text" id="settings-license-input" class="cyber-input" placeholder="Paste your license key here…" style="flex:1;" />
+        <button class="btn accent" onclick="activateLicenseFromSettings()" style="padding:5px 14px; font-size:0.6rem;">ACTIVATE</button>
+      </div>
+      <div id="settings-license-status" style="font-size:0.65rem; color:var(--dim); min-height:18px;"></div>
+    </div>
+    <div class="info-card">
+      <h3>⚙️ AUDIO PREFERENCES</h3>
+      <div style="display:flex; flex-direction:column; gap:10px;">
+        <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+          <input type="checkbox" id="pref-auto-chords" onchange="savePref('autoChords',this.checked)" style="width:16px;height:16px;accent-color:#a855f7;" />
+          <span style="font-size:0.72rem; color:var(--dim);">Auto-detect chords when a song loads</span>
+        </label>
+        <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+          <input type="checkbox" id="pref-auto-bpm" onchange="savePref('autoBpm',this.checked)" style="width:16px;height:16px;accent-color:#a855f7;" />
+          <span style="font-size:0.72rem; color:var(--dim);">Auto-detect BPM when a song loads</span>
+        </label>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <span style="font-size:0.72rem; color:var(--dim);">Default speed gear:</span>
+          <select id="pref-default-speed" class="cyber-input" onchange="savePref('defaultSpeed',this.value)" style="width:100px; padding:4px;">
+            <option value="1.0">1.0× (full)</option>
+            <option value="0.75">0.75× (slow)</option>
+            <option value="0.5">0.5× (half)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="info-card">
+      <h3>📱 ABOUT</h3>
+      <p>Looper Deluxe — guitar practice tool.</p>
+      <p style="margin-top:6px;">Built for guitarists who want to slow down, loop, and learn any song.</p>
+      <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+        <a href="https://looperdeluxe.com" target="_blank" style="color:#a855f7; font-size:0.7rem;">looperdeluxe.com</a>
+        <a href="https://looperdeluxe.com/#roadmap" target="_blank" style="color:var(--dim); font-size:0.7rem;">Roadmap</a>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /#app-container -->
 
 <script>
 tsParticles.load('particles', {
@@ -2437,7 +2662,47 @@ async function getStreamingChords() {
   // Spotify audio is DRM → capture would record SILENCE. So Spotify is cache-only: it gets chords once the
   // same song has been analyzed via YouTube (or a file). Guide the user there.
   if (playSource === 'spotify') { if (st) st.innerHTML = '🎵 This song isn\'t analyzed yet. Play the <b>YouTube</b> version of it and hit Get Chords there once — then it\'ll be cached here too (Spotify\'s audio is locked, so we analyze a free copy).'; return; }
-  // 2) Otherwise (YouTube/file) CAPTURE the tab audio (non-DRM) and analyze the whole song once.
+  // 2) YouTube fast path: pull audio from engine and analyze directly (no screen-capture popup needed)
+  if (window.__ytVideoId && LOOPER_API) {
+    // If waveform isn't loaded yet, auto-download it first
+    if (!ws || !ws.getDecodedData || !ws.getDecodedData()) {
+      if (st) st.textContent = '⏳ Loading YouTube audio for analysis (~10s)…';
+      if (btn) btn.disabled = true;
+      try {
+        const r = await fetch(LOOPER_API + '/audio?v=' + encodeURIComponent(window.__ytVideoId));
+        if (!r.ok) throw new Error('engine ' + r.status);
+        const blob = await r.blob();
+        const file = new File([blob], 'yt-' + window.__ytVideoId + '.m4a', { type: blob.type || 'audio/mp4' });
+        await initMediaPipeline(file);
+        await new Promise(res => setTimeout(res, 1500));
+      } catch (e) {
+        if (btn) btn.disabled = false;
+        if (st) st.textContent = '⚠ Could not load audio: ' + (e.message || e) + ' — falling back to screen capture.';
+        // fall through to screen capture below
+      }
+    }
+    // Now try analyzing from waveform
+    if (ws && ws.getDecodedData) {
+      const decoded = ws.getDecodedData();
+      if (decoded) {
+        if (btn) btn.disabled = false;
+        if (st) st.textContent = '🥁 Analyzing full song…';
+        try {
+          const map = await analyzeViaWorker(decoded);
+          if (map && map.ticks && map.ticks.length > 4) {
+            applyMap(map); window.__stageDirty = true;
+            if (st) st.textContent = '✅ Full chords ready — cached for everyone.';
+            if (LOOPER_API) fetch(LOOPER_API + '/analysis?v=' + encodeURIComponent(info.key), {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ticks: map.ticks, bpm: map.bpm, confidence: map.confidence, chords: map.chords, key: map.key })
+            }).catch(() => {});
+          } else { if (st) st.textContent = '⚠ Couldn\'t detect chords clearly — try again from the start.'; }
+        } catch (e) { if (st) st.textContent = '⚠ Analysis error: ' + (e.message || e); }
+        return;
+      }
+    }
+  }
+  // 3) File or fallback: CAPTURE the tab audio (non-DRM) and analyze the whole song once.
   if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) { if (st) st.innerHTML = 'Full-song chords need <b>Chrome or Edge on desktop</b> the first time (it caches after).'; return; }
   let stream;
   try { stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true, preferCurrentTab: true }); }
@@ -2457,8 +2722,6 @@ async function getStreamingChords() {
       const audioBuf = await ac.decodeAudioData(buf);
       const map = await analyzeViaWorker(audioBuf);
       if (map && map.ticks && map.ticks.length > 4) {
-        // SYNC FIX: capture begins mid-song (after the picker dialog), so analysis t=0 is NOT song t=0.
-        // Anchor every tick/chord to the song's real clock at record-start so chords land on the song's timeline.
         if (__captureAnchor > 0.05) {
           map.ticks = map.ticks.map(t => t + __captureAnchor);
           if (map.chords) map.chords = map.chords.map(c => ({ ...c, time: (c.time || 0) + __captureAnchor }));
@@ -2469,7 +2732,7 @@ async function getStreamingChords() {
       } else if (st) st.textContent = '⚠ Couldn\'t detect chords clearly — try again with the song from the start.';
     } catch (e) { if (st) st.textContent = '⚠ Could not analyze the captured audio (' + (e.message || e) + ').'; }
   };
-  __captureAnchor = (typeof playTime === 'function' ? (playTime() || 0) : 0);  // song clock at record-start = where these chords begin
+  __captureAnchor = (typeof playTime === 'function' ? (playTime() || 0) : 0);
   rec.start();
   if (btn) { btn.textContent = '⏹ STOP & ANALYZE'; btn.onclick = () => { try { if (rec.state === 'recording') rec.stop(); } catch (e) {} }; }
   if (st) st.innerHTML = '🎧 Listening from <b>' + (Math.floor(__captureAnchor/60)) + ':' + String(Math.floor(__captureAnchor%60)).padStart(2,'0') + '</b> — let it play to the end (tip: for full-song chords, seek to the very start first). Auto-stops at the end.';
@@ -4019,10 +4282,25 @@ async function verifyChords() {
     } catch (e) {}
   }
 
+  // Auto-download YouTube audio if waveform isn't loaded yet
+  if (window.__ytVideoId && LOOPER_API && (!ws || !ws.getDecodedData || !ws.getDecodedData())) {
+    if (st) st.textContent = '⏳ Pulling YouTube audio from engine (~10s)…';
+    try {
+      const r = await fetch(LOOPER_API + '/audio?v=' + encodeURIComponent(window.__ytVideoId));
+      if (!r.ok) throw new Error('engine ' + r.status);
+      const blob = await r.blob();
+      const file = new File([blob], (window.__ytTitle || 'youtube') + '.m4a', { type: blob.type || 'audio/mp4' });
+      await initMediaPipeline(file);
+      await new Promise(res => setTimeout(res, 1400));
+    } catch (e) {
+      if (st) st.textContent = '⚠ Could not pull audio: ' + (e.message || e);
+      return;
+    }
+  }
   // Need to upload audio for analysis
-  if (!ws || !ws.getDecodedData) { if (st) st.textContent = 'Load an audio file first (Verify works on uploaded files).'; return; }
+  if (!ws || !ws.getDecodedData) { if (st) st.textContent = 'Load an audio file first.'; return; }
   const decoded = ws.getDecodedData();
-  if (!decoded) { if (st) st.textContent = 'Audio not loaded yet — wait for waveform to finish loading.'; return; }
+  if (!decoded) { if (st) st.textContent = 'Audio not decoded yet — wait a moment and retry.'; return; }
 
   if (st) st.textContent = '⏳ Encoding audio…';
   const btn = document.getElementById('btn-verify-chords');
@@ -4802,6 +5080,199 @@ window.__looper = {
   // Measure: at the current instant, how far is the projected click position from the real song position?
   probe: () => ({ cur: ws?+ws.getCurrentTime().toFixed(4):null, nowMedia:+nowMedia().toFixed(4), nextBeatIdx, anchorMedia:+anchorMedia.toFixed(4), anchorAudio:+anchorAudio.toFixed(4), ctxNow:+audioCtx.currentTime.toFixed(4), playing: ws?ws.isPlaying():false, schedulerOn: !!syncScheduler })
 };
+
+// ===== APP-LEVEL TAB SYSTEM =====
+const APP_TABS = ['play','learn','coach','settings'];
+function switchAppTab(name) {
+  APP_TABS.forEach(t => {
+    const btn = document.getElementById('atab-' + t);
+    const panel = document.getElementById('tab-' + t + '-panel');
+    if (btn) btn.classList.toggle('active', t === name);
+    if (panel) { panel.classList.toggle('active', t === name); }
+  });
+  // On switching to LEARN, refresh scale/chord info
+  if (name === 'learn') refreshLearnTab();
+  // On switching to SETTINGS, refresh tier display
+  if (name === 'settings') refreshSettingsTab();
+}
+
+function refreshLearnTab() {
+  const key = window.songKey || localStorage.getItem('looperLastKey') || '';
+  const body = document.getElementById('learn-scale-body');
+  const info = document.getElementById('learn-scale-info');
+  if (!key) {
+    if (info) info.textContent = 'Load a song to see its key & scales.';
+    if (body) body.style.display = 'none';
+    return;
+  }
+  if (info) info.textContent = 'Key detected: ' + key;
+  if (body) body.style.display = '';
+  const keyBadge = document.getElementById('learn-key-badge');
+  if (keyBadge) keyBadge.textContent = key + ' major / ' + relativeMinor(key) + ' minor';
+  const scaleName = document.getElementById('learn-scale-name');
+  if (scaleName) scaleName.textContent = 'Pentatonic scales work great for soloing.';
+  // Show current song chords
+  const chordList = document.getElementById('learn-chord-list');
+  if (chordList) {
+    chordList.innerHTML = '';
+    const seen = new Set();
+    (window.currentChords || []).forEach(c => {
+      if (!c || !c.name || seen.has(c.name)) return;
+      seen.add(c.name);
+      const chip = document.createElement('span');
+      chip.style.cssText = 'background:rgba(147,51,234,0.18);border:1px solid rgba(147,51,234,0.5);border-radius:6px;padding:4px 12px;font-family:Orbitron,sans-serif;font-size:0.72rem;color:#e9d5ff;';
+      chip.textContent = c.name;
+      chordList.appendChild(chip);
+    });
+    if (!seen.size) chordList.innerHTML = '<span style="color:var(--dim);font-size:0.7rem;">Hit 🎸 GET CHORDS on the Play tab first.</span>';
+  }
+  // Pre-fill backing track search
+  const bq = document.getElementById('backing-query');
+  if (bq && !bq.value && key) bq.value = key + ' guitar backing track';
+}
+
+function relativeMinor(root) {
+  const notes = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const idx = notes.indexOf(root.replace('b','').replace('#','#'));
+  if (idx < 0) return '?';
+  return notes[(idx + 9) % 12] + 'm';
+}
+
+async function findBackingTrack() {
+  const q = (document.getElementById('backing-query').value || '').trim();
+  if (!q) return;
+  const box = document.getElementById('backing-results');
+  if (!box) return;
+  if (!LOOPER_API) { box.innerHTML = '<div style="color:var(--dim);font-size:0.7rem;">Engine not connected — try YouTube search on the Play tab.</div>'; return; }
+  box.innerHTML = '<div style="color:var(--dim);font-size:0.7rem;">Searching…</div>';
+  try {
+    const r = await fetch(LOOPER_API + '/search?q=' + encodeURIComponent(q) + '&n=5');
+    const d = await r.json();
+    const results = d.results || [];
+    if (!results.length) { box.innerHTML = '<div style="color:var(--dim);font-size:0.7rem;">No results found.</div>'; return; }
+    box.innerHTML = '';
+    results.forEach(it => {
+      const row = document.createElement('div');
+      row.style.cssText = 'display:flex;gap:8px;align-items:center;padding:6px;border-radius:7px;background:rgba(255,255,255,0.03);cursor:pointer;';
+      row.innerHTML = '<img src="' + (it.thumb||'') + '" style="width:54px;height:30px;object-fit:cover;border-radius:3px;background:#222;flex-shrink:0;"><div style="flex:1;overflow:hidden;"><div style="color:#fff;font-size:0.68rem;font-weight:600;white-space:nowrap;text-overflow:ellipsis;overflow:hidden;">' + it.title + '</div><div style="color:var(--dim);font-size:0.58rem;">' + (it.channel||'') + '</div></div><button class="btn" style="padding:3px 9px;font-size:0.58rem;flex-shrink:0;">▶ LOAD</button>';
+      row.querySelector('button').onclick = () => {
+        window.__ytTitle = it.title;
+        if (typeof ytPickResult === 'function') ytPickResult(it);
+        else { window.__ytVideoId = it.id; ytPlayId && ytPlayId(it.id); }
+        switchAppTab('play');
+      };
+      box.appendChild(row);
+    });
+  } catch(e) { box.innerHTML = '<div style="color:var(--dim);font-size:0.7rem;">Error: ' + e.message + '</div>'; }
+}
+
+// ===== AI COACH =====
+const COACH_API = 'https://engine.looperdeluxe.com/coach';
+
+async function askCoach() {
+  const input = document.getElementById('coach-input');
+  const log = document.getElementById('coach-chat-log');
+  const status = document.getElementById('coach-status');
+  const q = (input ? input.value : '').trim();
+  if (!q) return;
+
+  // Tier check — Premium required
+  if (!isPremium()) { if (status) status.textContent = '✨ COACH requires Premium or Elite — upgrade at looperdeluxe.com'; return; }
+
+  // Add user message
+  if (log) {
+    const m = document.createElement('div');
+    m.className = 'coach-msg-user';
+    m.innerHTML = '<span>' + q.replace(/</g,'&lt;') + '</span>';
+    log.appendChild(m);
+    log.scrollTop = log.scrollHeight;
+  }
+  if (input) input.value = '';
+  if (status) status.textContent = '⏳ Thinking…';
+
+  // Build context
+  const key = window.songKey || '';
+  const chordsCtx = (window.currentChords || []).slice(0,20).map(c => c.name).join(' ');
+  const ctx = [key ? ('Key: ' + key) : '', chordsCtx ? ('Chords: ' + chordsCtx) : ''].filter(Boolean).join(' | ');
+
+  try {
+    const tier = isPro() ? 'elite' : 'premium';
+    const licKey = localStorage.getItem('looperLicense') || (localStorage.getItem('looperOwner') ? 'brooks-956bd142342d' : '');
+    const r = await fetch(COACH_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question: q, context: ctx, tier, license_key: licKey })
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      if (status) status.textContent = '⚠ ' + (err.error || 'Coach error ' + r.status);
+      return;
+    }
+    const d = await r.json();
+    const answer = d.answer || d.response || JSON.stringify(d);
+    if (log) {
+      const m = document.createElement('div');
+      m.className = 'coach-msg-ai';
+      m.innerHTML = '<span>' + answer.replace(/</g,'&lt;').replace(/\n/g,'<br>') + '</span>';
+      log.appendChild(m);
+      log.scrollTop = log.scrollHeight;
+    }
+    if (status) status.textContent = '';
+  } catch(e) {
+    if (status) status.textContent = '⚠ Error: ' + (e.message || e);
+  }
+}
+
+function refreshSettingsTab() {
+  const badge = document.getElementById('settings-tier-badge');
+  if (!badge) return;
+  if (isPro()) { badge.textContent = '★ ELITE'; badge.style.color = '#fbbf24'; badge.style.borderColor = 'rgba(251,191,36,0.5)'; badge.style.background = 'rgba(251,191,36,0.08)'; }
+  else if (isPremium()) { badge.textContent = '✨ PREMIUM'; badge.style.color = '#c084fc'; badge.style.borderColor = 'rgba(147,51,234,0.5)'; badge.style.background = 'rgba(147,51,234,0.15)'; }
+  else { badge.textContent = '🔓 FREE'; badge.style.color = '#a3e635'; badge.style.borderColor = 'rgba(163,230,53,0.4)'; badge.style.background = 'rgba(163,230,53,0.05)'; }
+  // Restore prefs
+  const autoChords = document.getElementById('pref-auto-chords');
+  if (autoChords) autoChords.checked = localStorage.getItem('prefAutoChords') !== 'false';
+  const autoBpm = document.getElementById('pref-auto-bpm');
+  if (autoBpm) autoBpm.checked = localStorage.getItem('prefAutoBpm') !== 'false';
+  const defSpeed = document.getElementById('pref-default-speed');
+  if (defSpeed) defSpeed.value = localStorage.getItem('prefDefaultSpeed') || '1.0';
+  // Restore license display
+  const li = document.getElementById('settings-license-input');
+  const existing = localStorage.getItem('looperLicenseKey') || localStorage.getItem('looperLicense');
+  if (li && existing) li.placeholder = 'License active: ' + existing.slice(0,8) + '…';
+}
+
+async function activateLicenseFromSettings() {
+  const inp = document.getElementById('settings-license-input');
+  const st = document.getElementById('settings-license-status');
+  const key = (inp ? inp.value.trim() : '');
+  if (!key) { if (st) st.textContent = 'Paste a license key first.'; return; }
+  // Owner bypass
+  if (key === 'brooks-956bd142342d') {
+    localStorage.setItem('looperOwner', '1');
+    if (st) st.textContent = '✅ Owner key activated — all tiers unlocked.';
+    refreshSettingsTab();
+    return;
+  }
+  if (st) st.textContent = '⏳ Activating…';
+  const result = await activateLicense(key);
+  if (st) st.textContent = result.ok ? '✅ ' + result.msg : '⚠ ' + result.msg;
+  if (result.ok) refreshSettingsTab();
+}
+
+function savePref(key, val) {
+  localStorage.setItem('pref' + key.charAt(0).toUpperCase() + key.slice(1), String(val));
+}
+
+// Mobile detection: add body class for CSS targeting
+(function() {
+  const isMob = window.innerWidth < 768 || navigator.maxTouchPoints > 1;
+  if (isMob) document.body.classList.add('is-mobile');
+  window.addEventListener('resize', () => {
+    const m = window.innerWidth < 768;
+    document.body.classList.toggle('is-mobile', m);
+  });
+})();
 </script>
 <p style="font-size: 10px; color: gray;">BPM Data provided by <a href="https://getsongbpm.com/" target="_blank" rel="noopener">GetSongBPM</a></p>
 </body>
