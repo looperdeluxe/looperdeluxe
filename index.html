@@ -290,6 +290,23 @@
       letter-spacing: 1px;
     }
 
+    /* === Feature guide new styles === */
+    .tier-strip { display:flex; flex-wrap:wrap; gap:8px; margin:0 0 20px; }
+    .tier-chip { font-size:0.72rem; font-weight:700; padding:5px 12px; border-radius:20px; font-family:'Orbitron',sans-serif; letter-spacing:0.5px; }
+    .tier-free-chip  { color:#a3e635; border:1px solid rgba(163,230,53,0.5);  background:rgba(163,230,53,0.08);  }
+    .tier-prem-chip  { color:#c084fc; border:1px solid rgba(192,132,252,0.5); background:rgba(192,132,252,0.08); }
+    .tier-elite-chip { color:#fbbf24; border:1px solid rgba(251,191,36,0.5);  background:rgba(251,191,36,0.08);  }
+    .tier-prem  { color:#c084fc; font-size:0.6em; font-weight:700; vertical-align:middle; }
+    .tier-elite { color:#fbbf24; font-size:0.6em; font-weight:700; vertical-align:middle; }
+    .feat-section-label { font-family:'Orbitron',sans-serif; font-size:0.68rem; color:#94a3b8; letter-spacing:1.5px; text-transform:uppercase; margin:22px 0 10px; border-left:2px solid rgba(147,51,234,0.6); padding-left:10px; }
+    .screen-cap-guide { background:rgba(34,197,94,0.06); border:1px solid rgba(34,197,94,0.25); border-radius:10px; padding:18px 20px; margin-top:22px; }
+    .screen-cap-title { font-family:'Orbitron',sans-serif; font-size:0.72rem; color:#4ade80; letter-spacing:1px; margin-bottom:10px; }
+    .screen-cap-steps { display:flex; flex-direction:column; gap:8px; }
+    .screen-cap-step { display:flex; align-items:flex-start; gap:12px; font-size:0.88rem; color:#e2e8f0; line-height:1.5; }
+    .step-num { background:#22c55e; color:#000; font-weight:900; font-size:0.75rem; min-width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0; margin-top:1px; }
+    /* Make the feature boxes scrollable on smaller viewports */
+    .box-instruction { max-height: 75vh; overflow-y: auto; }
+
     .dashboard {
       display: grid;
       grid-template-columns: 1fr 480px;
@@ -1042,27 +1059,133 @@
     </div>
 
     <div class="instruction-wrapper-row">
+
+      <!-- AUDIO SYSTEM guide — shown when mode = AUDIO (default) -->
       <div class="box-instruction active-hud" id="info-box-audio">
-        <h3>🎸 How To Play Along</h3>
-        <div class="instruction-grid-2x2">
-          <div class="instruction-item"><strong>[ SPACE ]</strong><span>Play or pause — the chords scroll in time so you just look up and play.</span></div>
-          <div class="instruction-item"><strong>[ I ] then [ O ]</strong><span>Drop your loop's start and end points on the fly while it plays.</span></div>
-          <div class="instruction-item"><strong>[ L ]</strong><span>Loop that tricky section on repeat until your fingers nail it.</span></div>
-          <div class="instruction-item"><strong>CAPO BOX</strong><span>Type your capo number — every chord flips to an easy open shape.</span></div>
-          <div class="instruction-item"><strong>SLOW IT DOWN</strong><span>Take fast parts at half speed — real pitch, no chipmunk voice.</span></div>
-          <div class="instruction-item"><strong>SAVE A LOOP</strong><span>Saved to that exact song — one click jumps you straight back to it.</span></div>
+        <h3>🎸 LOOPER DELUXE — FULL FEATURE GUIDE</h3>
+
+        <!-- Tier strip -->
+        <div class="tier-strip">
+          <span class="tier-chip tier-free-chip">🔓 FREE — Everything below without a badge</span>
+          <span class="tier-chip tier-prem-chip">✨ PREMIUM — $4.99/mo</span>
+          <span class="tier-chip tier-elite-chip">★ ELITE — $9.99/mo</span>
         </div>
-      </div>
-      
+
+        <!-- Section: Getting started -->
+        <div class="feat-section-label">▸ LOADING A SONG</div>
+        <div class="instruction-grid-2x2">
+          <div class="instruction-item"><strong>DROP A FILE</strong><span>Drag any MP3, WAV, or MP4 onto the page. Instant chords, BPM, and waveform.</span></div>
+          <div class="instruction-item"><strong>▶ YOUTUBE</strong><span>Search by title or paste a YouTube URL. The video plays here with chords overlaid.</span></div>
+          <div class="instruction-item"><strong>🟢 SPOTIFY <span class="tier-prem">✨ PREMIUM</span></strong><span>Connect Spotify and stream any track with full chord + lyrics sync.</span></div>
+          <div class="instruction-item"><strong>🎵 SETLISTS <span class="tier-prem">✨ PREMIUM</span></strong><span>Group songs by gig or practice session. One click loads any song in the list.</span></div>
+        </div>
+
+        <!-- Section: Playback controls -->
+        <div class="feat-section-label">▸ PLAYBACK CONTROLS</div>
+        <div class="instruction-grid-2x2">
+          <div class="instruction-item"><strong>[ SPACE ]</strong><span>Play / pause. Chords scroll in real time so you look at the neck, not the screen.</span></div>
+          <div class="instruction-item"><strong>[ ← ] / [ → ]</strong><span>Skip back or forward 5 seconds while playing.</span></div>
+          <div class="instruction-item"><strong>SLOW-DOWN SLIDER</strong><span>0.5× to 1.5×. Real pitch preserved — no chipmunk voice, no dropped notes.</span></div>
+          <div class="instruction-item"><strong>SCRUBBER</strong><span>Click anywhere on the waveform to jump to that spot. YouTube videos seek too.</span></div>
+        </div>
+
+        <!-- Section: Loops & practice -->
+        <div class="feat-section-label">▸ LOOPS &amp; PRACTICE</div>
+        <div class="instruction-grid-2x2">
+          <div class="instruction-item"><strong>[ I ] — LOOP IN</strong><span>While playing, press I to mark the start of a tricky section.</span></div>
+          <div class="instruction-item"><strong>[ O ] — LOOP OUT</strong><span>Press O to mark the end. The section now loops on its own.</span></div>
+          <div class="instruction-item"><strong>[ L ] — LOCK LOOP</strong><span>Toggle the loop on/off without losing your markers.</span></div>
+          <div class="instruction-item"><strong>SAVE LOOPS <span class="tier-prem">✨ PREMIUM</span></strong><span>Name and save unlimited loops per song. Free plan: 2 saved loops total.</span></div>
+          <div class="instruction-item"><strong>🚀 STEP-UP TRAINER</strong><span>Start slow, auto-ramp to full tempo as you nail each pass. The speed trainer for anything tough.</span></div>
+          <div class="instruction-item"><strong>TRANSPOSE / CAPO</strong><span>Type a capo number (0–7) in the capo box — every chord diagram updates instantly.</span></div>
+        </div>
+
+        <!-- Section: Chords -->
+        <div class="feat-section-label">▸ CHORD ANALYSIS</div>
+        <div class="instruction-grid-2x2">
+          <div class="instruction-item"><strong>✨ AUTO-DETECT</strong><span>Drop a file — chords and BPM are automatically detected in ~30 seconds on your device.</span></div>
+          <div class="instruction-item"><strong>🎸 GET CHORDS</strong><span>For live YouTube or Spotify: click GET CHORDS and share the tab audio when prompted (see screen-capture guide below).</span></div>
+          <div class="instruction-item"><strong>👥 COMMUNITY VERSIONS</strong><span>See player-submitted chord versions for popular songs. Rate them up or down. Usually more accurate than auto-detect for well-known songs.</span></div>
+          <div class="instruction-item"><strong>📤 PUBLISH MINE</strong><span>Auto-detected something better? Publish your version and it shows up for everyone who plays that song.</span></div>
+          <div class="instruction-item"><strong>🔸 SHAPES TAB</strong><span>See the actual guitar chord diagram for every chord in the song. Tap ◀ ▶ to switch to an easier voicing.</span></div>
+          <div class="instruction-item"><strong>🔬 VERIFY CHORDS <span class="tier-elite">★ ELITE</span></strong><span>Sends your audio to our server — a neural network reruns chord analysis at ~90% accuracy. Result is shared with all users of that song.</span></div>
+        </div>
+
+        <!-- Section: Stems -->
+        <div class="feat-section-label">▸ STEM ISOLATION <span class="tier-prem" style="font-size:0.7rem;">✨ PREMIUM / ★ ELITE</span></div>
+        <div class="instruction-grid-2x2">
+          <div class="instruction-item"><strong>🎚️ ISOLATE STEM</strong><span>Choose Guitar, Bass, Drums, Vocals, Piano, or Other. Our GPU server separates the track in ~60 seconds.</span></div>
+          <div class="instruction-item"><strong>BACKING TRACK MODE</strong><span>Mute just one instrument and practice over the real mix. E.g. remove guitar → play along with bass/drums/vocals.</span></div>
+          <div class="instruction-item"><strong>SOLO MODE</strong><span>Hear only the isolated stem. Useful for learning exact guitar parts or checking bass lines.</span></div>
+          <div class="instruction-item"><strong>QUOTA</strong><span>Premium: 5 new songs/month. Elite: unlimited. Repeat songs (same file) are always free — cached after first isolation.</span></div>
+        </div>
+
+        <!-- Section: Lyrics & coaching -->
+        <div class="feat-section-label">▸ LYRICS &amp; COACHING <span class="tier-prem" style="font-size:0.7rem;">✨ PREMIUM</span></div>
+        <div class="instruction-grid-2x2">
+          <div class="instruction-item"><strong>🎤 LYRICS TAB</strong><span>Fetches synced lyrics and overlays them over the chords in the STAGE view — chords appear above the right words.</span></div>
+          <div class="instruction-item"><strong>LYRIC SYNC SLIDER</strong><span>If lyrics are a bit early or late, drag the sync slider to align them perfectly.</span></div>
+          <div class="instruction-item"><strong>🎤 CHORD COACH <span class="tier-prem">✨ PREMIUM</span></strong><span>Mic listens to you playing and checks if you're hitting the right root notes for each chord. Real-time feedback.</span></div>
+          <div class="instruction-item"><strong>STAGE VIEW</strong><span>Full-screen chord + lyrics display — chords above words, scrolling in time. Meant to be readable from across the room.</span></div>
+        </div>
+
+        <!-- Screen capture guide -->
+        <div class="screen-cap-guide">
+          <div class="screen-cap-title">📱 HOW TO GET CHORDS FROM A YOUTUBE OR SPOTIFY SONG</div>
+          <p style="color:var(--dim); font-size:0.85rem; margin:0 0 12px;">When you click <b style="color:#4ade80;">GET CHORDS</b> on a live YouTube or Spotify song, your browser asks you to share your tab audio. This is how Looper hears the song and builds the chord chart. It only captures audio from that tab — nothing else on your device.</p>
+          <div class="screen-cap-steps">
+            <div class="screen-cap-step"><span class="step-num">1</span><span>Start playing the song in YouTube or Spotify, then click <b style="color:#4ade80;">🎸 GET CHORDS</b></span></div>
+            <div class="screen-cap-step"><span class="step-num">2</span><span>A browser dialog appears — select <b style="color:#fff;">"Chrome Tab"</b> (not Window or Screen)</span></div>
+            <div class="screen-cap-step"><span class="step-num">3</span><span>Click the tab that is playing the song, then click <b style="color:#fff;">Share</b></span></div>
+            <div class="screen-cap-step"><span class="step-num">4</span><span>Let the song play through once. Looper builds the chord chart in real time. You only need to do this once per song — it caches for everyone.</span></div>
+          </div>
+          <p style="color:#86efac; font-size:0.78rem; margin:10px 0 0;">💡 Once analyzed, chords load instantly next time — no need to repeat the capture for the same song.</p>
+        </div>
+
+      </div><!-- /info-box-audio -->
+
+      <!-- VIDEO STUDIO guide — shown when mode = VIDEO -->
       <div class="box-instruction" id="info-box-video">
-        <h3>🎬 Video Studio</h3>
+        <h3>🎬 VIDEO STUDIO — FULL GUIDE</h3>
+
+        <div class="feat-section-label">▸ LOADING A VIDEO</div>
         <div class="instruction-grid-2x2">
-          <div class="instruction-item"><strong>SEARCH ANY SONG</strong><span>Type a song or paste a YouTube link — it loads ready to play.</span></div>
-          <div class="instruction-item"><strong>BIGGER SCREEN</strong><span>Scale the video up so you can read every chord from across the room.</span></div>
-          <div class="instruction-item"><strong>◫ MIRROR</strong><span>Flip the picture to match facing a teacher, mirror, or webcam.</span></div>
-          <div class="instruction-item"><strong>⧉ POP-OUT</strong><span>Float the video in its own window and practice anywhere on screen.</span></div>
+          <div class="instruction-item"><strong>SEARCH ANY SONG</strong><span>Type a title or paste a YouTube URL in the search bar — it loads and plays here with chords overlaid in real time.</span></div>
+          <div class="instruction-item"><strong>SCRUB THE TIMELINE</strong><span>Click anywhere on the scrubber bar to jump to that moment. Chords update instantly.</span></div>
+          <div class="instruction-item"><strong>AUTO-SWITCH TO AUDIO</strong><span>Hit "AUDIO SYSTEM" at the top to load the video's audio as a waveform — gives you loops, slow-down, and full stem isolation.</span></div>
+          <div class="instruction-item"><strong>SEARCH RESULTS</strong><span>Results show title, channel, and duration. Pick the official version or a live recording — both work with GET CHORDS.</span></div>
         </div>
-      </div>
+
+        <div class="feat-section-label">▸ VIDEO DISPLAY OPTIONS</div>
+        <div class="instruction-grid-2x2">
+          <div class="instruction-item"><strong>DEFAULT / HALF SCREEN</strong><span>Switch between a standard player and a larger view that fills the workspace — useful on big monitors.</span></div>
+          <div class="instruction-item"><strong>◫ MIRROR</strong><span>Flip the video horizontally — handy when watching a teacher or playing in front of a mirror.</span></div>
+          <div class="instruction-item"><strong>⧉ POP-OUT VIDEO</strong><span>Detach the video into a floating window. Practice full-screen while the chord chart stays on screen.</span></div>
+          <div class="instruction-item"><strong>CHORD RIBBON</strong><span>4-bar chord ribbon scrolls just above the video in real time. Look up and play — no need to read the whole chart.</span></div>
+        </div>
+
+        <div class="feat-section-label">▸ GETTING CHORDS FROM A YOUTUBE VIDEO</div>
+        <div class="screen-cap-guide">
+          <div class="screen-cap-title">📱 SCREEN CAPTURE — HOW IT WORKS</div>
+          <p style="color:var(--dim); font-size:0.85rem; margin:0 0 12px;">YouTube audio can't be read directly by the app (browser security). Instead, you share the tab's audio stream — Looper analyzes it in real time and builds the chord chart. Takes about 2 minutes. Only needs to happen once per song.</p>
+          <div class="screen-cap-steps">
+            <div class="screen-cap-step"><span class="step-num">1</span><span>Start the YouTube video from the beginning. Click <b style="color:#4ade80;">🎸 GET CHORDS</b></span></div>
+            <div class="screen-cap-step"><span class="step-num">2</span><span>Browser dialog: choose <b style="color:#fff;">Chrome Tab</b>, select the YouTube tab, click <b style="color:#fff;">Share</b></span></div>
+            <div class="screen-cap-step"><span class="step-num">3</span><span>Let the full song play. The chord chart builds automatically as audio comes in.</span></div>
+            <div class="screen-cap-step"><span class="step-num">4</span><span>Done. Chords are cached — the next person who opens that song gets them instantly, no capture needed.</span></div>
+          </div>
+          <p style="color:#86efac; font-size:0.78rem; margin:10px 0 0;">💡 <b>Tip:</b> If the song has already been analyzed by another user, you'll see "🔒 Full chords loaded (cached)" instantly — no capture needed at all.</p>
+        </div>
+
+        <div class="feat-section-label">▸ ALL FEATURES AVAILABLE IN VIDEO MODE</div>
+        <div class="instruction-grid-2x2">
+          <div class="instruction-item"><strong>CHORDS + LYRICS</strong><span>Same full chord chart and lyrics sync as audio mode — just synced to the video timestamp.</span></div>
+          <div class="instruction-item"><strong>LOOP POINTS</strong><span>[ I ] / [ O ] / [ L ] work the same as audio. The video seeks back to your loop start automatically.</span></div>
+          <div class="instruction-item"><strong>SLOW-DOWN</strong><span>Slow the video to 0.5× — full pitch preservation. Great for fast licks where you need to see the fingers move slowly.</span></div>
+          <div class="instruction-item"><strong>COMMUNITY VERSIONS</strong><span>See and rate player-submitted chord versions for this song — tap 👥 VERSIONS in the chord panel.</span></div>
+        </div>
+      </div><!-- /info-box-video -->
+
     </div>
   </div>
 
