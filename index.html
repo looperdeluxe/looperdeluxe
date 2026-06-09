@@ -1233,6 +1233,7 @@
       <button class="btn" id="btn-spotify-connect" style="padding:7px 14px; font-size:0.6rem; color:#1DB954; border-color:#1DB954;">🟢 CONNECT SPOTIFY</button>
       <span id="spotify-status" style="font-size:0.55rem; color:var(--dim);"></span>
     </div>
+    <span id="header-tier-badge" onclick="switchAppTab('settings')" title="Your current plan — click to manage" style="margin-left:auto; font-family:'Orbitron',sans-serif; font-size:0.52rem; padding:3px 10px; border-radius:10px; background:rgba(163,230,53,0.07); border:1px solid rgba(163,230,53,0.35); color:#a3e635; cursor:pointer; white-space:nowrap; flex-shrink:0;">🔓 FREE</span>
   </header>
 
   <div id="app-tab-bar">
@@ -4711,7 +4712,41 @@ async function checkOwnerUnlock() {
 // Re-assert owner Premium on every load (bulletproof — works at any time once you've used your link on this device).
 if (localStorage.getItem('looperOwner') === '1') { setPremium(true); setPro(true); }
 checkOwnerUnlock();
-function updatePremiumUI(){ document.querySelectorAll('[data-premium-badge]').forEach(el=>{ el.textContent = isPremium ? '★ PREMIUM' : ''; }); if (isPremium) document.querySelectorAll('.prem-badge').forEach(el=>{ el.innerHTML='✓ PREMIUM'; el.style.color='#22c55e'; el.style.borderColor='#22c55e'; el.style.cursor='default'; el.title='Premium active'; }); }
+function updatePremiumUI(){ document.querySelectorAll('[data-premium-badge]').forEach(el=>{ el.textContent = isPremium ? '★ PREMIUM' : ''; }); if (isPremium) document.querySelectorAll('.prem-badge').forEach(el=>{ el.innerHTML='✓ PREMIUM'; el.style.color='#22c55e'; el.style.borderColor='#22c55e'; el.style.cursor='default'; el.title='Premium active'; }); try { refreshSettingsTab(); } catch(e){} }
+
+// Feature guide: clicking a tier badge takes you to that plan's pricing page.
+// Run after DOM is ready (this script block runs synchronously after the DOM).
+(function wireFeatureGuideBadges() {
+  // tier-prem spans in .instruction-item → show tiers modal highlighting Premium
+  document.querySelectorAll('.instruction-item .tier-prem').forEach(el => {
+    el.style.cursor = 'pointer';
+    el.title = 'Click to see Premium plan';
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const feat = el.closest('.instruction-item')?.querySelector('strong')?.textContent?.replace(/[★✨🔓]/g,'').trim() || 'Premium';
+      showTiers(feat, 'premium');
+    });
+  });
+  // tier-pro spans → show tiers modal highlighting Elite
+  document.querySelectorAll('.instruction-item .tier-pro').forEach(el => {
+    el.style.cursor = 'pointer';
+    el.title = 'Click to see Elite plan';
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const feat = el.closest('.instruction-item')?.querySelector('strong')?.textContent?.replace(/[★✨🔓]/g,'').trim() || 'Elite';
+      showTiers(feat, 'pro');
+    });
+  });
+  // Also tier-strip chips at the top
+  document.querySelectorAll('.tier-chip.tier-prem-chip').forEach(el => {
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', () => showTiers('Premium', 'premium'));
+  });
+  document.querySelectorAll('.tier-chip.tier-pro-chip').forEach(el => {
+    el.style.cursor = 'pointer';
+    el.addEventListener('click', () => showTiers('Elite', 'pro'));
+  });
+})();
 // Click a "✨ PREMIUM" badge → already Premium shows it's active; otherwise opens the upgrade modal.
 function clickPremiumBadge(el, feature){ if (isPremium){ el.innerHTML='✓ PREMIUM'; el.style.color='#22c55e'; el.style.borderColor='#22c55e'; el.style.cursor='default'; } else { showPremiumPrompt(feature || 'This'); } }
 
@@ -4756,6 +4791,8 @@ async function validateStoredLicense() {
   } catch(e) { /* offline — keep last known state */ }
 }
 validateStoredLicense();
+// Initialize header tier badge on load
+try { refreshSettingsTab(); } catch(e) {}
 function showPremiumPrompt(feature) {
   let m = document.getElementById('premium-modal');
   if (!m) {
@@ -5396,7 +5433,7 @@ async function askCoach() {
   if (!q) return;
 
   // Tier check — Premium required
-  if (!isPremium()) { if (status) status.textContent = '✨ COACH requires Premium or Elite — upgrade at looperdeluxe.com'; return; }
+  if (!isPremium) { if (status) status.textContent = '✨ COACH requires Premium or Elite — upgrade at looperdeluxe.com'; return; }
 
   // Add user message
   if (log) {
@@ -5443,22 +5480,33 @@ async function askCoach() {
 }
 
 function refreshSettingsTab() {
-  const badge = document.getElementById('settings-tier-badge');
-  if (!badge) return;
-  if (isPro()) { badge.textContent = '★ ELITE'; badge.style.color = '#fbbf24'; badge.style.borderColor = 'rgba(251,191,36,0.5)'; badge.style.background = 'rgba(251,191,36,0.08)'; }
-  else if (isPremium()) { badge.textContent = '✨ PREMIUM'; badge.style.color = '#c084fc'; badge.style.borderColor = 'rgba(147,51,234,0.5)'; badge.style.background = 'rgba(147,51,234,0.15)'; }
-  else { badge.textContent = '🔓 FREE'; badge.style.color = '#a3e635'; badge.style.borderColor = 'rgba(163,230,53,0.4)'; badge.style.background = 'rgba(163,230,53,0.05)'; }
+  // Update both the sidebar settings badge AND the header tier indicator
+  const tierText = isPro ? '★ ELITE' : isPremium ? '✨ PREMIUM' : '🔓 FREE';
+  const tierColor = isPro ? '#fbbf24' : isPremium ? '#c084fc' : '#a3e635';
+  const tierBorder = isPro ? 'rgba(251,191,36,0.5)' : isPremium ? 'rgba(147,51,234,0.5)' : 'rgba(163,230,53,0.4)';
+  const tierBg = isPro ? 'rgba(251,191,36,0.08)' : isPremium ? 'rgba(147,51,234,0.15)' : 'rgba(163,230,53,0.05)';
+
+  // Settings panel badge (both sidebar + full-page panel)
+  document.querySelectorAll('#settings-tier-badge').forEach(badge => {
+    badge.textContent = tierText;
+    badge.style.color = tierColor;
+    badge.style.borderColor = tierBorder;
+    badge.style.background = tierBg;
+  });
+  // Header tier indicator
+  const htb = document.getElementById('header-tier-badge');
+  if (htb) { htb.textContent = tierText; htb.style.color = tierColor; htb.style.borderColor = tierBorder; htb.style.background = tierBg; }
+
   // Restore prefs
   const autoChords = document.getElementById('pref-auto-chords');
   if (autoChords) autoChords.checked = localStorage.getItem('prefAutoChords') !== 'false';
   const autoBpm = document.getElementById('pref-auto-bpm');
   if (autoBpm) autoBpm.checked = localStorage.getItem('prefAutoBpm') !== 'false';
-  const defSpeed = document.getElementById('pref-default-speed');
-  if (defSpeed) defSpeed.value = localStorage.getItem('prefDefaultSpeed') || '1.0';
   // Restore license display
-  const li = document.getElementById('settings-license-input');
-  const existing = localStorage.getItem('looperLicenseKey') || localStorage.getItem('looperLicense');
-  if (li && existing) li.placeholder = 'License active: ' + existing.slice(0,8) + '…';
+  document.querySelectorAll('#settings-license-input').forEach(li => {
+    const existing = localStorage.getItem('looperLicenseKey') || localStorage.getItem('looperLicense');
+    if (existing) li.placeholder = 'License active: ' + existing.slice(0,8) + '…';
+  });
 }
 
 async function activateLicenseFromSettings() {
@@ -5469,14 +5517,15 @@ async function activateLicenseFromSettings() {
   // Owner bypass
   if (key === 'brooks-956bd142342d') {
     localStorage.setItem('looperOwner', '1');
-    if (st) st.textContent = '✅ Owner key activated — all tiers unlocked.';
+    setPremium(true); setPro(true);
+    if (st) st.textContent = '✅ Owner key — all tiers unlocked.';
     refreshSettingsTab();
     return;
   }
   if (st) st.textContent = '⏳ Activating…';
   const result = await activateLicense(key);
   if (st) st.textContent = result.ok ? '✅ ' + result.msg : '⚠ ' + result.msg;
-  if (result.ok) refreshSettingsTab();
+  if (result.ok) { refreshSettingsTab(); updatePremiumUI(); }
 }
 
 function savePref(key, val) {
