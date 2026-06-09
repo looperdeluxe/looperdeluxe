@@ -1588,6 +1588,8 @@ tsParticles.load('particles', {
 
 let ws = null, regionsPlugin = null, activeRegion = null;
 let isVideoMediaMode = false; let loopModeActive = true; let isGapDelayPeriod = false;
+// Loop Mode View state
+let lmvLoopPass = 0, lmvGapRAF = null, lmvGapStartTs = 0, lmvGapDurSec = 0;
 let savedLoops = JSON.parse(localStorage.getItem('cosmicSavedLoopsMaster')) || [];
 
 let audioCtx = null; let isMetroPlaying = false; let metroFollowSong = false;
@@ -2596,15 +2598,18 @@ async function initMediaPipeline(file) {
         updateTempo(); 
       }
       const gap = parseFloat(document.getElementById('slider-gap').value);
-      if (gap > 0) { 
-        const cd = document.getElementById('countdown-overlay'); 
-        cd.style.display = 'block'; 
-        let rem = Math.ceil(gap); 
-        cd.innerText = rem; 
-        const iv = setInterval(() => { 
-          rem--; 
-          if(rem>0) cd.innerText = rem; else { clearInterval(iv); cd.style.display = 'none'; trigReset(); } 
-        }, 1000); 
+      if (gap > 0) {
+        lmvGapStartTs = performance.now() / 1000;
+        lmvGapDurSec  = gap;
+        lmvShowView();
+        if (lmvGapRAF) cancelAnimationFrame(lmvGapRAF);
+        const gapTick = () => {
+          const elapsed = (performance.now() / 1000) - lmvGapStartTs;
+          lmvUpdateView(undefined, true);
+          if (elapsed < lmvGapDurSec) { lmvGapRAF = requestAnimationFrame(gapTick); }
+          else { lmvGapRAF = null; lmvGapDurSec = 0; trigReset(); }
+        };
+        lmvGapRAF = requestAnimationFrame(gapTick);
       } else {
         trigReset();
       }
@@ -2637,9 +2642,11 @@ function advanceAutoChordSequencer() {
 function updateTempo() { if (!ws) return; const t = parseFloat(document.getElementById('slider-tempo').value); document.getElementById('val-tempo').innerText = `${t.toFixed(2)}x`; ws.setPlaybackRate(t, true); if (ws.media) ws.media.preservesPitch = true; if (window.StemMixer && StemMixer.isReady()) StemMixer.setRate(t); if (syncScheduler) resyncClock(); }
 ['input-metro-bpm','input-metro-offset'].forEach(id => document.getElementById(id).addEventListener('change', () => { if (syncScheduler) resyncClock(); }));
 
-function trigReset() { 
-  if(ws && activeRegion) { 
-    ws.setTime(activeRegion.start); 
+function trigReset() {
+  lmvLoopPass++;
+  lmvShowView();
+  if(ws && activeRegion) {
+    ws.setTime(activeRegion.start);
     if (isAutoStepChords) {
         currentChordIndex = 0;
         const pills = document.querySelectorAll('.chord-pill');
@@ -2712,11 +2719,11 @@ function snapToBar(t) {
 }
 document.getElementById('btn-set-a').addEventListener('click', () => {
   if (playSource === 'youtube') { if (ytPlayer && ytPlayer.getCurrentTime) { ytLoopA = snapToBar(ytPlayer.getCurrentTime() || 0); const e = document.getElementById('lbl-a'); if (e) e.textContent = fmt(ytLoopA); if (ytLoopB > ytLoopA) ytLoopOn = true; } return; }
-  if(ws&&activeRegion){ const s=snapToBar(ws.getCurrentTime()); if(s<activeRegion.end){ activeRegion.setOptions({start:s}); updateLbls(); } }
+  if(ws&&activeRegion){ const s=snapToBar(ws.getCurrentTime()); if(s<activeRegion.end){ activeRegion.setOptions({start:s}); updateLbls(); lmvShowView(); } }
 });
 document.getElementById('btn-set-b').addEventListener('click', () => {
   if (playSource === 'youtube') { if (ytPlayer && ytPlayer.getCurrentTime) { ytLoopB = snapToBar(ytPlayer.getCurrentTime() || 0); const e = document.getElementById('lbl-b'); if (e) e.textContent = fmt(ytLoopB); if (ytLoopB > ytLoopA) ytLoopOn = true; } return; }
-  if(ws&&activeRegion){ const e=snapToBar(ws.getCurrentTime()); if(e>activeRegion.start){ activeRegion.setOptions({end:e}); updateLbls(); } }
+  if(ws&&activeRegion){ const e=snapToBar(ws.getCurrentTime()); if(e>activeRegion.start){ activeRegion.setOptions({end:e}); updateLbls(); lmvShowView(); } }
 });
 (function(){ const b=document.getElementById('btn-snap-bars'); if(!b) return; const paint=()=>{ b.textContent = window.quantizeLoops ? '⧉ SNAP: BARS' : '⧉ SNAP: OFF'; b.className = window.quantizeLoops ? 'btn accent' : 'btn'; }; paint(); b.addEventListener('click', ()=>{ window.quantizeLoops = !window.quantizeLoops; localStorage.setItem('looperQuantize', window.quantizeLoops ? '1' : '0'); paint(); }); })();
 
@@ -2724,6 +2731,7 @@ const btnToggleLoop = document.getElementById('btn-toggle-loop');
 btnToggleLoop.addEventListener('click', () => {
   if (playSource === 'youtube') { ytLoopOn = !ytLoopOn; btnToggleLoop.className = ytLoopOn ? "btn accent" : "btn danger"; btnToggleLoop.innerText = ytLoopOn ? "⟳ LOOP ON" : "✕ LOOP OFF"; return; }
   loopModeActive = !loopModeActive; btnToggleLoop.className = loopModeActive ? "btn accent" : "btn danger"; btnToggleLoop.innerText = loopModeActive ? "⟳ LOOP ON" : "✕ LOOP OFF";
+  if (!loopModeActive) { lmvHideView(); lmvLoopPass = 0; } else { lmvShowView(); }
 });
 
 document.addEventListener('keydown', (e) => { const t = document.activeElement.tagName.toLowerCase(); if (t === 'input' || t === 'textarea' || t === 'select') return; if (e.key.toLowerCase() === 'i') document.getElementById('btn-set-a').click(); if (e.key.toLowerCase() === 'o') document.getElementById('btn-set-b').click(); if (e.key.toLowerCase() === 'l') document.getElementById('btn-toggle-loop').click(); if (e.code === 'Space') { e.preventDefault(); document.getElementById('btn-play').click(); } });
@@ -3357,6 +3365,77 @@ function sizeRibbon() {
   renderRibbon();
 }
 
+// ── Loop Mode View helpers ──────────────────────────────────────────────────
+function lmvShowView() {
+  const el = document.getElementById('loop-mode-view');
+  if (el && loopModeActive && activeRegion) el.style.display = 'block';
+}
+function lmvHideView() {
+  const el = document.getElementById('loop-mode-view');
+  if (el) el.style.display = 'none';
+}
+function lmvChordColor(name) {
+  if (!name || name === '—') return 'var(--cyan)';
+  // minor → violet tint, 7th → green, dim → red-ish, else cyan
+  const lc = name.toLowerCase();
+  if (lc.includes('dim')) return '#f87171';
+  if (lc.includes('m') && !lc.includes('maj')) return '#c084fc';
+  if (lc.includes('7')) return '#86efac';
+  return 'var(--cyan)';
+}
+function lmvUpdateView(ct, isGap) {
+  const chordEl  = document.getElementById('lmv-chord');
+  const statusEl = document.getElementById('lmv-status');
+  const arcEl    = document.getElementById('lmv-ring-arc');
+  const labelEl  = document.getElementById('lmv-ring-label');
+  const pip1     = document.getElementById('lmv-pip-1');
+  const pip2     = document.getElementById('lmv-pip-2');
+  if (!chordEl) return;
+
+  // chord name (use playhead time when playing, or last known when in gap)
+  let chordName = '—';
+  if (window.songChords && window.songChords.length) {
+    const t = (ct !== undefined) ? ct : (activeRegion ? activeRegion.start : 0);
+    const idx = stageChordIndexAt(t);
+    if (idx >= 0) chordName = window.songChords[idx].name || '—';
+  }
+  const col = lmvChordColor(chordName);
+  if (chordEl.textContent !== chordName) {
+    chordEl.textContent = chordName;
+    chordEl.style.color = col;
+    chordEl.style.filter = col === 'var(--cyan)'
+      ? 'drop-shadow(0 0 20px rgba(34,211,238,0.6))'
+      : 'drop-shadow(0 0 20px rgba(192,132,252,0.6))';
+  }
+
+  // ring arc (circumference 213.6)
+  const circ = 213.6;
+  if (isGap && lmvGapDurSec > 0) {
+    const elapsed = (performance.now() / 1000) - lmvGapStartTs;
+    const frac = Math.min(1, elapsed / lmvGapDurSec);
+    arcEl.style.strokeDashoffset = String(circ * (1 - frac));  // drains to zero when gap ends
+    arcEl.style.stroke = 'var(--violet)';
+    if (labelEl) labelEl.textContent = 'GAP';
+    if (statusEl) {
+      const rem = Math.max(0, Math.ceil(lmvGapDurSec - elapsed));
+      statusEl.textContent = rem > 0 ? `RESTARTING IN ${rem}s` : 'RESTARTING…';
+    }
+  } else {
+    arcEl.style.strokeDashoffset = '0';
+    arcEl.style.stroke = col === 'var(--cyan)' ? 'var(--cyan)' : col;
+    if (labelEl) labelEl.textContent = 'LOOP';
+    const passNum = (lmvLoopPass % 2) + 1;
+    if (statusEl) statusEl.textContent = `PASS ${passNum} PLAYING`;
+  }
+
+  // pips — cycle through 1/2/1/2…
+  if (pip1 && pip2) {
+    const active = lmvLoopPass % 2; // 0 = first pass active, 1 = second
+    pip1.className = 'lmv-pip' + (active === 0 ? ' active' : ' done');
+    pip2.className = 'lmv-pip' + (active === 1 ? ' active' : (lmvLoopPass > 0 ? ' done' : ''));
+  }
+}
+
 function startRibbonLoop() {
   if (ribbonRAF) return;
   const tick = () => {
@@ -3364,6 +3443,7 @@ function startRibbonLoop() {
       const ct = ws.getCurrentTime();
       renderRibbon();
       try { renderStage(ct); } catch (e) {}   // drive the chord shapes every frame (not the ~250ms timeupdate) → no lag
+      try { lmvUpdateView(ct, false); } catch(e) {}
       ribbonRAF = requestAnimationFrame(tick);
     } else { ribbonRAF = null; renderRibbon(); }
   };
