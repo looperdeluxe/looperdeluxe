@@ -1663,12 +1663,14 @@
               <button id="stage-instrument" title="Switch between guitar chord shapes and the bass root note (the foundational bassline)" style="font-size:0.58rem; background:rgba(124,58,237,0.18); border:1px solid rgba(192,132,252,0.5); border-radius:5px; color:#f0abfc; padding:2px 8px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap;">🎸 GUITAR</button>
             </div>
             <span id="chord-source-badge" class="auto" title="Where these chords came from">⚠ AUTO-DETECTED · FIRST PASS</span>
-            <div style="display:flex; align-items:center; gap:4px; flex-wrap:nowrap; overflow:hidden;">
-  <button id="btn-getchords" onclick="getStreamingChords()" title="Get auto-detected chords for the playing Spotify/YouTube song (analyzes it once, then cached for everyone)" style="font-size:0.56rem; background:rgba(34,197,94,0.18); border:1px solid rgba(34,197,94,0.6); border-radius:5px; color:#4ade80; padding:3px 8px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap; flex-shrink:0;">🎸 GET CHORDS</button>
-  <button id="btn-versions" onclick="loadCommunityVersions()" title="See player-submitted chord versions for this song" style="font-size:0.56rem; background:rgba(99,102,241,0.18); border:1px solid rgba(129,140,248,0.6); border-radius:5px; color:#a5b4fc; padding:3px 7px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap; flex-shrink:0;">👥 VER</button>
-  <button id="btn-publish-version" onclick="publishMyVersion()" title="Publish the chords currently on screen as YOUR version for others to use and rate" style="font-size:0.56rem; background:rgba(236,72,153,0.16); border:1px solid rgba(244,114,182,0.55); border-radius:5px; color:#f9a8d4; padding:3px 7px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap; flex-shrink:0;">📤 PUBLISH</button>
-  <button id="btn-verify-chords" onclick="verifyChords()" title="Elite: run a server-side neural network chord analysis — ~90% accuracy, cached for everyone" style="font-size:0.56rem; background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.45); border-radius:5px; color:#86efac; padding:3px 6px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap; flex-shrink:0;">🔬 VERIFY <span style="font-size:0.42rem; color:#fbbf24; border:1px solid rgba(251,191,36,0.5); border-radius:5px; padding:0 3px; margin-left:1px;">★ ELITE</span></button>
-  <span id="chordget-status" style="font-size:0.5rem; color:var(--dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1; min-width:0;"></span>
+            <div style="display:flex; flex-direction:column; gap:3px;">
+  <div style="display:flex; align-items:center; gap:4px; flex-wrap:nowrap;">
+    <button id="btn-getchords" onclick="getStreamingChords()" title="Get auto-detected chords for the playing Spotify/YouTube song (analyzes it once, then cached for everyone)" style="font-size:0.52rem; background:rgba(34,197,94,0.18); border:1px solid rgba(34,197,94,0.6); border-radius:5px; color:#4ade80; padding:3px 7px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap; flex-shrink:0;">🎸 GET CHORDS</button>
+    <button id="btn-versions" onclick="loadCommunityVersions()" title="See player-submitted chord versions for this song" style="font-size:0.52rem; background:rgba(99,102,241,0.18); border:1px solid rgba(129,140,248,0.6); border-radius:5px; color:#a5b4fc; padding:3px 6px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap; flex-shrink:0;">👥 VERSIONS</button>
+    <button id="btn-publish-version" onclick="publishMyVersion()" title="Publish the chords currently on screen as YOUR version for others to use and rate" style="font-size:0.52rem; background:rgba(236,72,153,0.16); border:1px solid rgba(244,114,182,0.55); border-radius:5px; color:#f9a8d4; padding:3px 6px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap; flex-shrink:0;">📤 PUBLISH</button>
+    <button id="btn-verify-chords" onclick="verifyChords()" title="Elite: run a server-side neural network chord analysis — ~90% accuracy, cached for everyone" style="font-size:0.52rem; background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.45); border-radius:5px; color:#86efac; padding:3px 5px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap; flex-shrink:0;">🔬 VERIFY <span style="font-size:0.4rem; color:#fbbf24; border:1px solid rgba(251,191,36,0.5); border-radius:5px; padding:0 3px; margin-left:1px;">★ ELITE</span></button>
+  </div>
+  <span id="chordget-status" style="font-size:0.5rem; color:var(--dim); white-space:normal; word-break:break-word; line-height:1.4; min-height:14px;"></span>
 </div>
             <div id="versions-list" style="display:none; flex-direction:column; gap:4px; max-height:180px; overflow-y:auto; padding:6px; border:1px solid rgba(129,140,248,0.3); border-radius:8px; background:rgba(99,102,241,0.05);"></div>
             <div style="display:flex; align-items:center; gap:5px;">
@@ -5187,6 +5189,11 @@ function loadYouTubeAPI(cb) {
   }
 }
 function enterYouTubeMode() {
+  // Clean up any lingering Spotify waveform canvas from a previous session
+  stopSpotifyLoop(); stopFollowPhoneMode();
+  ['sp-waveform-canvas','sp-playhead'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
+  ['waveform','timeline'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = ''; });
+  document.getElementById('sp-nowplaying').style.display = 'none';
   playSource = 'youtube';
   document.getElementById('landing-gate').style.display = 'none';
   document.getElementById('main-dashboard').style.display = 'grid';
@@ -5817,8 +5824,25 @@ async function loadSpotifyAudioMatrix(trackId, durationMs) {
     }
   } catch (e) {}
 
-  // Final fallback: just show a flat placeholder canvas so the area isn't empty
+  // Final fallback: show synthetic canvas + try engine chord cache
   _buildSpotifyCanvas(null, dur, trackId, 0.6);
+  // Try to load chords from engine cache (keyed by track name+artist — populated when anyone analyzed via YouTube)
+  if (window.__spNowTrack && LOOPER_API) {
+    try {
+      const si = currentSongInfo();
+      if (si.ok) {
+        const cr = await fetch(LOOPER_API + '/analysis?v=' + encodeURIComponent(si.key));
+        if (cr.ok) {
+          const a = await cr.json();
+          if (a && a.chords && a.chords.length > 4) {
+            applyDetectedChords(a.chords);
+            if (st) st.textContent = `🎵 ${a.chords.length} chords loaded (cached)`;
+            requestAnimationFrame(() => { const cvs = document.getElementById('sp-waveform-canvas'); if (cvs) drawSpotifyChordMarkers(cvs, a.chords, dur); });
+          }
+        }
+      }
+    } catch(e) {}
+  }
 }
 document.getElementById('btn-use-spotify').addEventListener('click', enterSpotifyMode);
 document.getElementById('sp-close').addEventListener('click', exitSpotifyMode);
@@ -5878,19 +5902,23 @@ function switchAppTab(name) {
 
   if (dashVisible) {
     // Song is loaded — use sidebar view system, keep left panel (waveform/transport) always visible
-    // Keep play panel always visible
     const playPanel = document.getElementById('tab-play-panel');
-    if (playPanel) playPanel.classList.add('active');
-    // Hide the standalone full-page panels (they're only for landing state)
-    ['learn','coach','settings'].forEach(t => {
-      const p = document.getElementById('tab-' + t + '-panel');
-      if (p) p.classList.remove('active');
-    });
-    // Route to sidebar
-    if (name === 'play') {
-      setSidebarView('stage');
+    // Hide all full-page panels
+    APP_TABS.forEach(t => { const p = document.getElementById('tab-' + t + '-panel'); if (p) p.classList.remove('active'); });
+    if (name === 'uploads') {
+      // My Stuff: show full-page uploads panel, hide the dashboard temporarily
+      const up = document.getElementById('tab-uploads-panel');
+      if (up) up.classList.add('active');
+      refreshMyStuff();
     } else {
-      setSidebarView(name);
+      // All other tabs: keep play panel + sidebar visible
+      if (playPanel) playPanel.classList.add('active');
+      // Route to sidebar
+      if (name === 'play') {
+        setSidebarView('stage');
+      } else {
+        setSidebarView(name);
+      }
     }
   } else {
     // No song loaded — full-page panel switch
@@ -5901,16 +5929,6 @@ function switchAppTab(name) {
     if (name === 'learn') refreshLearnTab();
     if (name === 'settings') refreshSettingsTab();
     if (name === 'uploads') { if (typeof refreshMyStuff === 'function') refreshMyStuff(); }
-  }
-  // 'uploads' tab: always show as full panel regardless of dash state
-  if (name === 'uploads') {
-    ['learn','coach','settings'].forEach(t => {
-      const p = document.getElementById('tab-' + t + '-panel');
-      if (p) p.classList.remove('active');
-    });
-    const up = document.getElementById('tab-uploads-panel');
-    if (up) up.classList.add('active');
-    refreshMyStuff();
   }
 }
 
