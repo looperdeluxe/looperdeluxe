@@ -1977,7 +1977,13 @@ function setSidebarView(mode) {
   else if (mode === 'chords') { tabChords.classList.add('active'); viewChords.classList.add('active'); renderChordPalette(); setTimeout(()=>{initFretboardCanvasDimensions(); renderManualFretboard();}, 50); }
   else if (mode === 'learn' || mode === 'coach' || mode === 'settings') {
     const el = document.getElementById('column-' + mode + '-view');
-    if (el) el.style.display = 'flex';
+    if (el) {
+      el.style.display = 'flex';
+      el.style.flex = '1';
+      el.style.minHeight = '0';
+      el.style.overflowY = 'auto';
+      el.style.overflowX = 'hidden';
+    }
     if (mode === 'learn') refreshLearnTab();
     if (mode === 'settings') refreshSettingsTab();
   }
@@ -4575,19 +4581,25 @@ function playDuration() {
 // If you only have one product link, put it in both — buyers pick the plan on the checkout page.
 const LS_CONFIG = {
   checkout: 'https://looperdeluxe.lemonsqueezy.com/checkout/buy/da396534-f059-4bc8-8aab-2fd4536068af',
+  checkoutElite: '', // fill in with Elite LS checkout URL when product is live
 };
 // Open Lemon Squeezy checkout as an in-page overlay (lazy-loads lemon.js); falls back to a new tab.
-function openCheckout() {
-  const url = LS_CONFIG.checkout + (LS_CONFIG.checkout.includes('?') ? '&' : '?') + 'embed=1';
+function openCheckout(tier) {
+  const base = (tier === 'elite' && LS_CONFIG.checkoutElite) ? LS_CONFIG.checkoutElite : LS_CONFIG.checkout;
+  if (tier === 'elite' && !LS_CONFIG.checkoutElite) {
+    window.open('https://looperdeluxe.com/#pricing', '_blank', 'noopener');
+    return;
+  }
+  const url = base + (base.includes('?') ? '&' : '?') + 'embed=1';
   const go = () => {
     if (window.LemonSqueezy && window.LemonSqueezy.Url) { window.LemonSqueezy.Url.Open(url); }
-    else { window.open(LS_CONFIG.checkout, '_blank', 'noopener'); }
+    else { window.open(base, '_blank', 'noopener'); }
   };
   if (window.LemonSqueezy) return go();
   const s = document.createElement('script');
   s.src = 'https://assets.lemonsqueezy.com/lemon.js'; s.defer = true;
   s.onload = () => { try { window.createLemonSqueezy && window.createLemonSqueezy(); } catch(e){} go(); };
-  s.onerror = () => window.open(LS_CONFIG.checkout, '_blank', 'noopener');
+  s.onerror = () => window.open(base, '_blank', 'noopener');
   document.head.appendChild(s);
 }
 // Owner flag = permanent premium on this device once you've visited your ?owner= link (survives refresh, cache,
@@ -4604,11 +4616,11 @@ function setPro(v){ isPro = !!v; localStorage.setItem('looperPro', v ? '1' : '0'
 // Pro features are in BETA → for now, requirePro shows the tier comparison with Pro marked "coming soon".
 // (Owner/tester gets through so we can build + QA the Pro features.)
 function requirePro(feature){ if (isPro) return true; showTiers(feature, 'pro'); return false; }
-const PRO_BETA = true;  // flip to false when Pro is finished + the Lemon Squeezy Pro product is live
+const PRO_BETA = false;
 const TIERS = {
   free:    { name:'Looper',  price:'Free',                 color:'#9ca3af' },
   premium: { name:'Premium', price:'$4.99/mo · $39.99/yr', color:'#c084fc' },
-  pro:     { name:'Elite',   price:'$9.99/mo · $79.99/yr', color:'#fbbf24', beta:true },
+  pro:     { name:'Elite',   price:'$9.99/mo · $79.99/yr', color:'#fbbf24' },
 };
 
 // ===== STEP-UP daily quota (speed trainer). Metric = distinct songs/day you can use it on. =====
@@ -4666,22 +4678,22 @@ function showTiers(feature, highlight){
     let cta;
     if (key==='free') cta = '<div style="font-size:0.6rem;color:var(--dim);padding:8px;text-align:center;">Current base</div>';
     else if (key==='premium') cta = '<button class="btn accent" style="width:100%;padding:8px;font-size:0.65rem;" onclick="openCheckout()">Get Premium</button>';
-    else cta = '<button class="btn" disabled style="width:100%;padding:8px;font-size:0.6rem;opacity:0.7;cursor:default;">🚧 Elite — Beta (soon)</button>';
+    else cta = '<button class="btn accent" style="width:100%;padding:8px;font-size:0.65rem;background:linear-gradient(135deg,#b45309,#92400e);border-color:#fbbf24;" onclick="openCheckout(\'elite\')">Get Elite ★</button>';
     return '<div style="flex:1; min-width:150px; border:1px solid '+(hot?t.color:'rgba(255,255,255,0.1)')+'; border-radius:10px; overflow:hidden; '+(hot?'box-shadow:0 0 18px '+t.color+'55;':'')+'">'
       + '<div style="padding:9px 8px; text-align:center; background:'+t.color+'18;">'
-      +   '<div style="font-family:\'Orbitron\',sans-serif; font-size:0.8rem; color:'+t.color+';">'+t.name+(t.beta?' <span style="font-size:0.5rem;background:'+t.color+'33;padding:1px 5px;border-radius:6px;">BETA</span>':'')+'</div>'
+      +   '<div style="font-family:\'Orbitron\',sans-serif; font-size:0.8rem; color:'+t.color+';">'+t.name+'</div>'
       +   '<div style="font-size:0.58rem; color:var(--dim); margin-top:2px;">'+t.price+'</div>'
       + '</div>' + cells + '<div style="padding:8px;">'+cta+'</div></div>';
   };
   const labels = '<div style="flex:0 0 168px; min-width:140px;"><div style="height:46px;"></div>'
-    + TIER_ROWS.map(r=>'<div style="padding:5px 8px; font-size:0.6rem; color:var(--dim); border-bottom:1px solid rgba(255,255,255,0.06); height:100%;">'+r[0]+'</div>').join('')
+    + TIER_ROWS.map(r=>'<div style="padding:5px 8px; font-size:0.6rem; color:var(--dim); border-bottom:1px solid rgba(255,255,255,0.06); line-height:1.4;">'+r[0]+'</div>').join('')
     + '<div style="height:44px;"></div></div>';
   m.innerHTML = '<div style="background:linear-gradient(160deg,#140a26,#0a0612); border:1px solid rgba(192,132,252,0.4); border-radius:14px; padding:18px; max-width:680px; width:100%; box-shadow:0 0 40px rgba(124,58,237,0.4);">'
     + '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">'
     +   '<div style="font-family:\'Orbitron\',sans-serif; font-size:1rem; color:#c084fc;">Choose your plan</div>'
     +   '<button onclick="document.getElementById(\'tiers-modal\').remove()" style="background:none;border:none;color:var(--dim);font-size:1.1rem;cursor:pointer;">✕</button>'
     + '</div>'
-    + (feature?'<div style="color:#fff; font-size:0.74rem; margin-bottom:12px;">🔓 <b>'+feature+'</b>'+(highlight==='pro'?' is an <b style="color:#fbbf24;">Elite</b> feature (coming soon in Beta).':' is in Premium.')+'</div>':'<div style="height:8px;"></div>')
+    + (feature?'<div style="color:#fff; font-size:0.74rem; margin-bottom:12px;">🔓 <b>'+feature+'</b>'+(highlight==='pro'?' is an <b style="color:#fbbf24;">Elite</b> feature.':' is a Premium feature.')+'</div>':'<div style="height:8px;"></div>')
     + '<div style="display:flex; gap:8px; align-items:stretch;">'+labels+col('free')+col('premium')+col('pro')+'</div>'
     + '<div style="text-align:center; margin-top:12px;"><span style="color:var(--dim); font-size:0.64rem;">Already bought? </span><button class="btn" style="padding:5px 12px; font-size:0.64rem;" onclick="document.getElementById(\'tiers-modal\').remove(); showPremiumPrompt(\''+(feature||'Premium')+'\')">Paste license key</button></div>'
     + '</div>';
