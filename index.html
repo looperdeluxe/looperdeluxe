@@ -1484,6 +1484,7 @@
             <button class="btn" id="sp-search-btn" style="padding:6px 14px; font-size:0.6rem;">SEARCH</button>
             <button id="sp-myplaylists" style="display:none;"></button>
             <button class="btn" id="sp-reconnect" title="Log out and re-connect Spotify (fixes search errors)" style="padding:6px 10px; font-size:0.55rem; color:#1DB954; border-color:#1DB954;">↻ RECONNECT</button>
+            <button class="btn" id="sp-follow-toggle" title="Auto-detect what's playing on your phone/device and show chords here (no playback transfer)" style="padding:6px 10px; font-size:0.55rem;">📱 WATCH PHONE</button>
             <button class="btn" id="sp-close" style="padding:6px 12px; font-size:0.6rem; margin-left:auto; color:var(--cyan);">✕ FILE MODE</button>
           </div>
           <div style="display:flex; gap:10px;">
@@ -3259,10 +3260,12 @@ function snapToBar(t) {
 }
 document.getElementById('btn-set-a').addEventListener('click', () => {
   if (playSource === 'youtube') { if (ytPlayer && ytPlayer.getCurrentTime) { ytLoopA = snapToBar(ytPlayer.getCurrentTime() || 0); const e = document.getElementById('lbl-a'); if (e) e.textContent = fmt(ytLoopA); if (ytLoopB > ytLoopA) ytLoopOn = true; } return; }
+  if (playSource === 'spotify') { spLoopA = playTime(); const e = document.getElementById('lbl-a'); if (e) e.textContent = fmt(spLoopA); if (spLoopB > spLoopA) spLoopOn = true; _redrawSpotifyLoopRegion(); return; }
   if(ws&&activeRegion){ const s=snapToBar(ws.getCurrentTime()); if(s<activeRegion.end){ activeRegion.setOptions({start:s}); updateLbls(); lmvShowView(); } }
 });
 document.getElementById('btn-set-b').addEventListener('click', () => {
   if (playSource === 'youtube') { if (ytPlayer && ytPlayer.getCurrentTime) { ytLoopB = snapToBar(ytPlayer.getCurrentTime() || 0); const e = document.getElementById('lbl-b'); if (e) e.textContent = fmt(ytLoopB); if (ytLoopB > ytLoopA) ytLoopOn = true; } return; }
+  if (playSource === 'spotify') { spLoopB = playTime(); const e = document.getElementById('lbl-b'); if (e) e.textContent = fmt(spLoopB); if (spLoopB > spLoopA) spLoopOn = true; _redrawSpotifyLoopRegion(); return; }
   if(ws&&activeRegion){ const e=snapToBar(ws.getCurrentTime()); if(e>activeRegion.start){ activeRegion.setOptions({end:e}); updateLbls(); lmvShowView(); } }
 });
 (function(){ const b=document.getElementById('btn-snap-bars'); if(!b) return; const paint=()=>{ b.textContent = window.quantizeLoops ? '⧉ SNAP: BARS' : '⧉ SNAP: OFF'; b.className = window.quantizeLoops ? 'btn accent' : 'btn'; }; paint(); b.addEventListener('click', ()=>{ window.quantizeLoops = !window.quantizeLoops; localStorage.setItem('looperQuantize', window.quantizeLoops ? '1' : '0'); paint(); }); })();
@@ -3270,6 +3273,7 @@ document.getElementById('btn-set-b').addEventListener('click', () => {
 const btnToggleLoop = document.getElementById('btn-toggle-loop');
 btnToggleLoop.addEventListener('click', () => {
   if (playSource === 'youtube') { ytLoopOn = !ytLoopOn; btnToggleLoop.className = ytLoopOn ? "btn accent" : "btn danger"; btnToggleLoop.innerText = ytLoopOn ? "⟳ LOOP ON" : "✕ LOOP OFF"; return; }
+  if (playSource === 'spotify') { spLoopOn = !spLoopOn; btnToggleLoop.className = spLoopOn ? "btn accent" : "btn danger"; btnToggleLoop.innerText = spLoopOn ? "⟳ LOOP ON" : "✕ LOOP OFF"; _redrawSpotifyLoopRegion(); return; }
   loopModeActive = !loopModeActive; btnToggleLoop.className = loopModeActive ? "btn accent" : "btn danger"; btnToggleLoop.innerText = loopModeActive ? "⟳ LOOP ON" : "✕ LOOP OFF";
   if (!loopModeActive) { lmvHideView(); lmvLoopPass = 0; } else { lmvShowView(); }
 });
@@ -3282,6 +3286,9 @@ function clearLoop() {
     activeRegion.setOptions({ start: 0, end: dur });
     updateLbls();
   }
+  // Spotify mode
+  spLoopOn = false; spLoopA = 0; spLoopB = 0;
+  _redrawSpotifyLoopRegion();
   // YouTube mode
   ytLoopOn = false; ytLoopA = 0; ytLoopB = 0;
   const ytA = document.getElementById('yt-a'), ytB = document.getElementById('yt-b');
@@ -4732,6 +4739,8 @@ function initSpotifyPlayer() {
 // so it works whether the source is a dropped file (WaveSurfer) or Spotify playback. ===
 let playSource = 'file';            // 'file' | 'spotify'
 let spPosBase = 0, spStamp = 0, spDur = 0, spPlaying = false, spRAF = null, spPollT = null, spQueue = [], spCurUri = null;
+let spLoopA = 0, spLoopB = 0, spLoopOn = false;
+let spFollowMode = false, spFollowPollT = null, spFollowTrackId = null;
 function playTime() {
   if (playSource === 'youtube') return (ytPlayer && ytPlayer.getCurrentTime) ? (ytPlayer.getCurrentTime() || 0) : 0;
   if (playSource === 'spotify') return (spPlaying ? spPosBase + (performance.now() - spStamp) : spPosBase) / 1000;
@@ -5056,6 +5065,7 @@ async function enterSpotifyMode() {
 function exitSpotifyMode() {
   playSource = 'file';
   stopSpotifyLoop();
+  stopFollowPhoneMode();
   spAnalysisTrackId = null;
   // Remove Spotify canvas / playhead
   ['sp-waveform-canvas','sp-playhead'].forEach(id => { const el = document.getElementById(id); if (el) el.remove(); });
@@ -5067,6 +5077,57 @@ function exitSpotifyMode() {
   document.getElementById('main-dashboard').style.display = 'none';
   document.getElementById('landing-gate').style.display = '';
 }
+// ===== SPOTIFY FOLLOW-PHONE MODE =====
+// Passively watches what's playing on ANY Spotify device (phone, tablet, desktop)
+// via GET /v1/me/player. When a track is detected, loads waveform + chords without
+// stealing playback or requiring the SDK player to be active.
+function startFollowPhoneMode() {
+  spFollowMode = true;
+  const toggle = document.getElementById('sp-follow-toggle');
+  if (toggle) { toggle.textContent = '📱 WATCHING…'; toggle.classList.add('active'); toggle.style.color = '#1DB954'; toggle.style.borderColor = '#1DB954'; }
+  const loop = async () => {
+    if (!spFollowMode) return;
+    try {
+      const tk = await spotifyToken(); if (!tk) { spFollowPollT = setTimeout(loop, 3000); return; }
+      const r = await fetch('https://api.spotify.com/v1/me/player', { headers: { Authorization: 'Bearer ' + tk } });
+      if (r.status === 200) {
+        const d = await r.json();
+        if (d && d.item && d.item.id) {
+          const tr = d.item;
+          spPosBase = d.progress_ms || 0; spStamp = performance.now();
+          spDur = tr.duration_ms || 0; spPlaying = !!d.is_playing;
+          if (spFollowTrackId !== tr.id) {
+            spFollowTrackId = tr.id;
+            window.__spNowTrack = { id: tr.id, name: tr.name, artists: tr.artists, album: tr.album, uri: tr.uri };
+            document.getElementById('sp-nowplaying').style.display = 'flex';
+            document.getElementById('sp-np-title').textContent = tr.name;
+            document.getElementById('sp-np-artist').textContent = (tr.artists || []).map(a => a.name).join(', ');
+            document.getElementById('sp-np-art').src = ((tr.album && tr.album.images && tr.album.images[0]) || {}).url || '';
+            spAnalysisTrackId = null; // force reload
+            loadSpotifyAudioMatrix(tr.id, tr.duration_ms);
+            const label = tr.name.length > 22 ? tr.name.substring(0, 20) + '…' : tr.name;
+            if (toggle) toggle.textContent = `📱 ${label}`;
+          }
+          if (playSource !== 'spotify') { playSource = 'spotify'; startSpotifyLoop(); }
+        } else if (r.status === 204 || !d || !d.item) {
+          // Nothing playing
+          if (toggle) toggle.textContent = '📱 WAITING…';
+        }
+      } else if (r.status === 401 || r.status === 403) {
+        stopFollowPhoneMode(); return;
+      }
+    } catch (e) {}
+    spFollowPollT = setTimeout(loop, 2000);
+  };
+  loop();
+}
+function stopFollowPhoneMode() {
+  spFollowMode = false; spFollowTrackId = null;
+  if (spFollowPollT) { clearTimeout(spFollowPollT); spFollowPollT = null; }
+  const toggle = document.getElementById('sp-follow-toggle');
+  if (toggle) { toggle.textContent = '📱 WATCH PHONE'; toggle.classList.remove('active'); toggle.style.color = ''; toggle.style.borderColor = ''; }
+}
+
 // Poll Spotify's true position ~every 0.7s to correct drift; interpolate with performance.now()
 // between polls for smooth scrolling. Drives the stage + scrubber off playTime().
 function startSpotifyLoop() {
@@ -5093,6 +5154,11 @@ function startSpotifyLoop() {
     if (sc && spDur) { sc.max = (spDur / 1000).toFixed(2); sc.value = t.toFixed(2); }
     if (cur) cur.textContent = fmt(t);
     if (tot && spDur) tot.textContent = fmt(spDur / 1000);
+    // Spotify loop enforcement
+    if (spLoopOn && spLoopB > spLoopA && t >= spLoopB) {
+      if (spPlayer) spPlayer.seek(spLoopA * 1000);
+      spPosBase = spLoopA * 1000; spStamp = performance.now();
+    }
     // Move playhead on the Spotify waveform canvas
     const sph = document.getElementById('sp-playhead');
     if (sph && spDur) sph.style.left = ((t / (spDur / 1000)) * 100) + '%';
@@ -5626,6 +5692,44 @@ function drawSpotifySyntheticWaveform(canvas, trackId, energy) {
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 }
 
+// Draw chord markers (vertical lines + labels) on the Spotify waveform canvas
+function drawSpotifyChordMarkers(canvas, chords, duration) {
+  if (!canvas || !chords || !chords.length || !duration) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const fontSize = Math.max(7, Math.min(9, W / 100));
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  for (const ch of chords) {
+    const x = Math.round((ch.time / duration) * W);
+    ctx.strokeStyle = 'rgba(167,139,250,0.55)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    ctx.fillStyle = 'rgba(167,139,250,0.9)';
+    ctx.fillText(ch.name, x + 2, fontSize + 2);
+  }
+}
+
+// Draw loop region highlight on Spotify waveform canvas
+function _redrawSpotifyLoopRegion() {
+  const cvs = document.getElementById('sp-waveform-canvas'); if (!cvs || !spDur) return;
+  const dur = spDur / 1000;
+  // Re-draw base waveform first (to clear old overlay)
+  const ctx = cvs.getContext('2d');
+  // We don't have the original segment data anymore — redraw synthetic or stored
+  if (window._spLastSegments) drawSpotifyWaveformCanvas(cvs, window._spLastSegments, dur);
+  else drawSpotifySyntheticWaveform(cvs, window._spLastTrackId || '', window._spLastEnergy || 0.6);
+  // Draw chord markers on top
+  if (window.songChords && window.songChords.length) drawSpotifyChordMarkers(cvs, window.songChords, dur);
+  // Draw loop region if set
+  if (spLoopOn && spLoopB > spLoopA) {
+    const W = cvs.width, H = cvs.height;
+    const x1 = (spLoopA / dur) * W, x2 = (spLoopB / dur) * W;
+    ctx.fillStyle = 'rgba(99,102,241,0.18)';
+    ctx.fillRect(x1, 0, x2 - x1, H);
+    ctx.strokeStyle = 'rgba(99,102,241,0.7)'; ctx.lineWidth = 2;
+    ctx.strokeRect(x1, 0, x2 - x1, H);
+  }
+}
+
 // Build/update Spotify waveform canvas + playhead inside waveform-wrap
 function _buildSpotifyCanvas(segments, duration, trackId, energy) {
   const wfw = document.getElementById('waveform-wrap'); if (!wfw) return;
@@ -5653,10 +5757,14 @@ function _buildSpotifyCanvas(segments, duration, trackId, energy) {
     ph.style.cssText = 'position:absolute;top:0;left:0;width:2px;height:80px;background:#ef4444;pointer-events:none;opacity:0.85;border-radius:1px;';
     wfw.appendChild(ph);
   }
+  // Store for redraws (loop region / chord overlay)
+  window._spLastSegments = (segments && segments.length > 10) ? segments : null;
+  window._spLastTrackId = trackId; window._spLastEnergy = energy;
   requestAnimationFrame(() => {
     cvs.width = wfw.offsetWidth || 800; cvs.height = 80;
     if (segments && segments.length > 10) drawSpotifyWaveformCanvas(cvs, segments, duration);
     else drawSpotifySyntheticWaveform(cvs, trackId, energy);
+    if (window.songChords && window.songChords.length) drawSpotifyChordMarkers(cvs, window.songChords, duration);
   });
 }
 
@@ -5681,6 +5789,8 @@ async function loadSpotifyAudioMatrix(trackId, durationMs) {
     if (chords.length > 4) {
       applyDetectedChords(chords);
       if (st) st.textContent = `🎵 ${chords.length} chords · Spotify`;
+      // Draw chord markers on the waveform once the canvas is ready
+      requestAnimationFrame(() => { const cvs = document.getElementById('sp-waveform-canvas'); if (cvs) drawSpotifyChordMarkers(cvs, chords, dur); });
     }
     if (analysis.track && analysis.track.tempo > 0) {
       detectedBpm = analysis.track.tempo;
@@ -5733,6 +5843,9 @@ document.getElementById('yt-loop').addEventListener('click', e => { ytLoopOn = !
 document.getElementById('sp-playpause').addEventListener('click', () => { if (spPlayer) spPlayer.togglePlay(); });
 document.getElementById('sp-prev').addEventListener('click', () => { if (spPlayer) spPlayer.previousTrack(); });
 document.getElementById('sp-next').addEventListener('click', () => { if (spPlayer) spPlayer.nextTrack(); });
+document.getElementById('sp-follow-toggle').addEventListener('click', () => {
+  if (spFollowMode) { stopFollowPhoneMode(); } else { startFollowPhoneMode(); }
+});
 
 document.getElementById('btn-spotify-connect').addEventListener('click', async () => { if (!requirePremium('Spotify')) return; (await spotifyToken()) ? enterSpotifyMode() : spotifyLogin(); });
 (async () => {
