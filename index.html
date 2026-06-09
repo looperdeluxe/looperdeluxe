@@ -1112,19 +1112,24 @@
     .app-tab-panel { display: none; flex: 1; min-height: 0; flex-direction: column; overflow: hidden; }
     .app-tab-panel.active { display: flex; }
 
-    /* LEARN tab */
-    #tab-learn-panel { overflow-y: auto; gap: 14px; padding: 4px 0; }
-    /* COACH tab */
-    #tab-coach-panel { overflow-y: auto; gap: 14px; padding: 4px 0; }
-    /* SETTINGS tab */
-    #tab-settings-panel { overflow-y: auto; gap: 14px; padding: 4px 0; }
+    /* LEARN / COACH / SETTINGS tab panels — must override .app-tab-panel overflow:hidden */
+    #tab-learn-panel, #tab-coach-panel, #tab-settings-panel {
+      overflow-y: auto !important;
+      overflow-x: hidden;
+      gap: 14px;
+      padding: 8px 2px 16px;
+    }
+    /* coach-specific children */
+    #tab-coach-panel #coach-chat-log,
+    #tab-settings-panel .info-card { flex-shrink: 0; }
 
     /* Shared card style for new tab panels */
     .info-card {
-      background: rgba(124,58,237,0.07);
-      border: 1px solid rgba(147,51,234,0.3);
+      background: rgba(124,58,237,0.10);
+      border: 1px solid rgba(147,51,234,0.4);
       border-radius: 10px;
       padding: 14px 18px;
+      flex-shrink: 0; /* CRITICAL: prevents flex column from collapsing cards to 0 height */
     }
     .info-card h3 {
       font-family: 'Orbitron', sans-serif;
@@ -4591,7 +4596,7 @@ function playDuration() {
 // If you only have one product link, put it in both — buyers pick the plan on the checkout page.
 const LS_CONFIG = {
   checkout: 'https://looperdeluxe.lemonsqueezy.com/checkout/buy/da396534-f059-4bc8-8aab-2fd4536068af',
-  checkoutElite: '', // fill in with Elite LS checkout URL when product is live
+  checkoutElite: 'https://looperdeluxe.lemonsqueezy.com/checkout/buy/1130783',
 };
 // Open Lemon Squeezy checkout as an in-page overlay (lazy-loads lemon.js); falls back to a new tab.
 function openCheckout(tier) {
@@ -4677,28 +4682,28 @@ function showTiers(feature, highlight){
   if (m) m.remove();
   m = document.createElement('div');
   m.id = 'tiers-modal';
-  m.style.cssText = 'position:fixed; inset:0; z-index:420; background:rgba(3,2,10,0.85); display:flex; align-items:center; justify-content:center; padding:14px; overflow:auto;';
+  m.style.cssText = 'position:fixed; inset:0; z-index:420; background:rgba(3,2,10,0.85); display:flex; align-items:flex-start; justify-content:center; padding:14px; overflow-y:auto;';
   const col = (key) => {
     const t = TIERS[key]; const hot = key===highlight;
     let cells = TIER_ROWS.map(r => {
       const v = r[key==='free'?1:key==='premium'?2:3];
       const on = v==='✓'; const off = v==='—';
-      return '<div style="padding:5px 8px; font-size:0.62rem; border-bottom:1px solid rgba(255,255,255,0.06); color:'+(off?'#52525b':on?'#22c55e':'#e4e4e7')+'; text-align:center;">'+v+'</div>';
+      return '<div style="padding:3px 6px; font-size:0.6rem; border-bottom:1px solid rgba(255,255,255,0.06); color:'+(off?'#52525b':on?'#22c55e':'#e4e4e7')+'; text-align:center; line-height:1.4;">'+v+'</div>';
     }).join('');
     let cta;
-    if (key==='free') cta = '<div style="font-size:0.6rem;color:var(--dim);padding:8px;text-align:center;">Current base</div>';
-    else if (key==='premium') cta = '<button class="btn accent" style="width:100%;padding:8px;font-size:0.65rem;" onclick="openCheckout()">Get Premium</button>';
-    else cta = '<button class="btn accent" style="width:100%;padding:8px;font-size:0.65rem;background:linear-gradient(135deg,#b45309,#92400e);border-color:#fbbf24;" onclick="openCheckout(\'elite\')">Get Elite ★</button>';
-    return '<div style="flex:1; min-width:150px; border:1px solid '+(hot?t.color:'rgba(255,255,255,0.1)')+'; border-radius:10px; overflow:hidden; '+(hot?'box-shadow:0 0 18px '+t.color+'55;':'')+'">'
-      + '<div style="padding:9px 8px; text-align:center; background:'+t.color+'18;">'
-      +   '<div style="font-family:\'Orbitron\',sans-serif; font-size:0.8rem; color:'+t.color+';">'+t.name+'</div>'
-      +   '<div style="font-size:0.58rem; color:var(--dim); margin-top:2px;">'+t.price+'</div>'
-      + '</div>' + cells + '<div style="padding:8px;">'+cta+'</div></div>';
+    if (key==='free') cta = '<div style="font-size:0.58rem;color:var(--dim);padding:6px;text-align:center;">Current base</div>';
+    else if (key==='premium') cta = '<button class="btn accent" style="width:100%;padding:6px;font-size:0.62rem;" onclick="openCheckout()">Get Premium</button>';
+    else cta = '<button class="btn accent" style="width:100%;padding:6px;font-size:0.62rem;background:linear-gradient(135deg,#b45309,#92400e);border-color:#fbbf24;" onclick="openCheckout(\'elite\')">Get Elite ★</button>';
+    return '<div style="flex:1; min-width:120px; border:1px solid '+(hot?t.color:'rgba(255,255,255,0.1)')+'; border-radius:10px; overflow:hidden; '+(hot?'box-shadow:0 0 18px '+t.color+'55;':'')+'">'
+      + '<div style="padding:7px 6px; text-align:center; background:'+t.color+'18;">'
+      +   '<div style="font-family:\'Orbitron\',sans-serif; font-size:0.72rem; color:'+t.color+';">'+t.name+'</div>'
+      +   '<div style="font-size:0.54rem; color:var(--dim); margin-top:1px;">'+t.price+'</div>'
+      + '</div>' + cells + '<div style="padding:6px;">'+cta+'</div></div>';
   };
-  const labels = '<div style="flex:0 0 168px; min-width:140px;"><div style="height:46px;"></div>'
-    + TIER_ROWS.map(r=>'<div style="padding:5px 8px; font-size:0.6rem; color:var(--dim); border-bottom:1px solid rgba(255,255,255,0.06); line-height:1.4;">'+r[0]+'</div>').join('')
-    + '<div style="height:44px;"></div></div>';
-  m.innerHTML = '<div style="background:linear-gradient(160deg,#140a26,#0a0612); border:1px solid rgba(192,132,252,0.4); border-radius:14px; padding:18px; max-width:680px; width:100%; box-shadow:0 0 40px rgba(124,58,237,0.4);">'
+  const labels = '<div style="flex:0 0 155px; min-width:120px;"><div style="height:42px;"></div>'
+    + TIER_ROWS.map(r=>'<div style="padding:3px 6px; font-size:0.58rem; color:var(--dim); border-bottom:1px solid rgba(255,255,255,0.06); line-height:1.4;">'+r[0]+'</div>').join('')
+    + '<div style="height:36px;"></div></div>';
+  m.innerHTML = '<div style="background:linear-gradient(160deg,#140a26,#0a0612); border:1px solid rgba(192,132,252,0.4); border-radius:14px; padding:16px; max-width:680px; width:100%; max-height:88vh; overflow-y:auto; box-shadow:0 0 40px rgba(124,58,237,0.4);">'
     + '<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">'
     +   '<div style="font-family:\'Orbitron\',sans-serif; font-size:1rem; color:#c084fc;">Choose your plan</div>'
     +   '<button onclick="document.getElementById(\'tiers-modal\').remove()" style="background:none;border:none;color:var(--dim);font-size:1.1rem;cursor:pointer;">✕</button>'
@@ -4749,8 +4754,8 @@ function updatePremiumUI(){ document.querySelectorAll('[data-premium-badge]').fo
       showTiers(feat, 'premium');
     });
   });
-  // tier-pro spans → show tiers modal highlighting Elite
-  document.querySelectorAll('.instruction-item .tier-pro').forEach(el => {
+  // tier-elite spans → show tiers modal highlighting Elite (tier-pro is legacy; tier-elite is what the guide uses)
+  document.querySelectorAll('.instruction-item .tier-elite, .instruction-item .tier-pro').forEach(el => {
     el.style.cursor = 'pointer';
     el.title = 'Click to see Elite plan';
     el.addEventListener('click', (e) => {
@@ -4764,7 +4769,7 @@ function updatePremiumUI(){ document.querySelectorAll('[data-premium-badge]').fo
     el.style.cursor = 'pointer';
     el.addEventListener('click', () => showTiers('Premium', 'premium'));
   });
-  document.querySelectorAll('.tier-chip.tier-pro-chip').forEach(el => {
+  document.querySelectorAll('.tier-chip.tier-elite-chip, .tier-chip.tier-pro-chip').forEach(el => {
     el.style.cursor = 'pointer';
     el.addEventListener('click', () => showTiers('Elite', 'pro'));
   });
