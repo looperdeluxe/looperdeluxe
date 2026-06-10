@@ -117,6 +117,7 @@
       height: 42px;
       user-select: none;
       pointer-events: auto;
+      flex-shrink: 0;
     }
 
     .switch-bg-slider {
@@ -135,12 +136,14 @@
       flex: 1;
       text-align: center;
       font-family: 'Orbitron', sans-serif;
-      font-size: 0.75rem;
+      font-size: 0.72rem;
       font-weight: 700;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
       color: var(--dim);
       z-index: 2;
       transition: color 0.2s;
+      white-space: nowrap;
+      padding: 0 4px;
     }
 
     .switch-option.active {
@@ -151,6 +154,13 @@
       left: 140px;
       border-color: #ffffff;
       background: rgba(216, 180, 254, 0.3);
+    }
+
+    @media (max-width: 640px) {
+      .switch-container { width: 210px; height: 36px; }
+      .switch-bg-slider { width: 100px; height: 28px; }
+      .switch-option { font-size: 0.58rem; letter-spacing: 0; }
+      .switch-container.video-active .switch-bg-slider { left: 106px; }
     }
 
     #landing-gate, .instruction-wrapper-row {
@@ -1048,6 +1058,30 @@
       color: #fff; font-size: 80px;
       text-shadow: 0 0 40px var(--cyan), 0 0 16px var(--cyan);
     }
+    /* Current lyric line */
+    #perf-lyric-line {
+      font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
+      color: rgba(192,132,252,0.75); text-align: center;
+      max-width: calc(100% - 40px); padding: 0 20px;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      min-height: 1.4em; flex-shrink: 0;
+      text-shadow: 0 0 12px rgba(147,51,234,0.4);
+    }
+    /* Beat dots */
+    #perf-beat-row {
+      display: flex; gap: 16px; justify-content: center;
+      align-items: center; flex-shrink: 0; margin: 4px 0;
+    }
+    .perf-beat-dot {
+      width: 11px; height: 11px; border-radius: 50%;
+      background: rgba(192,132,252,0.2);
+      border: 1px solid rgba(192,132,252,0.35);
+      transition: background 0.04s, box-shadow 0.04s, transform 0.04s;
+    }
+    .perf-beat-dot.perf-beat-active {
+      background: var(--cyan); border-color: var(--cyan);
+      box-shadow: 0 0 12px var(--cyan); transform: scale(1.35);
+    }
     /* Progress bar */
     #perf-prog-bar {
       width: calc(100% - 60px); max-width: 380px; height: 6px;
@@ -1317,6 +1351,8 @@
     <div class="perf-nowline"></div>
     <div id="perf-col"></div>
   </div>
+  <div id="perf-lyric-line"></div>
+  <div id="perf-beat-row"></div>
   <div id="perf-prog-bar"><div id="perf-prog-fill"></div></div>
 </div>
 
@@ -1751,7 +1787,7 @@
         <button class="btn active" id="btn-tab-stage">🎭 STAGE</button>
         <button class="btn" id="btn-tab-lyrics">🎤 LYRICS</button>
         <button class="btn" id="btn-tab-chords">🎸 SHAPES</button>
-        <button class="btn" id="btn-tab-perf" onclick="togglePerfMode()" title="Performance / fullscreen stage view">⛶ PERF</button>
+        <button class="btn" id="btn-tab-perf" onclick="togglePerfMode()" title="LIVE mode — full-screen chord reel + lyrics">🎬 LIVE</button>
       </div>
 
       <div class="sidebar-view active" id="stage-view">
@@ -2069,16 +2105,34 @@
 
   <!-- ===== COACH TAB ===== -->
   <div id="tab-coach-panel" class="app-tab-panel">
-    <div class="info-card" style="flex-shrink:0;">
-      <h3>🤖 AI CHORD COACH</h3>
-      <p style="margin-bottom:10px;">Ask anything about the chords, theory, or how to practice this song. Powered by Claude AI.</p>
-      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
-        <span style="font-size:0.6rem; padding:3px 8px; border:1px solid rgba(147,51,234,0.4); border-radius:12px; color:var(--dim);">✨ Premium · Claude Haiku</span>
-        <span style="font-size:0.6rem; padding:3px 8px; border:1px solid rgba(251,191,36,0.4); border-radius:12px; color:#fbbf24;">★ Elite · Claude Sonnet (deeper)</span>
+    <!-- Song loader / now-playing bar -->
+    <div id="coach-song-bar" style="flex-shrink:0; background:rgba(13,5,26,0.7); border:1px solid rgba(147,51,234,0.3); border-radius:10px; padding:10px 12px; display:flex; flex-direction:column; gap:8px;">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <span style="font-family:'Orbitron',sans-serif; font-size:0.55rem; color:var(--dim); letter-spacing:1px; white-space:nowrap;">🎵 LOAD SONG</span>
+        <input type="text" id="coach-yt-search" class="cyber-input" placeholder="Search YouTube… (song + artist)" style="flex:1; min-width:120px; padding:5px 8px; font-size:0.65rem;" onkeydown="if(event.key==='Enter')coachSearchYT()" />
+        <button class="btn accent" onclick="coachSearchYT()" style="padding:5px 12px; font-size:0.6rem; white-space:nowrap;">▶ LOAD</button>
+      </div>
+      <div id="coach-now-playing" style="display:none; align-items:center; gap:8px;">
+        <span style="font-size:0.7rem;">🎸</span>
+        <div style="flex:1; min-width:0;">
+          <div id="coach-np-title" style="font-size:0.65rem; color:#e4e4e7; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;"></div>
+          <div id="coach-np-meta" style="font-size:0.55rem; color:var(--dim);"></div>
+        </div>
+        <button onclick="switchAppTab('play')" style="font-size:0.55rem; background:rgba(99,102,241,0.15); border:1px solid rgba(129,140,248,0.4); border-radius:6px; color:#a5b4fc; padding:3px 8px; cursor:pointer; white-space:nowrap; flex-shrink:0; font-family:'Orbitron',sans-serif;">→ STAGE</button>
+      </div>
+      <div id="coach-load-status" style="font-size:0.6rem; color:var(--dim); min-height:14px;"></div>
+    </div>
+    <div class="info-card" style="flex-shrink:0; padding:8px 12px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+        <h3 style="margin:0;">🤖 AI CHORD COACH</h3>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <span style="font-size:0.55rem; padding:2px 7px; border:1px solid rgba(147,51,234,0.4); border-radius:12px; color:var(--dim);">✨ Premium · Haiku</span>
+          <span style="font-size:0.55rem; padding:2px 7px; border:1px solid rgba(251,191,36,0.4); border-radius:12px; color:#fbbf24;">★ Elite · Sonnet</span>
+        </div>
       </div>
     </div>
     <div id="coach-chat-log">
-      <div class="coach-msg-ai"><span>👋 Load a song and ask me anything — chord shapes, theory, practice tips, what key this is in, how to play a tricky section...</span></div>
+      <div class="coach-msg-ai"><span>👋 Search a song above and ask me anything — chord shapes, theory, practice tips, what key this is in, how to play a tricky section...</span></div>
     </div>
     <div class="coach-input-row">
       <input type="text" id="coach-input" class="cyber-input" placeholder="Ask the coach… (e.g. What are these chords in? How do I play Cmaj7?)" onkeydown="if(event.key==='Enter')askCoach()" />
@@ -4356,7 +4410,7 @@ function lmvHideView() {
 }
 
 // ── PERFORMANCE / FULLSCREEN MODE ──────────────────────────────────────────
-let __perfMode = false;
+var __perfMode = false;  // var so window.__perfMode works in RAF callbacks
 
 function togglePerfMode(on) {
   __perfMode = (on === undefined) ? !__perfMode : !!on;
@@ -4466,6 +4520,33 @@ function renderPerfOverlay(t) {
   const reelH = reel ? reel.offsetHeight : 400;
   col.style.transform = 'translateY(' + (reelH * 0.5 - (idx * ROW_H + ROW_H / 2)) + 'px)';
 
+  // Current lyric line
+  const lyricEl = document.getElementById('perf-lyric-line');
+  if (lyricEl) {
+    const activeLyric = document.querySelector('.lyric-line.active-lyric');
+    const txt = activeLyric ? activeLyric.textContent.trim() : '';
+    if (lyricEl.textContent !== txt) lyricEl.textContent = txt;
+  }
+
+  // Beat dots (4/4)
+  const beatRow = document.getElementById('perf-beat-row');
+  if (beatRow) {
+    const bpm2 = (typeof detectedBpm !== 'undefined' && detectedBpm > 0) ? detectedBpm : 120;
+    const beatInBar = Math.floor((t / (60 / bpm2)) % 4);
+    if (beatRow.children.length !== 4) {
+      beatRow.innerHTML = '';
+      for (let i = 0; i < 4; i++) {
+        const d = document.createElement('div');
+        d.className = 'perf-beat-dot';
+        beatRow.appendChild(d);
+      }
+    }
+    Array.from(beatRow.children).forEach((dot, i) => {
+      const cls = 'perf-beat-dot' + (i === beatInBar ? ' perf-beat-active' : '');
+      if (dot.className !== cls) dot.className = cls;
+    });
+  }
+
   // Progress bar
   const fill = document.getElementById('perf-prog-fill');
   if (fill) {
@@ -4562,24 +4643,6 @@ function lmvUpdateView(ct, isGap) {
     pip2.className = 'lmv-pip' + (active === 1 ? ' active' : (lmvLoopPass > 0 ? ' done' : ''));
   }
 
-  // Mirror the ring into the perf overlay (circumference 106.8 for r=17)
-  if (window.__perfMode) {
-    const parc   = document.getElementById('perf-ring-arc');
-    const pstatus = document.getElementById('perf-status-label');
-    if (parc) {
-      const perfCirc = 106.8;
-      if (isGap && lmvGapDurSec > 0) {
-        const elapsed = (performance.now() / 1000) - lmvGapStartTs;
-        const frac = Math.min(1, elapsed / lmvGapDurSec);
-        parc.style.strokeDashoffset = String(perfCirc * (1 - frac));
-        parc.style.stroke = 'var(--violet)';
-      } else {
-        parc.style.strokeDashoffset = '0';
-        parc.style.stroke = 'var(--cyan)';
-      }
-    }
-    if (pstatus) pstatus.textContent = (isGap) ? 'GAP' : `PASS ${(lmvLoopPass % 2) + 1}`;
-  }
 }
 
 function startRibbonLoop() {
@@ -6652,12 +6715,13 @@ function renderScaleExplorer() {
   }
 
   // Fretboard table (6 strings × frets 0-12)
+  // Rendered high-e → low-E top-to-bottom (standard guitar neck view from player perspective)
   const tbl = document.getElementById('scale-fretboard');
   if (!tbl) return;
   let html = '<thead><tr><th style="color:var(--dim);padding:2px 6px;text-align:right;border-right:1px solid rgba(99,102,241,0.25);">str</th>';
   for (let f = 0; f <= 12; f++) html += '<th style="color:var(--dim);padding:2px 4px;text-align:center;">' + (f === 0 ? 'O' : f) + '</th>';
   html += '</tr></thead><tbody>';
-  for (let s = 0; s < 6; s++) {
+  for (let s = 5; s >= 0; s--) {
     html += '<tr>';
     html += '<td style="color:var(--dim);padding:2px 6px;text-align:right;border-right:1px solid rgba(99,102,241,0.25);white-space:nowrap;">' + STRING_NAMES[s] + '</td>';
     for (let f = 0; f <= 12; f++) {
@@ -6905,6 +6969,66 @@ async function askCoach() {
     if (status) status.textContent = '⚠ Error: ' + (e.message || e);
   }
 }
+
+// ── COACH SONG LOADER ─────────────────────────────────────────────────────
+async function coachSearchYT() {
+  const inp = document.getElementById('coach-yt-search');
+  const st  = document.getElementById('coach-load-status');
+  const q   = (inp ? inp.value : '').trim();
+  if (!q) return;
+  if (!LOOPER_API) { if (st) st.textContent = '⚠ Engine offline — try again later.'; return; }
+  if (st) st.textContent = '⏳ Searching…';
+  try {
+    const sr = await fetch(LOOPER_API + '/search?q=' + encodeURIComponent(q));
+    if (!sr.ok) throw new Error('Search ' + sr.status);
+    const results = await sr.json();
+    const vids = results.items || results;
+    if (!vids || !vids.length) { if (st) st.textContent = '⚠ No results found.'; return; }
+    const vid = vids[0].id || vids[0].videoId || vids[0];
+    const title = vids[0].title || vids[0].snippet?.title || q;
+    if (st) st.textContent = '⏳ Loading audio…';
+    // Load song using the same engine flow as the play tab
+    if (typeof loadYouTubeAudioAsWaveform === 'function') {
+      window.__ytTitle = title;
+      window.__ytVideoId = vid;
+      loadYouTubeAudioAsWaveform(vid);
+      if (st) st.textContent = '✓ Loading "' + title.slice(0, 40) + '"…';
+      updateCoachNowPlaying(title);
+      if (inp) inp.value = '';
+    } else {
+      if (st) st.textContent = '⚠ Switch to PLAY tab to load songs first.';
+    }
+  } catch(e) {
+    if (st) st.textContent = '⚠ ' + (e.message || 'Search error');
+  }
+}
+
+function updateCoachNowPlaying(title) {
+  const bar = document.getElementById('coach-now-playing');
+  const titleEl = document.getElementById('coach-np-title');
+  const metaEl = document.getElementById('coach-np-meta');
+  if (!bar) return;
+  if (!title) {
+    // Auto-detect from globals
+    if (typeof playSource === 'undefined' || !playSource) { bar.style.display = 'none'; return; }
+    const tn = document.getElementById('track-name');
+    title = (tn && tn.textContent.trim() && tn.textContent !== '—') ? tn.textContent.trim() : '';
+    if (!title) { bar.style.display = 'none'; return; }
+  }
+  if (titleEl) titleEl.textContent = title;
+  if (metaEl) {
+    const key = window.songKey || '';
+    const bpm2 = (typeof detectedBpm !== 'undefined' && detectedBpm) ? Math.round(detectedBpm) + ' BPM' : '';
+    metaEl.textContent = [key ? 'Key ' + key : '', bpm2].filter(Boolean).join(' · ');
+  }
+  bar.style.display = 'flex';
+}
+
+// Refresh now-playing bar when coach tab is switched to
+(function() {
+  const coachTab = document.getElementById('atab-coach');
+  if (coachTab) coachTab.addEventListener('click', () => setTimeout(updateCoachNowPlaying, 100));
+})();
 
 function refreshSettingsTab() {
   // Update both the sidebar settings badge AND the header tier indicator
