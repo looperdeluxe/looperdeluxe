@@ -2922,8 +2922,54 @@ document.getElementById('dropzone').addEventListener('drop', (e) => { e.preventD
 document.getElementById('file-input').addEventListener('change', (e) => { if(e.target.files[0]) { window.__ytVideoId = null; initMediaPipeline(e.target.files[0]); } });
 
 // ===== AUTO-CHORDS for streaming songs (Spotify/YouTube) — analyze the song's audio once, cache forever. =====
-// Spotify audio is DRM-locked, so we don't touch it; we analyze a non-DRM copy (the captured tab audio / preview)
-// and scroll chords synced to playTime(). A song analyzed once is cached on the engine for everyone.
+// Spotify audio is DRM-locked, so we fetch a non-DRM YouTube copy from the engine, decode it in-browser
+// (without touching the Spotify player), analyze it with analyzeViaWorker, then cache on engine for everyone.
+async function getChordsViaYouTube(trackName, artistName, st, btn) {
+  const q = artistName ? trackName + ' ' + artistName : trackName;
+  if (!LOOPER_API) { if (st) st.textContent = '⚠ Engine not connected — try again later.'; return; }
+  // 1) Search YouTube via engine
+  if (st) st.textContent = '🔍 Finding ' + trackName + ' on YouTube…';
+  let vid;
+  try {
+    const sr = await fetch(LOOPER_API + '/search?q=' + encodeURIComponent(q + ' guitar chords'));
+    if (!sr.ok) throw new Error('search ' + sr.status);
+    const sj = await sr.json();
+    vid = sj && sj.results && sj.results[0] && sj.results[0].id;
+  } catch(e) { if (st) st.textContent = '⚠ YouTube search failed: ' + (e.message || e); if (btn) btn.disabled = false; return; }
+  if (!vid) { if (st) st.textContent = '⚠ No YouTube results for "' + trackName + '".'; return; }
+  // 2) Download audio
+  if (st) st.textContent = '⬇ Downloading audio (~10s)…';
+  if (btn) btn.disabled = true;
+  let audioBlob;
+  try {
+    const ar = await fetch(LOOPER_API + '/audio?v=' + encodeURIComponent(vid));
+    if (!ar.ok) throw new Error('audio ' + ar.status);
+    audioBlob = await ar.blob();
+  } catch(e) { if (btn) btn.disabled = false; if (st) st.textContent = '⚠ Audio download failed: ' + (e.message || e); return; }
+  // 3) Decode (in a temporary AudioContext — doesn't disturb Spotify playback)
+  if (st) st.textContent = '🧠 Analyzing chords…';
+  let decoded;
+  try {
+    const arrayBuf = await audioBlob.arrayBuffer();
+    const tmpCtx = new (window.AudioContext || window.webkitAudioContext)();
+    decoded = await tmpCtx.decodeAudioData(arrayBuf);
+    tmpCtx.close();
+  } catch(e) { if (btn) btn.disabled = false; if (st) st.textContent = '⚠ Decode error: ' + (e.message || e); return; }
+  // 4) Analyze + apply + cache
+  try {
+    const map = await analyzeViaWorker(decoded);
+    if (btn) btn.disabled = false;
+    if (map && map.ticks && map.ticks.length > 4) {
+      applyMap(map); window.__stageDirty = true;
+      const info = currentSongInfo();
+      if (st) st.textContent = '✅ ' + ((map.chords || []).length || '') + ' chords loaded!';
+      if (LOOPER_API && info.ok) fetch(LOOPER_API + '/analysis?v=' + encodeURIComponent(info.key), {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ticks: map.ticks, bpm: map.bpm, confidence: map.confidence, chords: map.chords, key: map.key })
+      }).catch(() => {});
+    } else { if (st) st.textContent = '⚠ Couldn\'t detect chords — try again.'; }
+  } catch(e) { if (btn) btn.disabled = false; if (st) st.textContent = '⚠ Analysis error: ' + (e.message || e); }
+}
 function currentSongInfo() {
   // Returns {key, title, artist} for whatever is playing, so chords cache across Spotify/YouTube versions.
   let title = '', artist = '';
@@ -2944,9 +2990,14 @@ async function getStreamingChords() {
   if (LOOPER_API) {
     try { const cr = await fetch(LOOPER_API + '/analysis?v=' + encodeURIComponent(info.key)); if (cr.ok) { const a = await cr.json(); if (a && a.ticks && a.ticks.length > 4 && a.chords) { applyMap(a); window.__stageDirty = true; if (st) st.textContent = '🔒 Full chords loaded (cached).'; return; } } } catch (e) {}
   }
-  // Spotify audio is DRM → capture would record SILENCE. So Spotify is cache-only: it gets chords once the
-  // same song has been analyzed via YouTube (or a file). Guide the user there.
-  if (playSource === 'spotify') { if (st) st.innerHTML = '🎵 Spotify audio is DRM-locked — search the same song on <b style="color:#ff4b4b;">YouTube</b> and hit GET CHORDS there once. It caches for everyone (including Spotify playback).'; return; }
+  // Spotify audio is DRM — auto-find it on YouTube, analyze there, then apply + cache so future loads are instant.
+  if (playSource === 'spotify') {
+    const tr = window.__spNowTrack;
+    if (!tr) { if (st) st.textContent = 'No Spotify track playing — start a song first.'; return; }
+    const tName = tr.name || '', aName = (tr.artists || []).map(a => a.name).join(' ');
+    await getChordsViaYouTube(tName, aName, st, btn);
+    return;
+  }
   // 2) YouTube fast path: pull audio from engine and analyze directly (no screen-capture popup needed)
   if (window.__ytVideoId && LOOPER_API) {
     // If waveform isn't loaded yet, auto-download it first
@@ -3168,7 +3219,7 @@ async function initMediaPipeline(file) {
   document.getElementById('scrubber').addEventListener('input', (e) => {
     const v = parseFloat(e.target.value);
     if (playSource === 'youtube') { if (ytPlayer && ytPlayer.seekTo) ytPlayer.seekTo(v, true); return; }
-    if (playSource === 'spotify') { if (spPlayer && spPlayer.seek) spPlayer.seek(v * 1000); return; }
+    if (playSource === 'spotify') { spotifyControl('seek', v * 1000); return; }
     if(ws) ws.setTime(v);
   });
   regionsPlugin.on('region-updated', (r) => { if(r === activeRegion) updateLbls(); });
@@ -3232,7 +3283,7 @@ function doCountIn(cb) {
 }
 document.getElementById('btn-play').addEventListener('click', () => {
   if (playSource === 'youtube') { if (!ytPlayer || !ytPlayer.getPlayerState) return; (ytPlayer.getPlayerState() === 1 ? ytPlayer.pauseVideo() : ytPlayer.playVideo()); return; }
-  if (playSource === 'spotify') { if (spPlayer && spPlayer.togglePlay) spPlayer.togglePlay(); return; }
+  if (playSource === 'spotify') { spotifyControl('toggle'); return; }
   if (!ws) return;
   if (ws.isPlaying()) { ws.pause(); return; }
   const startPlay = () => { ws.play(); setTimeout(updateTempo, 10); };
@@ -3240,7 +3291,7 @@ document.getElementById('btn-play').addEventListener('click', () => {
 });
 document.getElementById('btn-stop').addEventListener('click', () => {
   if (playSource === 'youtube') { if (ytPlayer) { try { ytPlayer.pauseVideo(); ytPlayer.seekTo(0, true); } catch (e) {} } return; }
-  if (playSource === 'spotify') { if (spPlayer && spPlayer.pause) spPlayer.pause(); return; }
+  if (playSource === 'spotify') { spotifyControl('pause'); return; }
   if(!ws) return; ws.stop();
 });
 // ===== Loop quantize-to-bars: snap IN/OUT to the nearest bar line so loops are musically cohesive. =====
@@ -4724,6 +4775,38 @@ async function spotifyToken() {
   if (await spotifyRefresh()) return localStorage.getItem('sp_token');
   return null;
 }
+// REST-based Spotify control — works for ANY active device (phone, desktop, web player).
+// The Web Playback SDK (spPlayer) only controls the browser tab; REST API controls whatever is active.
+async function spotifyControl(action, valueMs) {
+  const tok = await spotifyToken();
+  if (!tok) return;
+  const BASE = 'https://api.spotify.com/v1/me/player';
+  const headers = { Authorization: 'Bearer ' + tok };
+  try {
+    if (action === 'seek') {
+      await fetch(BASE + '/seek?position_ms=' + Math.round(valueMs || 0), { method: 'PUT', headers });
+      spPosBase = Math.round(valueMs || 0); spStamp = performance.now();
+    } else if (action === 'pause') {
+      await fetch(BASE + '/pause', { method: 'PUT', headers });
+      spPlaying = false;
+      const ppBtn = document.getElementById('sp-playpause'); if (ppBtn) ppBtn.textContent = '▶';
+    } else if (action === 'play') {
+      await fetch(BASE + '/play', { method: 'PUT', headers });
+      spPlaying = true;
+      const ppBtn = document.getElementById('sp-playpause'); if (ppBtn) ppBtn.textContent = '⏸';
+    } else if (action === 'toggle') {
+      if (spPlaying) {
+        await fetch(BASE + '/pause', { method: 'PUT', headers });
+        spPlaying = false;
+        const ppBtn = document.getElementById('sp-playpause'); if (ppBtn) ppBtn.textContent = '▶';
+      } else {
+        await fetch(BASE + '/play', { method: 'PUT', headers });
+        spPlaying = true;
+        const ppBtn = document.getElementById('sp-playpause'); if (ppBtn) ppBtn.textContent = '⏸';
+      }
+    }
+  } catch(e) { /* silently ignore network errors */ }
+}
 async function spotifyUpdateUI() {
   const status = document.getElementById('spotify-status'); const btn = document.getElementById('btn-spotify-connect');
   const t = await spotifyToken();
@@ -5173,8 +5256,7 @@ function startSpotifyLoop() {
     if (tot && spDur) tot.textContent = fmt(spDur / 1000);
     // Spotify loop enforcement
     if (spLoopOn && spLoopB > spLoopA && t >= spLoopB) {
-      if (spPlayer) spPlayer.seek(spLoopA * 1000);
-      spPosBase = spLoopA * 1000; spStamp = performance.now();
+      spotifyControl('seek', spLoopA * 1000);
     }
     // Move playhead on the Spotify waveform canvas
     const sph = document.getElementById('sp-playhead');
@@ -5765,12 +5847,12 @@ function _buildSpotifyCanvas(segments, duration, trackId, energy) {
     wfw.appendChild(cvs);
     cvs.addEventListener('click', e => {
       const rect = cvs.getBoundingClientRect();
-      if (spPlayer) spPlayer.seek(Math.round(((e.clientX - rect.left) / rect.width) * (spDur || 0)));
+      spotifyControl('seek', ((e.clientX - rect.left) / rect.width) * (spDur || 0));
     });
     // Touch seek support
     cvs.addEventListener('touchstart', e => {
       const rect = cvs.getBoundingClientRect(), touch = e.touches[0];
-      if (spPlayer) spPlayer.seek(Math.round(((touch.clientX - rect.left) / rect.width) * (spDur || 0)));
+      spotifyControl('seek', ((touch.clientX - rect.left) / rect.width) * (spDur || 0));
     }, { passive: true });
   }
   if (!document.getElementById('sp-playhead')) {
@@ -5879,7 +5961,7 @@ document.getElementById('yt-pause').addEventListener('click', () => { if (ytPlay
 document.getElementById('yt-in').addEventListener('click', () => { if (ytPlayer && ytPlayer.getCurrentTime) { ytLoopA = ytPlayer.getCurrentTime() || 0; document.getElementById('yt-a').textContent = fmt(ytLoopA); } });
 document.getElementById('yt-out').addEventListener('click', () => { if (ytPlayer && ytPlayer.getCurrentTime) { ytLoopB = ytPlayer.getCurrentTime() || 0; document.getElementById('yt-b').textContent = fmt(ytLoopB); } });
 document.getElementById('yt-loop').addEventListener('click', e => { ytLoopOn = !ytLoopOn; e.target.textContent = ytLoopOn ? '⟳ LOOP ON' : '⟳ LOOP OFF'; e.target.classList.toggle('accent', ytLoopOn); if (ytLoopOn && ytLoopB > ytLoopA) lmvShowView(); else lmvHideView(); });
-document.getElementById('sp-playpause').addEventListener('click', () => { if (spPlayer) spPlayer.togglePlay(); });
+document.getElementById('sp-playpause').addEventListener('click', () => { spotifyControl('toggle'); });
 document.getElementById('sp-prev').addEventListener('click', () => { if (spPlayer) spPlayer.previousTrack(); });
 document.getElementById('sp-next').addEventListener('click', () => { if (spPlayer) spPlayer.nextTrack(); });
 document.getElementById('sp-follow-toggle').addEventListener('click', () => {
