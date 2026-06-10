@@ -1037,6 +1037,8 @@
       .workspace-left, .workspace-right { height: auto; overflow: visible; padding-right: 0; }
       .workspace-right { min-height: 66vh; }                /* keep the stage/lyrics readable */
       #particles { position: fixed; }
+      /* transport: wrap at medium widths so buttons don't clip */
+      .transport, .transport-left { flex-wrap: wrap; gap: 6px; }
       /* On mobile, height:auto container can't distribute flex:1 height → panel collapses to 0.
          Give active non-play panels explicit min-height so their content is visible. */
       #tab-learn-panel.active, #tab-coach-panel.active,
@@ -1044,6 +1046,9 @@
         min-height: calc(100vh - 120px);
       }
     }
+    /* Waveform panel: EXIT + TOGGLE SIDEBAR float top-right; give title room so they don't overlap */
+    #waveform-panel-container .panel-title { padding-right: 200px; }
+
     @media (max-width: 600px) {
       #app-container { padding: 8px; }
       .panel { padding: 11px; }
@@ -1070,8 +1075,10 @@
       .panel, .box-instruction { max-width: 100%; }
       /* TOGGLE SIDEBAR is meaningless on a single-column phone layout (nothing to toggle) → hide it so it can't get cut off */
       #btn-toggle-sidebar { display: none; }
-      /* keep the EXIT button fully on-screen */
-      #waveform-panel-container > div[style*="position:absolute"] { right: 8px; top: 8px; }
+      /* Only EXIT button visible — smaller padding-right needed */
+      #waveform-panel-container .panel-title { padding-right: 80px; }
+      /* phone: always single-column regardless of any JS inline style */
+      .dashboard { grid-template-columns: 1fr !important; }
     }
     @media (max-width: 430px) {
       /* small phones — tighten further so it never crowds */
@@ -1204,7 +1211,7 @@
       .app-tab-btn .tab-icon { font-size: 1.1rem; line-height: 1; }
       .app-tab-btn.active { color: #c084fc; background: rgba(147,51,234,0.15); border: none; }
       #app-container { padding-bottom: 68px; }
-      .dashboard { grid-template-columns: 1fr !important; }
+      /* grid-template-columns intentionally NOT set here — JS sidebar toggle overrides the 920px rule via inline style at this width range */
       .workspace-right { min-height: 60vh; }
       #app-tab-bar ~ * { }
     }
@@ -2159,14 +2166,19 @@ function setSidebarView(mode) {
 let sidebarOpen = true;
 document.getElementById('btn-toggle-sidebar').addEventListener('click', () => {
   sidebarOpen = !sidebarOpen;
-  const dash = document.getElementById('main-dashboard'); 
+  const dash = document.getElementById('main-dashboard');
   const rightCol = document.getElementById('workspace-right-col');
-  if (sidebarOpen) { 
-    dash.style.gridTemplateColumns = '1fr 480px'; 
-    rightCol.style.display = 'flex'; 
-  } else { 
-    dash.style.gridTemplateColumns = '1fr'; 
-    rightCol.style.display = 'none'; 
+  // At < 920px the media query already stacks columns — don't fight it with a too-narrow inline style.
+  // Just show/hide the right col; it renders stacked below on narrow screens, side-by-side on wide.
+  const wideEnough = window.innerWidth >= 920;
+  if (sidebarOpen) {
+    if (wideEnough) dash.style.gridTemplateColumns = '1fr 480px';
+    else dash.style.gridTemplateColumns = '';   // let media query control it
+    rightCol.style.display = 'flex';
+  } else {
+    if (wideEnough) dash.style.gridTemplateColumns = '1fr';
+    else dash.style.gridTemplateColumns = '';   // media query already sets 1fr
+    rightCol.style.display = 'none';
   }
   setTimeout(() => { initFretboardCanvasDimensions(); if(ws) ws.drawBuffer(); }, 350);
 });
@@ -3163,6 +3175,12 @@ async function initMediaPipeline(file) {
   ws.on('pause', () => { document.getElementById('btn-play').innerText = "▶ PLAY"; updateMetroEngine(); renderRibbon(); });
   ws.on('seeking', () => { if (syncScheduler) resyncClock(); renderRibbon(); });
   ws.on('interaction', () => { if (syncScheduler) resyncClock(); renderRibbon(); });
+  // Setlist auto-advance: when a song ends naturally (not mid-loop), play the next queued song
+  ws.on('finish', () => {
+    if (window.__setlistQueue && window.__setlistQueue.length && !loopModeActive) {
+      setTimeout(() => playNextSetlistSong(), 800);  // short pause between songs
+    }
+  });
   
   ws.on('timeupdate', (t) => {
     document.getElementById('scrub-current').textContent = fmt(t); 
@@ -3760,22 +3778,48 @@ async function separateStems() {
   const elapsed = () => ' · ' + Math.round((Date.now() - t0) / 1000) + 's';
 
   try {
-    // 1. Encode loaded audio to WAV bytes
+    // 1. Encode audio to WAV — clip to loop region if set, otherwise cap at 4 min to keep upload fast.
+    //    Full song can be 40+ MB; loop region is usually < 5 MB.
     if (st) st.textContent = 'Encoding audio…';
-    const wavBlob = await _bufToWavBlob(buf);
+    let sendBuf = buf;
+    const MAX_STEM_SEC = 240;  // 4 min hard cap
+    if (activeRegion && activeRegion.end > activeRegion.start) {
+      // Slice to the loop region for targeted practice
+      const sr = buf.sampleRate, nc = Math.min(buf.numberOfChannels, 2);
+      const startSample = Math.floor(activeRegion.start * sr);
+      const endSample = Math.min(Math.ceil(activeRegion.end * sr), buf.length);
+      const len = endSample - startSample;
+      const sliced = new AudioBuffer({ sampleRate: sr, numberOfChannels: nc, length: len });
+      for (let c = 0; c < nc; c++) {
+        const src = buf.getChannelData(c).subarray(startSample, endSample);
+        sliced.copyToChannel(src, c);
+      }
+      sendBuf = sliced;
+      if (st) st.textContent = 'Encoding loop region (' + Math.round(len / sr) + 's)…';
+    } else if (buf.duration > MAX_STEM_SEC) {
+      const sr = buf.sampleRate, nc = Math.min(buf.numberOfChannels, 2);
+      const maxSamples = Math.floor(MAX_STEM_SEC * sr);
+      const sliced = new AudioBuffer({ sampleRate: sr, numberOfChannels: nc, length: maxSamples });
+      for (let c = 0; c < nc; c++) {
+        sliced.copyToChannel(buf.getChannelData(c).subarray(0, maxSamples), c);
+      }
+      sendBuf = sliced;
+      if (st) st.textContent = 'Song is long — capping to first 4 min for isolation…';
+    }
+    const wavBlob = await _bufToWavBlob(sendBuf);
 
     // 2. POST to Modal GPU endpoint — synchronous, returns FLAC bytes when done
-    if (st) st.textContent = '⏳ Separating stems on GPU (30-60s)' + elapsed();
-    const tick = setInterval(() => { if (st) st.textContent = '⏳ Separating stems on GPU' + elapsed(); }, 1000);
+    if (st) st.textContent = '⏳ Sending to GPU (~60s on cold start, ~30s warm)' + elapsed();
+    const tick = setInterval(() => { if (st) st.textContent = '⏳ GPU separating stems' + elapsed(); }, 1000);
 
     const params = new URLSearchParams({
       muted: mutedStem.toLowerCase(),
       song_key: songKey,
       license_key: licenseKey
     });
-    // Hard 5-min timeout — Modal GPU separation should never need more than 3 min
+    // 10-min timeout — cold GPU start + separation + download can take up to ~8 min on worst case
     const stemAbort = new AbortController();
-    const stemTimeout = setTimeout(() => stemAbort.abort(), 300_000);
+    const stemTimeout = setTimeout(() => stemAbort.abort(), 600_000);
     let resp;
     try {
       resp = await fetch(MODAL_STEM_URL + '?' + params.toString(), {
@@ -3784,7 +3828,7 @@ async function separateStems() {
       });
     } catch (fetchErr) {
       clearInterval(tick); clearTimeout(stemTimeout);
-      if (fetchErr.name === 'AbortError') throw new Error('Timed out after 5 min — Modal GPU may be overloaded. Try again in a moment.');
+      if (fetchErr.name === 'AbortError') throw new Error('Timed out after 10 min — Modal GPU may be overloaded. Set a loop region to isolate just that section (faster), then try again.');
       throw fetchErr;
     }
     clearInterval(tick); clearTimeout(stemTimeout);
@@ -5735,9 +5779,19 @@ function renderYtSaved() {
 }
 function startYouTubeLoop() {
   stopYouTubeLoop();
+  let _ytEndFired = false;  // debounce so we don't double-fire advance
   const tick = () => {
     if (playSource !== 'youtube' || !ytPlayer || !ytPlayer.getCurrentTime) { ytRAF = null; return; }
     const t = ytPlayer.getCurrentTime() || 0;
+    // Setlist auto-advance when YouTube video ends (state 0 = ended)
+    if (ytPlayer.getPlayerState && ytPlayer.getPlayerState() === 0) {
+      if (!_ytEndFired && window.__setlistQueue && window.__setlistQueue.length) {
+        _ytEndFired = true;
+        setTimeout(() => playNextSetlistSong(), 800);
+      }
+      ytRAF = requestAnimationFrame(tick); return;
+    }
+    _ytEndFired = false;
     if (ytLoopOn && ytLoopB > ytLoopA && t >= ytLoopB) { ytPlayer.seekTo(ytLoopA, true); }
     window.__stageDirty = true; try { renderStage(t); } catch (e) {}
     // Drive Loop Mode View for YouTube loops
