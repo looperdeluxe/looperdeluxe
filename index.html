@@ -1141,6 +1141,14 @@
       gap: 14px;
       padding: 8px 2px 16px;
     }
+    /* Guarantee visible height for all non-play tabs on ALL screen sizes.
+       On desktop: flex:1 in a height:100vh container should distribute space, but
+       the flex math can collapse to 0 when body has overflow:hidden. min-height pins it. */
+    #tab-learn-panel.active, #tab-coach-panel.active,
+    #tab-settings-panel.active, #tab-uploads-panel.active {
+      min-height: calc(100vh - 180px);
+      flex: 1;
+    }
     /* coach-specific children */
     #tab-coach-panel #coach-chat-log,
     #tab-settings-panel .info-card { flex-shrink: 0; }
@@ -2052,22 +2060,32 @@
 <script>
 tsParticles.load('particles', {
   fpsLimit: 60,
-  particles: { 
+  particles: {
     number: { value: 70, density: { enable: true, value_area: 900 } },
-    color: { value: "#ffffff" }, 
-    shape: { type: "circle" }, 
-    opacity: { value: 0.8, random: true }, 
-    size: { value: 1.8, random: true }, 
-    links: { enable: true, distance: 90, color: "#d8b4fe", opacity: 0.6, width: 1.2 }, 
-    move: { enable: true, speed: 0.6, direction: "none", random: true, out_mode: "out" } 
+    color: { value: "#ffffff" },
+    shape: { type: "circle" },
+    opacity: { value: 0.8, random: true },
+    size: { value: 1.8, random: true },
+    links: { enable: true, distance: 90, color: "#d8b4fe", opacity: 0.6, width: 1.2 },
+    move: { enable: true, speed: 0.6, direction: "none", random: true, out_mode: "out" }
   },
-  interactivity: { 
-    detect_on: "window", 
-    events: { onhover: { enable: true, mode: "grab" }, onclick: { enable: true, mode: "push" }, resize: true }, 
-    modes: { grab: { distance: 160, links: { color: "#22c55e", opacity: 1 } }, push: { particles_nb: 6 } } 
-  }, 
+  interactivity: {
+    detect_on: "window",
+    events: { onhover: { enable: true, mode: "grab" }, onclick: { enable: true, mode: "push" }, resize: true },
+    modes: { grab: { distance: 160, links: { color: "#22c55e", opacity: 1 } }, push: { particles_nb: 1 } }
+  },
   retina_detect: true
 });
+// Auto-prune star particles back to baseline every 2 min so long sessions don't get laggy
+setInterval(() => {
+  try {
+    const c = tsParticles.domItem(0);
+    if (c && c.particles && c.particles.count > 80) {
+      const excess = c.particles.count - 70;
+      for (let i = 0; i < excess; i++) { try { c.particles.removeQuantity(1); } catch(e){ break; } }
+    }
+  } catch(e) {}
+}, 120000);
 
 let ws = null, regionsPlugin = null, activeRegion = null;
 let isVideoMediaMode = false; let loopModeActive = true; let isGapDelayPeriod = false;
@@ -3406,30 +3424,118 @@ function saveSetlistsData(s){ localStorage.setItem('looperSetlists', JSON.string
 function newSetlist(){ if(!isPremium){ showPremiumPrompt('Custom setlists'); return; } const n=prompt('Name your setlist:', 'My Setlist'); if(n){ const s=getSetlists(); s.push({name:n, songs:[]}); saveSetlistsData(s); const b=document.getElementById('setlist-body'); if(b && b.style.display==='none') toggleSetlists(); } }
 function delSetlist(i){ if(!confirm('Delete this setlist?')) return; const s=getSetlists(); s.splice(i,1); saveSetlistsData(s); }
 function currentSongForSetlist(){
-  const title = window.__ytTitle || (window.__spNowTrack && window.__spNowTrack.name) || 'Current song';
-  return { title: title, ytId: window.__ytVideoId || null, ytTitle: window.__ytTitle || null, start: (typeof activeRegion!=='undefined'&&activeRegion)?activeRegion.start:0, end: (typeof activeRegion!=='undefined'&&activeRegion)?activeRegion.end:0 };
+  const spTr = window.__spNowTrack;
+  const title = (spTr && spTr.name) || window.__ytTitle || 'Current song';
+  const artist = spTr ? (spTr.artists||[]).map(a=>a.name).join(', ') : '';
+  const src = playSource || 'file';
+  return {
+    title: title, artist: artist,
+    ytId: window.__ytVideoId || null, ytTitle: window.__ytTitle || null,
+    spId: (spTr && spTr.id) || null, spUri: (spTr && spTr.uri) || null,
+    source: src,
+    start: (typeof activeRegion!=='undefined'&&activeRegion)?activeRegion.start:0,
+    end: (typeof activeRegion!=='undefined'&&activeRegion)?activeRegion.end:0
+  };
 }
 function addCurrentToSetlist(i){ if(!isPremium){ showPremiumPrompt('Custom setlists'); return; } const s=getSetlists(); if(!s[i])return; const song=currentSongForSetlist(); s[i].songs=s[i].songs||[]; s[i].songs.push(song); saveSetlistsData(s); }
 function delSetlistSong(si, gi){ const s=getSetlists(); if(s[si]&&s[si].songs){ s[si].songs.splice(gi,1); saveSetlistsData(s); } }
 function loadSetlistSong(si, gi){
   const s=getSetlists(); const song=s[si]&&s[si].songs&&s[si].songs[gi]; if(!song) return;
-  if(song.ytId){ window.__pendingLoop={start:song.start,end:song.end}; window.__ytTitle=song.ytTitle||''; if(typeof enterYouTubeMode==='function') enterYouTubeMode(); setTimeout(()=>{ try{ loadYouTubeAudioAsWaveform(song.ytId); }catch(e){} }, 250); }
-  else { window.__pendingLoop={start:song.start,end:song.end}; alert('"'+song.title+'" was a local file — drop that audio file back in and your loop ('+fmt(song.start)+'–'+fmt(song.end)+') applies.'); }
+  if(song.ytId){
+    // YouTube: load directly
+    window.__pendingLoop={start:song.start,end:song.end};
+    window.__ytTitle=song.ytTitle||song.title||'';
+    if(typeof enterYouTubeMode==='function') enterYouTubeMode();
+    setTimeout(()=>{ try{ loadYouTubeAudioAsWaveform(song.ytId); }catch(e){} }, 250);
+  } else if(song.source==='spotify' || song.spId) {
+    // Spotify song: find it on YouTube automatically
+    const q = (song.artist ? song.title+' '+song.artist : song.title) + ' lyrics';
+    const statusEl = document.getElementById('chordget-status');
+    if(!LOOPER_API){ alert('Engine offline — cannot auto-load this song.'); return; }
+    if(statusEl) statusEl.textContent='🔍 Loading '+song.title+'…';
+    fetch(LOOPER_API+'/search?q='+encodeURIComponent(q))
+      .then(r=>r.json()).then(d=>{
+        const vid = d&&d.results&&d.results[0]&&d.results[0].id;
+        if(!vid){ alert('No YouTube results found for "'+song.title+'".'); return; }
+        window.__pendingLoop={start:song.start,end:song.end};
+        window.__ytTitle=song.title;
+        if(typeof enterYouTubeMode==='function') enterYouTubeMode();
+        setTimeout(()=>{ try{ loadYouTubeAudioAsWaveform(vid); }catch(e){} }, 250);
+        if(statusEl) statusEl.textContent='';
+      }).catch(()=>alert('Search failed for "'+song.title+'" — check your connection.'));
+  } else {
+    window.__pendingLoop={start:song.start,end:song.end};
+    alert('"'+song.title+'" was saved from a local file — drop that audio file back in and your loop ('+fmt(song.start)+'–'+fmt(song.end)+') will apply automatically.');
+  }
 }
 function toggleSetlists(){ const b=document.getElementById('setlist-body'); if(!b)return; const open=b.style.display!=='none'; b.style.display=open?'none':'block'; const t=document.getElementById('setlist-toggle'); if(t) t.textContent=open?'▸':'▾'; localStorage.setItem('looperSetlistOpen', open?'0':'1'); }
+// Play all songs in a setlist in sequence (YouTube). Loads first song, then advances on each song end.
+window.__setlistQueue = null;
+function playSetlistFromTop(si) {
+  const s = getSetlists(); const sl = s[si]; if (!sl || !sl.songs || !sl.songs.length) { alert('This setlist is empty.'); return; }
+  window.__setlistQueue = sl.songs.map((song, gi) => ({ ...song, si, gi })).slice(); // copy
+  playNextSetlistSong();
+}
+function playNextSetlistSong() {
+  if (!window.__setlistQueue || !window.__setlistQueue.length) { window.__setlistQueue = null; return; }
+  const song = window.__setlistQueue.shift();
+  // loadSetlistSong-style logic but doesn't prompt — skips file-only songs
+  if (song.ytId) {
+    window.__pendingLoop = {start: song.start, end: song.end};
+    window.__ytTitle = song.ytTitle || song.title || '';
+    if (typeof enterYouTubeMode === 'function') enterYouTubeMode();
+    setTimeout(() => { try { loadYouTubeAudioAsWaveform(song.ytId); } catch(e) {} }, 250);
+  } else if (song.source === 'spotify' || song.spId) {
+    const q = (song.artist ? song.title + ' ' + song.artist : song.title) + ' lyrics';
+    if (!LOOPER_API) { playNextSetlistSong(); return; }
+    fetch(LOOPER_API + '/search?q=' + encodeURIComponent(q)).then(r => r.json()).then(d => {
+      const vid = d && d.results && d.results[0] && d.results[0].id;
+      if (!vid) { playNextSetlistSong(); return; }
+      window.__pendingLoop = {start: song.start, end: song.end};
+      window.__ytTitle = song.title;
+      if (typeof enterYouTubeMode === 'function') enterYouTubeMode();
+      setTimeout(() => { try { loadYouTubeAudioAsWaveform(vid); } catch(e) {} }, 250);
+    }).catch(() => playNextSetlistSong());
+  } else {
+    // Skip local file songs in auto-play
+    playNextSetlistSong();
+  }
+}
 function esc2(x){ return String(x==null?'':x).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;'); }
 function renderSetlists(){
   const c=document.getElementById('setlist-body'); if(!c) return;
   const s=getSetlists();
-  if(!s.length){ c.innerHTML='<div style="font-size:0.6rem; color:var(--dim); line-height:1.5;">No setlists yet. Make one (Premium ✨), then hit <b>+ ADD CURRENT</b> while a song is loaded — each remembers its loop, so you open a setlist and everything is ready to play.</div>'; return; }
+  if(!s.length){ c.innerHTML='<div style="font-size:0.6rem; color:var(--dim); line-height:1.5;">No setlists yet. Make one (Premium ✨), then hit <b>+ ADD CURRENT</b> while a song is loaded.</div>'; return; }
+  if(!window.__slOpen) window.__slOpen={};
+  const srcIcon = song => song.source==='spotify'?'🟢':song.ytId?'▶':'📁';
   let html='';
   s.forEach((sl, i)=>{
-    html+='<div style="border:1px solid rgba(147,51,234,0.25); border-radius:6px; padding:6px 8px; margin-bottom:6px;">';
-    html+='<div style="display:flex; align-items:center; justify-content:space-between; gap:6px;"><span style="color:var(--cyan); font-weight:bold; font-size:0.64rem;">'+esc2(sl.name)+' <span style="color:var(--dim); font-weight:normal;">('+((sl.songs||[]).length)+')</span></span><span style="display:flex; gap:4px; flex-shrink:0;"><button class="btn" onclick="addCurrentToSetlist('+i+')" title="Add the song/loop you have loaded" style="padding:2px 7px; font-size:0.5rem;">+ ADD CURRENT</button><button class="btn danger" onclick="delSetlist('+i+')" style="padding:2px 6px; font-size:0.5rem;">✕</button></span></div>';
-    (sl.songs||[]).forEach((song, gi)=>{
-      const rng = (song.end>song.start) ? (fmt(song.start)+'–'+fmt(song.end)) : '';
-      html+='<div style="display:flex; align-items:center; gap:6px; margin-top:4px; padding-left:6px;"><button class="btn" onclick="loadSetlistSong('+i+','+gi+')" style="flex:1; min-width:0; text-align:left; padding:3px 8px; font-size:0.56rem; overflow:hidden; white-space:nowrap; text-overflow:ellipsis;">▶ '+esc2(song.title)+' <span style="color:var(--dim);">'+rng+'</span></button><button class="btn danger" onclick="delSetlistSong('+i+','+gi+')" style="padding:2px 6px; font-size:0.5rem; flex-shrink:0;">✕</button></div>';
-    });
+    const songs=sl.songs||[]; const isOpen=!!window.__slOpen[i];
+    html+='<div style="border:1px solid rgba(147,51,234,0.25);border-radius:6px;margin-bottom:6px;overflow:hidden;">';
+    // Collapsible header
+    html+='<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;" onclick="window.__slOpen['+i+']=!window.__slOpen['+i+'];renderSetlists();">'
+      +'<span style="color:#c084fc;font-size:0.7rem;width:12px;flex-shrink:0;">'+(isOpen?'▾':'▸')+'</span>'
+      +'<span style="color:var(--cyan);font-weight:bold;font-size:0.62rem;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc2(sl.name)+'</span>'
+      +'<span style="color:var(--dim);font-size:0.52rem;flex-shrink:0;">'+songs.length+'</span>'
+      +'<span style="display:flex;gap:3px;flex-shrink:0;" onclick="event.stopPropagation();">'
+      +'<button class="btn" onclick="playSetlistFromTop('+i+')" style="padding:1px 6px;font-size:0.48rem;" title="Play all">▶</button>'
+      +'<button class="btn" onclick="addCurrentToSetlist('+i+')" title="Add current" style="padding:1px 6px;font-size:0.48rem;">+</button>'
+      +'<button class="btn danger" onclick="delSetlist('+i+')" style="padding:1px 5px;font-size:0.48rem;">✕</button>'
+      +'</span></div>';
+    if(isOpen){
+      html+='<div style="padding:0 8px 8px;border-top:1px solid rgba(147,51,234,0.2);">';
+      if(!songs.length){html+='<div style="font-size:0.56rem;color:var(--dim);padding:5px 0;">Empty</div>';}
+      else{songs.forEach((song,gi)=>{
+        const rng=(song.end>song.start)?fmt(song.start)+'–'+fmt(song.end):'';
+        const sub=[song.artist,rng].filter(Boolean).join(' · ');
+        html+='<div style="display:flex;align-items:center;gap:5px;margin-top:5px;">'
+          +'<button class="btn" onclick="loadSetlistSong('+i+','+gi+')" style="flex:1;min-width:0;text-align:left;padding:3px 8px;font-size:0.55rem;">'
+          +'<span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+srcIcon(song)+' '+esc2(song.title)+'</span>'
+          +(sub?'<span style="display:block;font-size:0.46rem;color:var(--dim);">'+esc2(sub)+'</span>':'')
+          +'</button><button class="btn danger" onclick="delSetlistSong('+i+','+gi+')" style="padding:2px 5px;font-size:0.48rem;flex-shrink:0;">✕</button></div>';
+      });}
+      html+='</div>';
+    }
     html+='</div>';
   });
   c.innerHTML=html;
@@ -6175,27 +6281,44 @@ function refreshMyStuff() {
       if (slEmpty) slEmpty.style.display = '';
     } else {
       if (slEmpty) slEmpty.style.display = 'none';
+      // Track per-setlist open state so they stay collapsed between renders
+      if (!window.__slOpen) window.__slOpen = {};
       let html = '';
       setlists.forEach((sl, i) => {
         const songs = sl.songs || [];
-        html += '<div style="border:1px solid rgba(147,51,234,0.3);border-radius:10px;padding:10px 12px;margin-bottom:8px;background:rgba(147,51,234,0.05);">';
-        html += '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:6px;">'
-          + '<span style="color:#c084fc;font-family:Orbitron,sans-serif;font-size:0.68rem;font-weight:700;">' + esc2(sl.name) + '</span>'
-          + '<span style="display:flex;gap:5px;">'
-          + '<button class="btn" onclick="addCurrentToSetlist(' + i + ')" style="padding:2px 8px;font-size:0.5rem;" title="Add current song+loop">+ ADD</button>'
-          + '<button class="btn danger" onclick="delSetlist(' + i + ');refreshMyStuff();" style="padding:2px 7px;font-size:0.5rem;">✕</button>'
+        const isOpen = !!window.__slOpen[i];
+        const srcIcon = s => s.source === 'spotify' ? '🟢' : s.ytId ? '▶' : '📁';
+        html += '<div style="border:1px solid rgba(147,51,234,0.3);border-radius:10px;margin-bottom:8px;background:rgba(147,51,234,0.05);overflow:hidden;">';
+        // Header row — always visible, click to expand/collapse song list
+        html += '<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;" onclick="window.__slOpen[' + i + ']=!window.__slOpen[' + i + '];refreshMyStuff();">'
+          + '<span style="color:#c084fc;font-size:0.75rem;width:14px;text-align:center;flex-shrink:0;">' + (isOpen ? '▾' : '▸') + '</span>'
+          + '<span style="color:#c084fc;font-family:Orbitron,sans-serif;font-size:0.65rem;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
+          + esc2(sl.name) + '</span>'
+          + '<span style="color:var(--dim);font-size:0.55rem;flex-shrink:0;">' + songs.length + ' song' + (songs.length !== 1 ? 's' : '') + '</span>'
+          + '<span style="display:flex;gap:4px;flex-shrink:0;" onclick="event.stopPropagation();">'
+          + '<button class="btn" onclick="playSetlistFromTop(' + i + ')" style="padding:2px 7px;font-size:0.5rem;" title="Play all songs in order">▶ ALL</button>'
+          + '<button class="btn" onclick="addCurrentToSetlist(' + i + ');refreshMyStuff();" style="padding:2px 7px;font-size:0.5rem;" title="Add current song">+ ADD</button>'
+          + '<button class="btn danger" onclick="if(confirm(\'Delete setlist?\'))delSetlist(' + i + ');" style="padding:2px 6px;font-size:0.5rem;">✕</button>'
           + '</span></div>';
-        if (!songs.length) {
-          html += '<div style="font-size:0.58rem;color:var(--dim);padding:2px 0;">Empty — tap + ADD while a song is loaded.</div>';
-        } else {
-          songs.forEach((song, gi) => {
-            const rng = (song.end > song.start) ? ' · ' + fmt(song.start) + '–' + fmt(song.end) : '';
-            html += '<div style="display:flex;align-items:center;gap:6px;margin-top:5px;">'
-              + '<button class="btn" onclick="loadSetlistSong(' + i + ',' + gi + ')" style="flex:1;min-width:0;text-align:left;padding:4px 10px;font-size:0.6rem;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;">'
-              + '▶ ' + esc2(song.title) + '<span style="color:var(--dim);font-size:0.5rem;">' + rng + '</span></button>'
-              + '<button class="btn danger" onclick="delSetlistSong(' + i + ',' + gi + ');refreshMyStuff();" style="padding:3px 7px;font-size:0.5rem;flex-shrink:0;">✕</button>'
-              + '</div>';
-          });
+        // Collapsible song list
+        if (isOpen) {
+          html += '<div style="padding:0 12px 10px;border-top:1px solid rgba(147,51,234,0.2);">';
+          if (!songs.length) {
+            html += '<div style="font-size:0.58rem;color:var(--dim);padding:8px 0;">Empty — tap + ADD while a song is loaded.</div>';
+          } else {
+            songs.forEach((song, gi) => {
+              const rng = (song.end > song.start) ? fmt(song.start) + '–' + fmt(song.end) : '';
+              const sub = [song.artist, rng].filter(Boolean).join(' · ');
+              html += '<div style="display:flex;align-items:center;gap:6px;margin-top:7px;">'
+                + '<button class="btn" onclick="loadSetlistSong(' + i + ',' + gi + ')" style="flex:1;min-width:0;text-align:left;padding:5px 10px;font-size:0.6rem;">'
+                + '<span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + srcIcon(song) + ' ' + esc2(song.title) + '</span>'
+                + (sub ? '<span style="display:block;font-size:0.48rem;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc2(sub) + '</span>' : '')
+                + '</button>'
+                + '<button class="btn danger" onclick="delSetlistSong(' + i + ',' + gi + ');refreshMyStuff();" style="padding:3px 7px;font-size:0.5rem;flex-shrink:0;">✕</button>'
+                + '</div>';
+            });
+          }
+          html += '</div>';
         }
         html += '</div>';
       });
