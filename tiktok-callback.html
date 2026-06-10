@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Looper Deluxe — TikTok Auth</title>
+<style>
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+       background:#050110;color:#f8fafc;font-family:-apple-system,Segoe UI,Roboto,sans-serif;}
+  .card{max-width:560px;padding:34px 30px;background:rgba(2,6,23,.7);
+        border:1px solid rgba(192,132,252,.4);border-radius:20px;text-align:center;}
+  h1{font-size:22px;margin:0 0 6px;color:#c084fc;}
+  p{color:#cbd5e1;line-height:1.5;font-size:15px;}
+  .code{margin:18px 0;padding:16px;background:#0a0520;border:1px solid rgba(192,132,252,.5);
+        border-radius:12px;font-family:ui-monospace,Menlo,monospace;font-size:15px;
+        word-break:break-all;color:#a7f3d0;cursor:pointer;}
+  .hint{font-size:13px;color:#94a3b8;}
+  button{margin-top:14px;padding:11px 22px;border:0;border-radius:10px;font-weight:700;
+         background:linear-gradient(135deg,#9333ea,#c084fc);color:#fff;cursor:pointer;font-size:14px;}
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>🎸 TikTok authorization</h1>
+    <div id="out"></div>
+  </div>
+<script>
+(function(){
+  var p = new URLSearchParams(location.search);
+  var code = p.get('code'), err = p.get('error');
+  var out = document.getElementById('out');
+  if (code){
+    out.innerHTML =
+      '<p>Authorized! Copy this code and paste it back to your assistant:</p>'+
+      '<div class="code" id="c" title="click to copy">'+code+'</div>'+
+      '<button onclick="navigator.clipboard.writeText(document.getElementById(\'c\').innerText).then(()=>this.textContent=\'Copied \\u2713\')">Copy code</button>'+
+      '<p class="hint">You can close this tab after copying.</p>';
+  } else if (err){
+    out.innerHTML = '<p>Authorization error: '+err+'<br>'+(p.get('error_description')||'')+'</p>';
+  } else {
+    out.innerHTML = '<p>Open this page from the TikTok authorization redirect — no code found in the URL.</p>';
+  }
+})();
+</script>
+</body>
+</html>
