@@ -984,6 +984,63 @@
     .lmv-pip.done   { border-color: var(--cyan); color: var(--cyan); background: rgba(34,211,238,0.08); }
     .lmv-pip.active { border-color: var(--violet); color: var(--violet); background: rgba(147,51,234,0.12); box-shadow: 0 0 16px rgba(147,51,234,0.3); }
 
+    /* ── PERFORMANCE / FULLSCREEN STAGE MODE ─────────────────────────────── */
+    #perf-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      background: rgba(2, 6, 23, 0.98);
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      user-select: none;
+      overflow: hidden;
+    }
+    #perf-overlay.active { display: flex; }
+    #perf-exit-btn {
+      position: absolute; top: 14px; right: 14px;
+      background: rgba(99,102,241,0.15);
+      border: 1px solid rgba(99,102,241,0.35);
+      border-radius: 8px;
+      color: #a5b4fc;
+      font-family: 'Orbitron', sans-serif; font-size: 0.6rem; letter-spacing: 1px;
+      padding: 6px 12px; cursor: pointer;
+    }
+    #perf-song-title {
+      font-family: 'Orbitron', sans-serif; font-size: 0.58rem;
+      color: rgba(165,180,252,0.45); letter-spacing: 2px;
+      text-align: center; max-width: 80vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    #perf-chord-name {
+      font-family: 'Orbitron', sans-serif; font-size: 4rem;
+      color: var(--cyan); text-shadow: 0 0 24px rgba(34,211,238,0.55);
+      letter-spacing: 4px; line-height: 1;
+    }
+    #perf-chord-canvas { width: 200px; height: 239px; }
+    #perf-next-row { display: flex; gap: 14px; align-items: flex-end; min-height: 80px; }
+    .perf-ncard { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .perf-ncard .perf-nn { font-family: 'Orbitron', sans-serif; font-size: 0.78rem; color: rgba(165,180,252,0.75); }
+    .perf-ncard canvas { opacity: 0.7; }
+    #perf-ring-wrap {
+      display: flex; align-items: center; gap: 10px; margin-top: 6px;
+    }
+    #perf-status-label {
+      font-family: 'Orbitron', sans-serif; font-size: 0.58rem;
+      color: rgba(255,255,255,0.35); letter-spacing: 2px;
+    }
+    #perf-ring-arc {
+      transform: rotate(-90deg); transform-origin: 50% 50%;
+      transition: stroke-dashoffset 0.1s linear, stroke 0.3s;
+    }
+    @media (max-width: 440px) {
+      #perf-chord-name { font-size: 3rem; }
+      #perf-chord-canvas { width: 150px; height: 179px; }
+    }
+    /* Deck PERF button highlight */
+    #btn-tab-perf.perf-on { background: rgba(147,51,234,0.25); color: #d8b4fe; border-color: rgba(192,132,252,0.6); }
+
     #lyrics-container {
       flex: 1;
       overflow-y: auto;
@@ -1228,10 +1285,28 @@
 <div id="countdown-overlay">READY</div>
 
 <!-- ── LOOP MODE VIEW — draggable, minimizable ────────────────────────────── -->
+<!-- Performance / Fullscreen Stage Overlay -->
+<div id="perf-overlay">
+  <button id="perf-exit-btn" onclick="togglePerfMode(false)">✕ EXIT PERF</button>
+  <div id="perf-song-title"></div>
+  <div id="perf-chord-name">—</div>
+  <canvas id="perf-chord-canvas" width="280" height="334"></canvas>
+  <div id="perf-next-row"></div>
+  <div id="perf-ring-wrap">
+    <svg width="44" height="44" viewBox="0 0 44 44">
+      <circle cx="22" cy="22" r="17" fill="none" stroke="rgba(99,102,241,0.2)" stroke-width="3.5"/>
+      <circle id="perf-ring-arc" cx="22" cy="22" r="17" fill="none" stroke="var(--cyan)" stroke-width="3.5"
+              stroke-linecap="round" stroke-dasharray="106.8" stroke-dashoffset="0"/>
+    </svg>
+    <span id="perf-status-label">LOOP</span>
+  </div>
+</div>
+
 <div id="loop-mode-view">
   <div id="lmv-drag-bar" title="Drag to move">
     <span style="font-family:'Orbitron',sans-serif;font-size:0.52rem;color:rgba(165,180,252,0.6);letter-spacing:1px;">⟳ LOOP</span>
     <span style="display:flex;gap:6px;">
+      <span id="lmv-perf-enter" title="Performance mode (fullscreen)" onclick="togglePerfMode(true)" style="width:22px;height:22px;background:rgba(147,51,234,0.15);border:1px solid rgba(192,132,252,0.35);border-radius:50%;color:#d8b4fe;font-size:13px;line-height:22px;text-align:center;cursor:pointer;">⛶</span>
       <span id="lmv-minimize" title="Minimize" style="width:22px;height:22px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.35);border-radius:50%;color:#a5b4fc;font-size:14px;line-height:22px;text-align:center;cursor:pointer;">−</span>
       <span id="lmv-close" title="Exit loop mode" onclick="if(typeof clearLoop==='function')clearLoop()" style="width:22px;height:22px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.35);border-radius:50%;color:#a5b4fc;font-size:14px;line-height:22px;text-align:center;cursor:pointer;">✕</span>
     </span>
@@ -1658,6 +1733,7 @@
         <button class="btn active" id="btn-tab-stage">🎭 STAGE</button>
         <button class="btn" id="btn-tab-lyrics">🎤 LYRICS</button>
         <button class="btn" id="btn-tab-chords">🎸 SHAPES</button>
+        <button class="btn" id="btn-tab-perf" onclick="togglePerfMode()" title="Performance / fullscreen stage view">⛶ PERF</button>
       </div>
 
       <div class="sidebar-view active" id="stage-view">
@@ -3456,7 +3532,7 @@ function clearLoop() {
 document.getElementById('btn-clear-loop').addEventListener('click', clearLoop);
 
 document.addEventListener('keydown', (e) => { const t = document.activeElement.tagName.toLowerCase(); if (t === 'input' || t === 'textarea' || t === 'select') return;
-  if (e.key === 'Escape') { clearLoop(); return; }
+  if (e.key === 'Escape') { if (window.__perfMode) { togglePerfMode(false); return; } clearLoop(); return; }
   if (e.key.toLowerCase() === 'i') document.getElementById('btn-set-a').click();
   if (e.key.toLowerCase() === 'o') document.getElementById('btn-set-b').click();
   if (e.key.toLowerCase() === 'l') document.getElementById('btn-toggle-loop').click();
@@ -4240,6 +4316,11 @@ function sizeRibbon() {
 
 // ── Loop Mode View helpers ──────────────────────────────────────────────────
 function lmvShowView() {
+  // On narrow phones, skip the floating bubble and jump straight to perf/fullscreen mode
+  if (window.innerWidth <= 600 && loopModeActive) {
+    togglePerfMode(true);
+    return;
+  }
   const el = document.getElementById('loop-mode-view');
   if (!el) return;
   if ((loopModeActive && activeRegion) || (ytLoopOn && ytLoopB > ytLoopA)) el.style.display = 'block';
@@ -4248,6 +4329,91 @@ function lmvHideView() {
   const el = document.getElementById('loop-mode-view');
   if (el) el.style.display = 'none';
 }
+
+// ── PERFORMANCE / FULLSCREEN MODE ──────────────────────────────────────────
+let __perfMode = false;
+
+function togglePerfMode(on) {
+  __perfMode = (on === undefined) ? !__perfMode : !!on;
+  const overlay = document.getElementById('perf-overlay');
+  const perfBtn  = document.getElementById('btn-tab-perf');
+  if (!overlay) return;
+  if (__perfMode) {
+    overlay.classList.add('active');
+    if (perfBtn) perfBtn.classList.add('perf-on');
+    // Update song title label
+    const titleEl = document.getElementById('perf-song-title');
+    if (titleEl) {
+      const tn = document.getElementById('track-name');
+      titleEl.textContent = (tn && tn.textContent.trim() && tn.textContent !== '—') ? tn.textContent.trim() : '';
+    }
+    // Try browser fullscreen on the overlay element
+    try {
+      const fs = overlay.requestFullscreen || overlay.webkitRequestFullscreen;
+      if (fs) fs.call(overlay).catch(() => {});
+    } catch(e) {}
+    // Ensure stage view is active for chord updates
+    if (typeof setSidebarView === 'function') setSidebarView('stage');
+    // Render immediately so the overlay isn't blank
+    const t = (typeof playSource !== 'undefined' && playSource === 'file' && typeof ws !== 'undefined' && ws && ws.getCurrentTime)
+      ? ws.getCurrentTime()
+      : ((typeof ytPlayer !== 'undefined' && ytPlayer && ytPlayer.getCurrentTime) ? ytPlayer.getCurrentTime() : 0);
+    renderPerfOverlay(t || 0);
+  } else {
+    overlay.classList.remove('active');
+    if (perfBtn) perfBtn.classList.remove('perf-on');
+    if (document.fullscreenElement || document.webkitFullscreenElement) {
+      try { (document.exitFullscreen || document.webkitExitFullscreen).call(document).catch(() => {}); } catch(e) {}
+    }
+  }
+}
+
+// Sync perf ring when browser ESC exits fullscreen without our button
+document.addEventListener('fullscreenchange', () => {
+  if (!document.fullscreenElement && __perfMode) togglePerfMode(false);
+});
+document.addEventListener('webkitfullscreenchange', () => {
+  if (!document.webkitFullscreenElement && __perfMode) togglePerfMode(false);
+});
+
+function renderPerfOverlay(t) {
+  if (!__perfMode) return;
+  const ch = window.songChords;
+  const nameEl  = document.getElementById('perf-chord-name');
+  const canvas  = document.getElementById('perf-chord-canvas');
+  const nextRow = document.getElementById('perf-next-row');
+  if (!nameEl || !canvas) return;
+  if (!ch || !ch.length) { nameEl.textContent = '—'; if (nextRow) nextRow.innerHTML = ''; return; }
+  let idx = (typeof stageChordIndexAt === 'function') ? stageChordIndexAt(t) : 0;
+  if (idx < 0) idx = 0;
+  const cur = ch[idx];
+  nameEl.textContent = cur.name;
+  if (typeof drawInstrumentBox === 'function') drawInstrumentBox(canvas, cur.name);
+  // Upcoming chords (same logic as renderStageShapes)
+  const bars = window.songBars || [];
+  let barIdx = -1;
+  for (let i = 0; i < bars.length; i++) { if (t >= bars[i].time - 0.18) barIdx = i; else break; }
+  let nexts = [];
+  for (let i = barIdx + 1; i < bars.length && nexts.length < 3; i++) nexts.push(bars[i].name);
+  if (!nexts.length) {
+    let seen = cur.name;
+    for (let i = idx + 1; i < ch.length && nexts.length < 3; i++) {
+      if (ch[i].name !== seen) { nexts.push(ch[i].name); seen = ch[i].name; }
+    }
+  }
+  if (nextRow) {
+    nextRow.innerHTML = '';
+    nexts.forEach(nm => {
+      const card = document.createElement('div'); card.className = 'perf-ncard';
+      const lbl  = document.createElement('span'); lbl.className = 'perf-nn'; lbl.textContent = nm;
+      const cv   = document.createElement('canvas'); cv.width = 120; cv.height = 144;
+      cv.style.width = '60px'; cv.style.height = '72px';
+      card.appendChild(lbl); card.appendChild(cv); nextRow.appendChild(card);
+      if (typeof drawInstrumentBox === 'function') drawInstrumentBox(cv, nm);
+    });
+  }
+}
+
 // Loop view: minimize toggle
 (function(){
   const btn = document.getElementById('lmv-minimize');
@@ -4265,22 +4431,26 @@ function lmvHideView() {
   const lv = document.getElementById('loop-mode-view');
   const bar = document.getElementById('lmv-drag-bar');
   if (!lv || !bar) return;
-  let dragging = false, ox = 0, oy = 0, startX = 0, startY = 0;
+  let dragging = false, offX = 0, offY = 0;
   bar.addEventListener('pointerdown', e => {
     if (e.target.id === 'lmv-minimize' || e.target.id === 'lmv-close') return;
     dragging = true;
     bar.setPointerCapture(e.pointerId);
-    const rect = lv.getBoundingClientRect();
-    ox = rect.left + rect.width / 2; oy = rect.top + rect.height / 2;
-    startX = e.clientX; startY = e.clientY;
     lv.style.transition = 'none';
+    // Snapshot visual bounding rect (accounts for transform: translate(-50%,-50%))
+    const rect = lv.getBoundingClientRect();
+    // Immediately anchor to current visual position with no transform
+    lv.style.transform = 'none';
+    lv.style.left = rect.left + 'px';
+    lv.style.top  = rect.top  + 'px';
+    // Record where inside the element the pointer clicked
+    offX = e.clientX - rect.left;
+    offY = e.clientY - rect.top;
   });
   bar.addEventListener('pointermove', e => {
     if (!dragging) return;
-    const dx = e.clientX - startX, dy = e.clientY - startY;
-    const nx = ox + dx, ny = oy + dy;
-    lv.style.left = nx + 'px'; lv.style.top = ny + 'px';
-    lv.style.transform = 'none';
+    lv.style.left = (e.clientX - offX) + 'px';
+    lv.style.top  = (e.clientY - offY) + 'px';
   });
   bar.addEventListener('pointerup', () => { dragging = false; });
 })();
@@ -4326,6 +4496,25 @@ function lmvUpdateView(ct, isGap) {
     const active = lmvLoopPass % 2; // 0 = first pass active, 1 = second
     pip1.className = 'lmv-pip' + (active === 0 ? ' active' : ' done');
     pip2.className = 'lmv-pip' + (active === 1 ? ' active' : (lmvLoopPass > 0 ? ' done' : ''));
+  }
+
+  // Mirror the ring into the perf overlay (circumference 106.8 for r=17)
+  if (window.__perfMode) {
+    const parc   = document.getElementById('perf-ring-arc');
+    const pstatus = document.getElementById('perf-status-label');
+    if (parc) {
+      const perfCirc = 106.8;
+      if (isGap && lmvGapDurSec > 0) {
+        const elapsed = (performance.now() / 1000) - lmvGapStartTs;
+        const frac = Math.min(1, elapsed / lmvGapDurSec);
+        parc.style.strokeDashoffset = String(perfCirc * (1 - frac));
+        parc.style.stroke = 'var(--violet)';
+      } else {
+        parc.style.strokeDashoffset = '0';
+        parc.style.stroke = 'var(--cyan)';
+      }
+    }
+    if (pstatus) pstatus.textContent = (isGap) ? 'GAP' : `PASS ${(lmvLoopPass % 2) + 1}`;
   }
 }
 
@@ -4676,6 +4865,8 @@ function renderStageShapes(t) {
     card.appendChild(lbl); card.appendChild(cv); nextWrap.appendChild(card);
     drawInstrumentBox(cv, nm);
   });
+  // Also update the fullscreen performance overlay if active
+  if (window.__perfMode) renderPerfOverlay(t);
 }
 
 function buildStageSheet() {
