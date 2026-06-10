@@ -1058,6 +1058,12 @@
       .workspace-left, .workspace-right { height: auto; overflow: visible; padding-right: 0; }
       .workspace-right { min-height: 66vh; }                /* keep the stage/lyrics readable */
       #particles { position: fixed; }
+      /* On mobile, height:auto container can't distribute flex:1 height → panel collapses to 0.
+         Give active non-play panels explicit min-height so their content is visible. */
+      #tab-learn-panel.active, #tab-coach-panel.active,
+      #tab-settings-panel.active, #tab-uploads-panel.active {
+        min-height: calc(100vh - 120px);
+      }
     }
     @media (max-width: 600px) {
       #app-container { padding: 8px; }
@@ -5933,9 +5939,14 @@ function switchAppTab(name) {
     // No song loaded — full-page panel switch
     APP_TABS.forEach(t => {
       const panel = document.getElementById('tab-' + t + '-panel');
-      if (panel) panel.classList.toggle('active', t === name);
+      if (!panel) return;
+      const isActive = (t === name);
+      panel.classList.toggle('active', isActive);
+      // Belt-and-suspenders: also set display directly so no CSS specificity fight
+      panel.style.display = isActive ? 'flex' : '';
     });
     if (name === 'learn') refreshLearnTab();
+    if (name === 'coach') { /* coach is self-contained, just show it */ }
     if (name === 'settings') refreshSettingsTab();
     if (name === 'uploads') { if (typeof refreshMyStuff === 'function') refreshMyStuff(); }
   }
