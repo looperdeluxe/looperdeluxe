@@ -1920,6 +1920,13 @@
           <div id="sb-loops-list" style="display:flex;flex-direction:column;gap:5px;"></div>
           <p id="sb-loops-empty" style="color:var(--dim);font-size:0.62rem;display:none;">No saved loops yet.</p>
         </div>
+        <div class="info-card" style="flex-shrink:0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <h3 style="margin:0;font-size:0.75rem;">📤 MY CHORD VERSIONS</h3>
+          </div>
+          <div id="sb-chord-versions-list" style="display:flex;flex-direction:column;gap:5px;"></div>
+          <p id="sb-chord-versions-empty" style="color:var(--dim);font-size:0.62rem;display:none;">No published versions yet.</p>
+        </div>
       </div>
 
     </div>
@@ -6441,15 +6448,52 @@ function switchAppTab(name) {
     else setSidebarView(name);   // learn / coach / settings / uploads → right sidebar
   } else {
     // No song loaded — full-page tab switch.
-    // body.tab-open lets body scroll and unlocks height:100vh so panels are visible.
+    // Use position:fixed overlay for non-play panels to escape any flex/overflow trap
+    // (html/body overflow:hidden + height:100% can clip flex children on some browsers).
     document.body.classList.toggle('tab-open', name !== 'play');
+
+    // Calculate viewport offset below header + tab bar (handles both mobile bottom-nav and desktop)
+    const _header  = document.querySelector('header');
+    const _tabBar  = document.getElementById('app-tab-bar');
+    const _isMobile = window.innerWidth < 768;
+    let _topOff = 104; // safe fallback
+    try {
+      if (_isMobile && _header) {
+        _topOff = Math.round(_header.getBoundingClientRect().bottom) + 8;
+      } else if (!_isMobile && _tabBar) {
+        _topOff = Math.round(_tabBar.getBoundingClientRect().bottom) + 4;
+      }
+    } catch(e) {}
+    const _botPad = _isMobile ? '76px' : '20px'; // clear fixed bottom nav on mobile
+
     APP_TABS.forEach(t => {
       const panel = document.getElementById('tab-' + t + '-panel');
       if (!panel) return;
       const isActive = (t === name);
       panel.classList.toggle('active', isActive);
-      // Use explicit 'none' (not ''), so no CSS cascade ambiguity on any browser/screen.
-      panel.style.display = isActive ? 'flex' : 'none';
+      if (t === 'play') {
+        // Play panel: normal flow, just toggle visibility
+        panel.style.cssText = isActive ? '' : 'display:none;';
+      } else if (isActive) {
+        // Non-play active: fixed overlay — immune to flex/overflow/height cascade bugs
+        panel.style.cssText = [
+          'display:flex',
+          'flex-direction:column',
+          'position:fixed',
+          'left:0','right:0',
+          'top:' + _topOff + 'px',
+          'bottom:0',
+          'z-index:50',
+          'background:#03010a',
+          'overflow-y:auto',
+          'overflow-x:hidden',
+          'gap:14px',
+          'padding:12px 14px ' + _botPad + ' 14px'
+        ].join(';') + ';';
+      } else {
+        // Inactive: hide and clear any leftover fixed styles
+        panel.style.cssText = 'display:none;';
+      }
     });
     if (name === 'learn') refreshLearnTab();
     if (name === 'settings') refreshSettingsTab();
@@ -6672,14 +6716,15 @@ function refreshMyStuff() {
   _renderSetlists('sb-setlist-body', 'sb-setlist-empty');
   _renderLoops('mystuff-loops-list', 'mystuff-loops-empty');
   _renderLoops('sb-loops-list', 'sb-loops-empty');
-  refreshMyUploads();
+  _renderChordVersions('my-uploads-list', 'my-uploads-empty');
+  _renderChordVersions('sb-chord-versions-list', 'sb-chord-versions-empty');
 }
 
 
 // ===== My Uploads (published community versions) =====
-function refreshMyUploads() {
-  const list = document.getElementById('my-uploads-list');
-  const empty = document.getElementById('my-uploads-empty');
+function _renderChordVersions(listId, emptyId) {
+  const list  = document.getElementById(listId);
+  const empty = document.getElementById(emptyId);
   if (!list) return;
   const mine = JSON.parse(localStorage.getItem('looperMyVersions') || '[]');
   if (!mine.length) {
@@ -6696,9 +6741,14 @@ function refreshMyUploads() {
       + '<div style="font-size:0.67rem;color:#e4e4e7;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">' + _verEsc(v.label) + '</div>'
       + '<div style="font-size:0.54rem;color:var(--dim);margin-top:2px;">' + _verEsc(v.songTitle || v.songKey || '') + '</div>'
       + '</div>'
-      + '<button onclick="deleteMyVersion(\'' + v.id + '\')" title="Delete this version" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:5px;color:#f87171;padding:3px 9px;font-size:0.58rem;cursor:pointer;white-space:nowrap;">✕ DELETE</button>';
+      + '<button onclick="deleteMyVersion(\'' + v.id + '\')" title="Delete this version" style="background:rgba(239,68,68,0.15);border:1px solid rgba(239,68,68,0.4);border-radius:5px;color:#f87171;padding:3px 9px;font-size:0.58rem;cursor:pointer;white-space:nowrap;">✕</button>';
     list.appendChild(row);
   });
+}
+
+// Legacy alias so any existing call to refreshMyUploads() still works
+function refreshMyUploads() {
+  _renderChordVersions('my-uploads-list', 'my-uploads-empty');
 }
 
 async function deleteMyVersion(id) {
