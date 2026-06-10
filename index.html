@@ -994,7 +994,7 @@
     .lmv-pip.done   { border-color: var(--cyan); color: var(--cyan); background: rgba(34,211,238,0.08); }
     .lmv-pip.active { border-color: var(--violet); color: var(--violet); background: rgba(147,51,234,0.12); box-shadow: 0 0 16px rgba(147,51,234,0.3); }
 
-    /* ── PERFORMANCE / FULLSCREEN STAGE MODE — ad-style chord reel ─────────── */
+    /* ── 🎬 LIVE STAGE MODE ──────────────────────────────────────────────────── */
     #perf-overlay {
       display: none; position: fixed; inset: 0; z-index: 300;
       background: radial-gradient(120% 80% at 50% 0%, #1a0b2e 0%, #0a0418 45%, #050110 100%);
@@ -1002,98 +1002,107 @@
       user-select: none; overflow: hidden; padding: 0;
     }
     #perf-overlay.active { display: flex; }
+    /* ✕ circular exit button */
     #perf-exit-btn {
       position: absolute; top: 14px; right: 14px; z-index: 10;
-      background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.35);
-      border-radius: 8px; color: #a5b4fc;
-      font-family: 'Orbitron', sans-serif; font-size: 0.6rem; letter-spacing: 1px;
-      padding: 6px 12px; cursor: pointer;
+      width: 36px; height: 36px; border-radius: 50%;
+      background: rgba(99,102,241,0.18); border: 1px solid rgba(99,102,241,0.45);
+      color: #a5b4fc; font-size: 1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
     }
+    /* Song title + chips row */
     #perf-top-bar {
       display: flex; flex-direction: column; align-items: center;
-      gap: 8px; padding: 18px 70px 0; width: 100%;
+      gap: 6px; padding: 16px 60px 0; width: 100%; flex-shrink: 0;
     }
     #perf-song-title {
-      font-family: 'Orbitron', sans-serif; font-size: 0.55rem;
+      font-family: 'Orbitron', sans-serif; font-size: 0.52rem;
       color: rgba(165,180,252,0.45); letter-spacing: 2px;
       text-align: center; max-width: 80vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
     }
     #perf-chips { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
     .perf-chip {
-      font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 0.62rem;
+      font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 0.6rem;
       padding: 4px 14px; border-radius: 999px;
-      color: #c084fc; border: 1px solid rgba(192,132,252,0.4);
-      background: rgba(147,51,234,0.12); letter-spacing: 1px;
+      color: #c084fc; border: 1px solid rgba(192,132,252,0.4); background: rgba(147,51,234,0.12);
     }
-    /* Teleprompter reel */
-    #perf-reel {
-      flex: 1; position: relative; width: calc(100% - 40px); max-width: 440px;
-      overflow: hidden; margin: 12px 0;
-      border: 1px solid rgba(192,132,252,0.22); border-radius: 20px;
-      background: linear-gradient(180deg, rgba(20,8,40,0.5), rgba(8,3,20,0.78));
-      box-shadow: 0 0 40px rgba(124,58,237,0.22) inset;
+    /* Compact chord bar: PREV  ▪▪▪  CURRENT  ▪▪▪  NEXT */
+    #perf-chord-bar {
+      display: flex; align-items: center; justify-content: center;
+      gap: 20px; padding: 10px 30px 0; flex-shrink: 0; width: 100%;
     }
-    #perf-reel::before, #perf-reel::after {
-      content: ''; position: absolute; left: 0; right: 0; height: 120px; z-index: 3; pointer-events: none;
+    .perf-adj-chord {
+      font-family: 'Orbitron', sans-serif; font-weight: 700;
+      font-size: clamp(1rem, 5vw, 1.5rem);
+      color: rgba(165,180,252,0.35); min-width: 52px; text-align: center;
     }
-    #perf-reel::before { top: 0; background: linear-gradient(180deg, #0a0418, transparent); }
-    #perf-reel::after  { bottom: 0; background: linear-gradient(0deg, #0a0418, transparent); }
-    .perf-nowline {
-      position: absolute; left: 30px; right: 30px; top: 50%; height: 3px;
-      background: linear-gradient(90deg, transparent, var(--cyan), transparent);
-      box-shadow: 0 0 18px var(--cyan); z-index: 2; transform: translateY(-50%);
+    #perf-curr-name {
+      font-family: 'Orbitron', sans-serif; font-size: clamp(3rem, 14vw, 5.5rem); font-weight: 900;
+      color: #fff; text-shadow: 0 0 40px var(--cyan), 0 0 16px var(--cyan);
+      transition: transform 0.08s; min-width: 100px; text-align: center; line-height: 1;
     }
-    #perf-col {
-      position: absolute; left: 0; right: 0; will-change: transform; text-align: center;
+    #perf-next-wrap { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+    .perf-next-lbl {
+      font-family: 'Orbitron', sans-serif; font-size: 0.38rem;
+      color: rgba(165,180,252,0.4); letter-spacing: 2px;
     }
-    .perf-cd {
-      height: 110px; display: flex; align-items: center; justify-content: center;
-      font-family: 'Orbitron', sans-serif; font-weight: 900;
-      font-size: 52px; color: #5b4d77;
-      transition: color .12s, text-shadow .12s, transform .1s;
+    /* Lyric stage: main content */
+    #perf-lyrics-stage {
+      flex: 1; display: flex; flex-direction: column; align-items: center;
+      justify-content: center; gap: 14px; padding: 0 28px; width: 100%; min-height: 0;
     }
-    .perf-cd.perf-played { color: #8a7ca9; font-size: 44px; }
-    .perf-cd.perf-next   { color: #a99cc7; font-size: 48px; }
-    .perf-cd.perf-now    {
-      color: #fff; font-size: 80px;
-      text-shadow: 0 0 40px var(--cyan), 0 0 16px var(--cyan);
+    #perf-lyric-main {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(1.15rem, 4.5vw, 2rem); font-weight: 700;
+      color: #fff; text-align: center; max-width: 92%;
+      line-height: 1.35; text-shadow: 0 0 20px rgba(147,51,234,0.45);
     }
-    /* Current lyric line */
-    #perf-lyric-line {
-      font-family: 'JetBrains Mono', monospace; font-size: 0.85rem;
-      color: rgba(192,132,252,0.75); text-align: center;
-      max-width: calc(100% - 40px); padding: 0 20px;
-      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-      min-height: 1.4em; flex-shrink: 0;
-      text-shadow: 0 0 12px rgba(147,51,234,0.4);
+    #perf-lyric-sub {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: clamp(0.8rem, 3vw, 1.2rem);
+      color: rgba(192,132,252,0.5); text-align: center; max-width: 88%; line-height: 1.35;
     }
     /* Beat dots */
     #perf-beat-row {
       display: flex; gap: 16px; justify-content: center;
-      align-items: center; flex-shrink: 0; margin: 4px 0;
+      align-items: center; flex-shrink: 0; margin: 6px 0 2px;
     }
     .perf-beat-dot {
-      width: 11px; height: 11px; border-radius: 50%;
-      background: rgba(192,132,252,0.2);
-      border: 1px solid rgba(192,132,252,0.35);
+      width: 10px; height: 10px; border-radius: 50%;
+      background: rgba(192,132,252,0.18); border: 1px solid rgba(192,132,252,0.35);
       transition: background 0.04s, box-shadow 0.04s, transform 0.04s;
     }
     .perf-beat-dot.perf-beat-active {
       background: var(--cyan); border-color: var(--cyan);
-      box-shadow: 0 0 12px var(--cyan); transform: scale(1.35);
+      box-shadow: 0 0 14px var(--cyan); transform: scale(1.4);
+    }
+    /* Loop controls */
+    #perf-loop-bar {
+      display: flex; gap: 10px; align-items: center; flex-shrink: 0; margin-bottom: 8px;
+    }
+    .perf-loop-btn {
+      background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.32);
+      border-radius: 8px; color: rgba(165,180,252,0.65);
+      font-family: 'Orbitron', sans-serif; font-size: 0.55rem; letter-spacing: 1px;
+      padding: 6px 14px; cursor: pointer; transition: all 0.12s;
+    }
+    .perf-loop-btn:active { transform: scale(0.95); }
+    .perf-loop-btn.loop-active {
+      background: rgba(34,211,238,0.15); border-color: var(--cyan); color: var(--cyan);
+      box-shadow: 0 0 12px rgba(34,211,238,0.25);
     }
     /* Progress bar */
     #perf-prog-bar {
       width: calc(100% - 60px); max-width: 380px; height: 6px;
       background: rgba(192,132,252,0.18); border-radius: 99px;
-      overflow: hidden; margin-bottom: 28px; flex-shrink: 0;
+      overflow: hidden; margin-bottom: 26px; flex-shrink: 0;
     }
     #perf-prog-fill {
       height: 100%; width: 0%;
       background: linear-gradient(90deg, var(--violet), var(--cyan));
       box-shadow: 0 0 12px var(--cyan); transition: width 0.25s linear;
     }
-    /* Deck PERF button highlight */
+    /* Deck LIVE button highlight */
     #btn-tab-perf.perf-on { background: rgba(147,51,234,0.25); color: #d8b4fe; border-color: rgba(192,132,252,0.6); }
 
     #lyrics-container {
@@ -1342,17 +1351,33 @@
 <!-- ── LOOP MODE VIEW — draggable, minimizable ────────────────────────────── -->
 <!-- Performance / Fullscreen Stage Overlay -->
 <div id="perf-overlay">
-  <button id="perf-exit-btn" onclick="togglePerfMode(false)">✕ EXIT</button>
+  <button id="perf-exit-btn" onclick="togglePerfMode(false)">✕</button>
   <div id="perf-top-bar">
     <div id="perf-song-title"></div>
     <div id="perf-chips"></div>
   </div>
-  <div id="perf-reel">
-    <div class="perf-nowline"></div>
-    <div id="perf-col"></div>
+  <!-- Compact chord row: prev · CURRENT · next -->
+  <div id="perf-chord-bar">
+    <div id="perf-prev-name" class="perf-adj-chord"></div>
+    <div id="perf-curr-name">—</div>
+    <div id="perf-next-wrap">
+      <div class="perf-next-lbl">NEXT</div>
+      <div id="perf-next-name" class="perf-adj-chord"></div>
+    </div>
   </div>
-  <div id="perf-lyric-line"></div>
+  <!-- Lyrics: main stage -->
+  <div id="perf-lyrics-stage">
+    <div id="perf-lyric-main"></div>
+    <div id="perf-lyric-sub"></div>
+  </div>
+  <!-- Beat dots -->
   <div id="perf-beat-row"></div>
+  <!-- Loop controls -->
+  <div id="perf-loop-bar">
+    <button class="perf-loop-btn" onclick="perfLoopIn()">◀ IN</button>
+    <button class="perf-loop-btn" id="perf-btn-loop" onclick="perfLoopToggle()">⟳ LOOP</button>
+    <button class="perf-loop-btn" onclick="perfLoopOut()">OUT ▶</button>
+  </div>
   <div id="perf-prog-bar"><div id="perf-prog-fill"></div></div>
 </div>
 
@@ -1875,6 +1900,8 @@
               <div id="learn-key-badge" style="background:rgba(147,51,234,0.22); border:1px solid #a855f7; border-radius:6px; padding:6px 14px; font-family:'Orbitron',sans-serif; font-size:0.72rem; color:#e9d5ff;"></div>
               <div id="learn-scale-name" style="font-size:0.72rem; color:var(--dim); padding:6px 0;"></div>
             </div>
+            <!-- Key-specific scale quick-buttons, rendered by renderKeyScaleButtons() -->
+            <div id="key-scale-buttons" style="display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px;"></div>
             <div id="learn-chord-list" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;"></div>
             <p style="font-size:0.65rem; color:var(--dim);">Detected chords above. Hit <b style="color:#c084fc;">🎸 GET CHORDS</b> on the STAGE tab first to populate this.</p>
           </div>
@@ -4469,76 +4496,77 @@ document.addEventListener('webkitfullscreenchange', () => {
 
 function renderPerfOverlay(t) {
   if (!__perfMode) return;
-  const ch  = window.songChords;
-  const col = document.getElementById('perf-col');
-  if (!col) return;
-
+  const ch = window.songChords;
   const chordList = (ch && ch.length) ? ch : [];
-  const ROW_H = 110;
+  const bpm = (typeof detectedBpm !== 'undefined' && detectedBpm > 0) ? detectedBpm : 120;
 
-  // Rebuild chord column DOM when song changes
-  if (col.dataset.chordCount !== String(chordList.length)) {
-    col.innerHTML = '';
-    chordList.forEach(c => {
-      const div = document.createElement('div');
-      div.className = 'perf-cd';
-      div.textContent = c.name;
-      col.appendChild(div);
-    });
-    col.dataset.chordCount = String(chordList.length);
-  }
-
-  if (!chordList.length) return;
-
+  // ── Chord bar: PREV / CURRENT / NEXT ──────────────────────────────────────
   let idx = (typeof stageChordIndexAt === 'function') ? stageChordIndexAt(t) : 0;
   if (idx < 0) idx = 0;
   if (idx >= chordList.length) idx = chordList.length - 1;
 
-  const cds = col.children;
-  const bpm = (typeof detectedBpm !== 'undefined' && detectedBpm) ? detectedBpm : 120;
+  const currEl = document.getElementById('perf-curr-name');
+  const prevEl = document.getElementById('perf-prev-name');
+  const nextEl = document.getElementById('perf-next-name');
 
-  for (let i = 0; i < cds.length; i++) {
-    const el = cds[i];
-    if (i < idx) {
-      el.className = 'perf-cd perf-played';
-      el.style.transform = '';
-    } else if (i === idx) {
-      el.className = 'perf-cd perf-now';
-      // Subtle pulse on beat
-      const startT = chordList[idx].time || 0;
-      const into   = t - startT;
-      const ph     = (into > 0 && bpm > 0) ? ((into / (60 / bpm)) % 1) : 0;
-      el.style.transform = 'scale(' + (1.08 - 0.08 * ph) + ')';
-    } else {
-      el.className = 'perf-cd perf-next';
-      el.style.transform = '';
+  if (currEl && chordList.length) {
+    const cur = chordList[idx];
+    const newTxt = cur ? cur.name : '—';
+    if (currEl.textContent !== newTxt) currEl.textContent = newTxt;
+    // Beat pulse on current chord
+    const startT = cur ? (cur.time || 0) : 0;
+    const into = t - startT;
+    const ph = (into > 0) ? ((into / (60 / bpm)) % 1) : 0;
+    currEl.style.transform = 'scale(' + (1.04 - 0.04 * ph) + ')';
+  } else if (currEl && !chordList.length) {
+    currEl.textContent = '—';
+  }
+
+  if (prevEl) {
+    // Find the most recent chord that is DIFFERENT from current
+    let pi = idx - 1;
+    while (pi >= 0 && chordList[pi].name === (chordList[idx] || {}).name) pi--;
+    const prevTxt = pi >= 0 ? chordList[pi].name : '';
+    if (prevEl.textContent !== prevTxt) prevEl.textContent = prevTxt;
+  }
+
+  if (nextEl) {
+    // Find the next chord that is DIFFERENT from current
+    let ni = idx + 1;
+    const curName = (chordList[idx] || {}).name;
+    while (ni < chordList.length && chordList[ni].name === curName) ni++;
+    const nextTxt = ni < chordList.length ? chordList[ni].name : '';
+    if (nextEl.textContent !== nextTxt) nextEl.textContent = nextTxt;
+  }
+
+  // ── Lyrics: current + next line ───────────────────────────────────────────
+  const lyricMain = document.getElementById('perf-lyric-main');
+  const lyricSub  = document.getElementById('perf-lyric-sub');
+  if (lyricMain || lyricSub) {
+    const lines = document.querySelectorAll('.lyric-line');
+    let activeIdx = -1;
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].classList.contains('active-lyric')) { activeIdx = i; break; }
     }
+    const mainTxt = activeIdx >= 0 ? lines[activeIdx].textContent.trim() : '';
+    // Next non-empty line
+    let subTxt = '';
+    for (let i = activeIdx + 1; i < lines.length; i++) {
+      const t2 = lines[i].textContent.trim();
+      if (t2) { subTxt = t2; break; }
+    }
+    if (lyricMain && lyricMain.textContent !== mainTxt) lyricMain.textContent = mainTxt;
+    if (lyricSub  && lyricSub.textContent  !== subTxt)  lyricSub.textContent  = subTxt;
   }
 
-  // Scroll column so current chord sits at center of reel
-  const reel = document.getElementById('perf-reel');
-  const reelH = reel ? reel.offsetHeight : 400;
-  col.style.transform = 'translateY(' + (reelH * 0.5 - (idx * ROW_H + ROW_H / 2)) + 'px)';
-
-  // Current lyric line
-  const lyricEl = document.getElementById('perf-lyric-line');
-  if (lyricEl) {
-    const activeLyric = document.querySelector('.lyric-line.active-lyric');
-    const txt = activeLyric ? activeLyric.textContent.trim() : '';
-    if (lyricEl.textContent !== txt) lyricEl.textContent = txt;
-  }
-
-  // Beat dots (4/4)
+  // ── Beat dots (4/4) ───────────────────────────────────────────────────────
   const beatRow = document.getElementById('perf-beat-row');
   if (beatRow) {
-    const bpm2 = (typeof detectedBpm !== 'undefined' && detectedBpm > 0) ? detectedBpm : 120;
-    const beatInBar = Math.floor((t / (60 / bpm2)) % 4);
+    const beatInBar = Math.floor((t / (60 / bpm)) % 4);
     if (beatRow.children.length !== 4) {
       beatRow.innerHTML = '';
       for (let i = 0; i < 4; i++) {
-        const d = document.createElement('div');
-        d.className = 'perf-beat-dot';
-        beatRow.appendChild(d);
+        const d = document.createElement('div'); d.className = 'perf-beat-dot'; beatRow.appendChild(d);
       }
     }
     Array.from(beatRow.children).forEach((dot, i) => {
@@ -4547,7 +4575,19 @@ function renderPerfOverlay(t) {
     });
   }
 
-  // Progress bar
+  // ── Loop button sync ──────────────────────────────────────────────────────
+  const perfLoopBtn = document.getElementById('perf-btn-loop');
+  if (perfLoopBtn) {
+    const loopOn = (typeof loopModeActive !== 'undefined' && loopModeActive) ||
+                   (typeof ytLoopOn !== 'undefined' && ytLoopOn) ||
+                   (typeof spLoopOn !== 'undefined' && spLoopOn);
+    const wantCls = 'perf-loop-btn' + (loopOn ? ' loop-active' : '');
+    const wantTxt = loopOn ? '⟳ LOOP ON' : '⟳ LOOP';
+    if (perfLoopBtn.className !== wantCls) perfLoopBtn.className = wantCls;
+    if (perfLoopBtn.textContent !== wantTxt) perfLoopBtn.textContent = wantTxt;
+  }
+
+  // ── Progress bar ──────────────────────────────────────────────────────────
   const fill = document.getElementById('perf-prog-fill');
   if (fill) {
     let dur = 0;
@@ -4557,6 +4597,25 @@ function renderPerfOverlay(t) {
     } catch(e) {}
     if (dur > 0) fill.style.width = Math.min(100, (t / dur) * 100) + '%';
   }
+}
+
+// ── LIVE mode loop helpers ──────────────────────────────────────────────────
+function perfLoopIn() {
+  if (typeof playSource !== 'undefined' && playSource === 'youtube') {
+    document.getElementById('yt-in')?.click();
+  } else {
+    document.getElementById('btn-set-a')?.click();
+  }
+}
+function perfLoopOut() {
+  if (typeof playSource !== 'undefined' && playSource === 'youtube') {
+    document.getElementById('yt-out')?.click();
+  } else {
+    document.getElementById('btn-set-b')?.click();
+  }
+}
+function perfLoopToggle() {
+  document.getElementById('btn-toggle-loop')?.click();
 }
 
 // Loop view: minimize toggle
@@ -6638,6 +6697,8 @@ function refreshLearnTab() {
   if (keyBadge) keyBadge.textContent = key + ' major / ' + relativeMinor(key) + ' minor';
   const scaleName = document.getElementById('learn-scale-name');
   if (scaleName) scaleName.textContent = 'Pentatonic scales work great for soloing.';
+  // Inject key-specific scale buttons
+  if (typeof renderKeyScaleButtons === 'function') renderKeyScaleButtons(key);
   // Show current song chords
   const chordList = document.getElementById('learn-chord-list');
   if (chordList) {
@@ -6749,6 +6810,51 @@ function scaleExplorerFromSong() {
   const rootSel = document.getElementById('scale-root');
   if (rootSel && SCALE_NOTES.includes(key)) rootSel.value = key;
   renderScaleExplorer();
+}
+
+// Quick-set scale explorer to a root + type, then scroll/highlight
+function setScaleExplorer(root, type) {
+  const rootSel = document.getElementById('scale-root');
+  const typeSel = document.getElementById('scale-type');
+  if (rootSel) rootSel.value = root;
+  if (typeSel) typeSel.value = type;
+  renderScaleExplorer();
+  // Scroll the explorer into view if on Learn tab
+  const wrap = document.getElementById('scale-fretboard-wrap');
+  if (wrap) wrap.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// Render key-specific scale quick-buttons below the scale explorer
+function renderKeyScaleButtons(key) {
+  const container = document.getElementById('key-scale-buttons');
+  if (!container || !key) return;
+  // Determine relative minor (3 semitones below root = natural relative minor)
+  const notes = SCALE_NOTES || ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const rootIdx = notes.indexOf(key);
+  const relMinorIdx = (rootIdx + 9) % 12;  // relative minor is 6th degree = 9 semitones up
+  const relMinor = notes[relMinorIdx];
+
+  const options = [
+    { label: key + ' major',      root: key,       type: 'major',    desc: 'Full major scale' },
+    { label: key + ' pent',       root: key,       type: 'pent_maj', desc: 'Major pentatonic — country, pop' },
+    { label: relMinor + 'm pent', root: relMinor,  type: 'pent_min', desc: 'Minor pentatonic — rock, blues solos' },
+    { label: relMinor + 'm blues',root: relMinor,  type: 'blues',    desc: 'Blues scale — instant blues flavor' },
+  ];
+
+  container.innerHTML = '';
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.style.cssText = 'display:inline-flex;flex-direction:column;align-items:center;gap:2px;'
+      + 'background:rgba(147,51,234,0.12);border:1px solid rgba(147,51,234,0.4);'
+      + 'border-radius:20px;padding:6px 14px;cursor:pointer;font-family:Orbitron,sans-serif;'
+      + 'transition:background 0.15s,border-color 0.15s;';
+    btn.innerHTML = '<span style="font-size:0.65rem;color:#c084fc;font-weight:700;">' + opt.label + '</span>'
+      + '<span style="font-size:0.48rem;color:rgba(165,180,252,0.55);">' + opt.desc + '</span>';
+    btn.onmouseenter = function() { this.style.background='rgba(147,51,234,0.28)'; this.style.borderColor='rgba(192,132,252,0.7)'; };
+    btn.onmouseleave = function() { this.style.background='rgba(147,51,234,0.12)'; this.style.borderColor='rgba(147,51,234,0.4)'; };
+    btn.onclick = function() { setScaleExplorer(opt.root, opt.type); };
+    container.appendChild(btn);
+  });
 }
 
 // ===== My Stuff tab — setlists, saved loops, published versions =====
