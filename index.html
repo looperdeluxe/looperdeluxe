@@ -917,54 +917,33 @@
 
     /* ── LOOP MODE VIEW ───────────────────────────────────────────────────── */
     #loop-mode-view {
-      position: absolute;
+      position: fixed;
       top: 50%; left: 50%;
       transform: translate(-50%, -50%);
       display: none;
       z-index: 95;
-      width: min(92%, 380px);
+      width: min(92%, 280px);
       background: rgba(2, 6, 23, 0.97);
       border: 1px solid rgba(99,102,241,0.5);
-      border-radius: 22px;
-      padding: 20px 22px 18px;
+      border-radius: 14px;
+      padding: 0;
       text-align: center;
-      box-shadow: 0 0 50px rgba(99,102,241,0.15), 0 10px 40px rgba(0,0,0,0.8);
+      box-shadow: 0 0 40px rgba(99,102,241,0.15), 0 8px 30px rgba(0,0,0,0.8);
       backdrop-filter: blur(8px);
       pointer-events: auto;
+      user-select: none;
     }
-    #lmv-close {
-      position: absolute;
-      top: 10px; right: 12px;
-      width: 28px; height: 28px;
-      background: rgba(99,102,241,0.2);
-      border: 1px solid rgba(99,102,241,0.4);
-      border-radius: 50%;
-      color: #a5b4fc;
-      font-size: 16px;
-      line-height: 28px;
-      text-align: center;
-      cursor: pointer;
-      transition: background 0.15s, color 0.15s;
-      z-index: 96;
+    #lmv-drag-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 10px 7px; cursor: grab;
+      border-bottom: 1px solid rgba(99,102,241,0.2);
+      border-radius: 14px 14px 0 0;
     }
-    #lmv-close:hover { background: rgba(99,102,241,0.45); color: #fff; }
-    #lmv-chord {
-      font-family: 'Orbitron', sans-serif;
-      font-size: clamp(3.5rem, 16vw, 5.8rem);
-      font-weight: 900;
-      color: var(--cyan);
-      letter-spacing: 4px;
-      line-height: 1;
-      filter: drop-shadow(0 0 20px rgba(34,211,238,0.6));
-      transition: color 0.18s, filter 0.18s;
-    }
-    #lmv-chord-label {
-      font-size: 0.55rem;
-      letter-spacing: 3px;
-      color: rgba(255,255,255,0.22);
-      font-family: 'Orbitron', sans-serif;
-      margin-top: 3px;
-    }
+    #lmv-drag-bar:active { cursor: grabbing; }
+    #lmv-body { padding: 12px 16px 14px; }
+    #loop-mode-view.minimized { width: auto; min-width: 150px; border-radius: 20px; }
+    #loop-mode-view.minimized #lmv-body { display: none; }
+    #loop-mode-view.minimized #lmv-drag-bar { border-bottom: none; border-radius: 20px; }
     #lmv-ring-wrap {
       margin: 12px auto 6px;
       width: fit-content;
@@ -4198,13 +4177,48 @@ function sizeRibbon() {
 function lmvShowView() {
   const el = document.getElementById('loop-mode-view');
   if (!el) return;
-  // Show for audio loop (activeRegion) OR YouTube loop (ytLoopOn with valid points)
   if ((loopModeActive && activeRegion) || (ytLoopOn && ytLoopB > ytLoopA)) el.style.display = 'block';
 }
 function lmvHideView() {
   const el = document.getElementById('loop-mode-view');
   if (el) el.style.display = 'none';
 }
+// Loop view: minimize toggle
+(function(){
+  const btn = document.getElementById('lmv-minimize');
+  if (!btn) return;
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const lv = document.getElementById('loop-mode-view');
+    if (!lv) return;
+    const isMin = lv.classList.toggle('minimized');
+    btn.textContent = isMin ? '+' : '−';
+  });
+})();
+// Loop view: drag to reposition
+(function(){
+  const lv = document.getElementById('loop-mode-view');
+  const bar = document.getElementById('lmv-drag-bar');
+  if (!lv || !bar) return;
+  let dragging = false, ox = 0, oy = 0, startX = 0, startY = 0;
+  bar.addEventListener('pointerdown', e => {
+    if (e.target.id === 'lmv-minimize' || e.target.id === 'lmv-close') return;
+    dragging = true;
+    bar.setPointerCapture(e.pointerId);
+    const rect = lv.getBoundingClientRect();
+    ox = rect.left + rect.width / 2; oy = rect.top + rect.height / 2;
+    startX = e.clientX; startY = e.clientY;
+    lv.style.transition = 'none';
+  });
+  bar.addEventListener('pointermove', e => {
+    if (!dragging) return;
+    const dx = e.clientX - startX, dy = e.clientY - startY;
+    const nx = ox + dx, ny = oy + dy;
+    lv.style.left = nx + 'px'; lv.style.top = ny + 'px';
+    lv.style.transform = 'none';
+  });
+  bar.addEventListener('pointerup', () => { dragging = false; });
+})();
 function lmvChordColor(name) {
   if (!name || name === '—') return 'var(--cyan)';
   // minor → violet tint, 7th → green, dim → red-ish, else cyan
@@ -4215,29 +4229,12 @@ function lmvChordColor(name) {
   return 'var(--cyan)';
 }
 function lmvUpdateView(ct, isGap) {
-  const chordEl  = document.getElementById('lmv-chord');
   const statusEl = document.getElementById('lmv-status');
   const arcEl    = document.getElementById('lmv-ring-arc');
   const labelEl  = document.getElementById('lmv-ring-label');
   const pip1     = document.getElementById('lmv-pip-1');
   const pip2     = document.getElementById('lmv-pip-2');
-  if (!chordEl) return;
-
-  // chord name (use playhead time when playing, or last known when in gap)
-  let chordName = '—';
-  if (window.songChords && window.songChords.length) {
-    const t = (ct !== undefined) ? ct : (activeRegion ? activeRegion.start : 0);
-    const idx = stageChordIndexAt(t);
-    if (idx >= 0) chordName = window.songChords[idx].name || '—';
-  }
-  const col = lmvChordColor(chordName);
-  if (chordEl.textContent !== chordName) {
-    chordEl.textContent = chordName;
-    chordEl.style.color = col;
-    chordEl.style.filter = col === 'var(--cyan)'
-      ? 'drop-shadow(0 0 20px rgba(34,211,238,0.6))'
-      : 'drop-shadow(0 0 20px rgba(192,132,252,0.6))';
-  }
+  if (!arcEl) return;
 
   // ring arc (circumference 213.6)
   const circ = 213.6;
@@ -4253,7 +4250,7 @@ function lmvUpdateView(ct, isGap) {
     }
   } else {
     arcEl.style.strokeDashoffset = '0';
-    arcEl.style.stroke = col === 'var(--cyan)' ? 'var(--cyan)' : col;
+    arcEl.style.stroke = 'var(--cyan)';
     if (labelEl) labelEl.textContent = 'LOOP';
     const passNum = (lmvLoopPass % 2) + 1;
     if (statusEl) statusEl.textContent = `PASS ${passNum} PLAYING`;
