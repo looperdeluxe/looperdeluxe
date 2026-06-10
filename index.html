@@ -1826,6 +1826,26 @@
         </div>
       </div>
 
+      <!-- MY STUFF sidebar view — shown when practising and user taps MY STUFF tab -->
+      <div class="sidebar-view" id="column-uploads-view" style="overflow-y:auto; gap:12px; padding:4px 2px; display:none;">
+        <div class="info-card" style="flex-shrink:0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <h3 style="margin:0;font-size:0.75rem;">🎵 MY SETLISTS</h3>
+            <button class="btn accent" style="padding:3px 10px;font-size:0.55rem;" onclick="newSetlist()">+ NEW</button>
+          </div>
+          <div id="sb-setlist-body"></div>
+          <p id="sb-setlist-empty" style="color:var(--dim);font-size:0.62rem;display:none;">No setlists yet — hit + NEW to start one.</p>
+        </div>
+        <div class="info-card" style="flex-shrink:0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <h3 style="margin:0;font-size:0.75rem;">🔖 SAVED LOOPS</h3>
+            <button class="btn" style="padding:3px 10px;font-size:0.55rem;" onclick="refreshMyStuff()">↻</button>
+          </div>
+          <div id="sb-loops-list" style="display:flex;flex-direction:column;gap:5px;"></div>
+          <p id="sb-loops-empty" style="color:var(--dim);font-size:0.62rem;display:none;">No saved loops yet.</p>
+        </div>
+      </div>
+
     </div>
     </div>
   </div>
@@ -2132,7 +2152,7 @@ function setSidebarView(mode) {
   [tabStage, tabLyrics, tabChords].forEach(t => t.classList.remove('active'));
   [viewStage, viewLyrics, viewChords].forEach(v => v.classList.remove('active'));
   // Hide extra sidebar views
-  ['learn','coach','settings'].forEach(id => {
+  ['learn','coach','settings','uploads'].forEach(id => {
     const el = document.getElementById('column-' + id + '-view');
     if (el) el.style.display = 'none';
   });
@@ -2148,7 +2168,7 @@ function setSidebarView(mode) {
   if (mode === 'stage') { tabStage.classList.add('active'); viewStage.classList.add('active'); window.__stageDirty = true; renderStage(ws ? ws.getCurrentTime() : 0); }
   else if (mode === 'lyrics') { tabLyrics.classList.add('active'); viewLyrics.classList.add('active'); }
   else if (mode === 'chords') { tabChords.classList.add('active'); viewChords.classList.add('active'); renderChordPalette(); setTimeout(()=>{initFretboardCanvasDimensions(); renderManualFretboard();}, 50); }
-  else if (mode === 'learn' || mode === 'coach' || mode === 'settings') {
+  else if (mode === 'learn' || mode === 'coach' || mode === 'settings' || mode === 'uploads') {
     const el = document.getElementById('column-' + mode + '-view');
     if (el) {
       el.style.display = 'flex';
@@ -2159,6 +2179,7 @@ function setSidebarView(mode) {
     }
     if (mode === 'learn') refreshLearnTab();
     if (mode === 'settings') refreshSettingsTab();
+    if (mode === 'uploads') refreshMyStuff();
   }
   window.sidebarMode = mode;
 }
@@ -6214,23 +6235,19 @@ function switchAppTab(name) {
   const dashVisible = dash && dash.style.display === 'grid';
 
   if (dashVisible) {
-    // Song is loaded — use sidebar + waveform layout
+    // Song is loaded — keep the practice room (tab-play-panel + main-dashboard) visible,
+    // change the right-sidebar content via setSidebarView. Never hide tab-play-panel here
+    // because main-dashboard is INSIDE it — hiding it destroys the practice room.
     document.body.classList.remove('tab-open');
     const playPanel = document.getElementById('tab-play-panel');
-    // Hide all full-page panels explicitly (inline display:none beats any CSS rule)
-    APP_TABS.forEach(t => {
+    // Hide only the standalone tab panels that live OUTSIDE tab-play-panel
+    ['learn','coach','settings','uploads'].forEach(t => {
       const p = document.getElementById('tab-' + t + '-panel');
       if (p) { p.classList.remove('active'); p.style.display = 'none'; }
     });
-    if (name === 'uploads') {
-      const up = document.getElementById('tab-uploads-panel');
-      if (up) { up.classList.add('active'); up.style.display = 'flex'; }
-      refreshMyStuff();
-    } else {
-      if (playPanel) { playPanel.classList.add('active'); playPanel.style.display = 'flex'; }
-      if (name === 'play') setSidebarView('stage');
-      else setSidebarView(name);
-    }
+    if (playPanel) { playPanel.classList.add('active'); playPanel.style.display = 'flex'; }
+    if (name === 'play') setSidebarView('stage');
+    else setSidebarView(name);   // learn / coach / settings / uploads → right sidebar
   } else {
     // No song loaded — full-page tab switch.
     // body.tab-open lets body scroll and unlocks height:100vh so panels are visible.
@@ -6379,90 +6396,94 @@ function scaleExplorerFromSong() {
 }
 
 // ===== My Stuff tab — setlists, saved loops, published versions =====
-function refreshMyStuff() {
-  // Setlists
-  const slBody = document.getElementById('mystuff-setlist-body');
-  const slEmpty = document.getElementById('mystuff-setlist-empty');
+// Renders into both the full-page panel (mystuff-*) AND the sidebar view (sb-*) so the
+// content is always current whichever context is visible.
+function _renderSetlists(slBodyId, slEmptyId) {
+  const slBody = document.getElementById(slBodyId);
+  const slEmpty = document.getElementById(slEmptyId);
+  if (!slBody) return;
   const setlists = getSetlists ? getSetlists() : JSON.parse(localStorage.getItem('looperSetlists') || '[]');
-  if (slBody) {
-    if (!setlists.length) {
-      slBody.innerHTML = '';
-      if (slEmpty) slEmpty.style.display = '';
-    } else {
-      if (slEmpty) slEmpty.style.display = 'none';
-      // Track per-setlist open state so they stay collapsed between renders
-      if (!window.__slOpen) window.__slOpen = {};
-      let html = '';
-      setlists.forEach((sl, i) => {
-        const songs = sl.songs || [];
-        const isOpen = !!window.__slOpen[i];
-        const srcIcon = s => s.source === 'spotify' ? '🟢' : s.ytId ? '▶' : '📁';
-        html += '<div style="border:1px solid rgba(147,51,234,0.3);border-radius:10px;margin-bottom:8px;background:rgba(147,51,234,0.05);overflow:hidden;">';
-        // Header row — always visible, click to expand/collapse song list
-        html += '<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;" onclick="window.__slOpen[' + i + ']=!window.__slOpen[' + i + '];refreshMyStuff();">'
-          + '<span style="color:#c084fc;font-size:0.75rem;width:14px;text-align:center;flex-shrink:0;">' + (isOpen ? '▾' : '▸') + '</span>'
-          + '<span style="color:#c084fc;font-family:Orbitron,sans-serif;font-size:0.65rem;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
-          + esc2(sl.name) + '</span>'
-          + '<span style="color:var(--dim);font-size:0.55rem;flex-shrink:0;">' + songs.length + ' song' + (songs.length !== 1 ? 's' : '') + '</span>'
-          + '<span style="display:flex;gap:4px;flex-shrink:0;" onclick="event.stopPropagation();">'
-          + '<button class="btn" onclick="playSetlistFromTop(' + i + ')" style="padding:2px 7px;font-size:0.5rem;" title="Play all songs in order">▶ ALL</button>'
-          + '<button class="btn" onclick="addCurrentToSetlist(' + i + ');refreshMyStuff();" style="padding:2px 7px;font-size:0.5rem;" title="Add current song">+ ADD</button>'
-          + '<button class="btn danger" onclick="if(confirm(\'Delete setlist?\'))delSetlist(' + i + ');" style="padding:2px 6px;font-size:0.5rem;">✕</button>'
-          + '</span></div>';
-        // Collapsible song list
-        if (isOpen) {
-          html += '<div style="padding:0 12px 10px;border-top:1px solid rgba(147,51,234,0.2);">';
-          if (!songs.length) {
-            html += '<div style="font-size:0.58rem;color:var(--dim);padding:8px 0;">Empty — tap + ADD while a song is loaded.</div>';
-          } else {
-            songs.forEach((song, gi) => {
-              const rng = (song.end > song.start) ? fmt(song.start) + '–' + fmt(song.end) : '';
-              const sub = [song.artist, rng].filter(Boolean).join(' · ');
-              html += '<div style="display:flex;align-items:center;gap:6px;margin-top:7px;">'
-                + '<button class="btn" onclick="loadSetlistSong(' + i + ',' + gi + ')" style="flex:1;min-width:0;text-align:left;padding:5px 10px;font-size:0.6rem;">'
-                + '<span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + srcIcon(song) + ' ' + esc2(song.title) + '</span>'
-                + (sub ? '<span style="display:block;font-size:0.48rem;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc2(sub) + '</span>' : '')
-                + '</button>'
-                + '<button class="btn danger" onclick="delSetlistSong(' + i + ',' + gi + ');refreshMyStuff();" style="padding:3px 7px;font-size:0.5rem;flex-shrink:0;">✕</button>'
-                + '</div>';
-            });
-          }
-          html += '</div>';
-        }
-        html += '</div>';
-      });
-      slBody.innerHTML = html;
-    }
+  if (!setlists.length) {
+    slBody.innerHTML = '';
+    if (slEmpty) slEmpty.style.display = '';
+    return;
   }
+  if (slEmpty) slEmpty.style.display = 'none';
+  if (!window.__slOpen) window.__slOpen = {};
+  let html = '';
+  setlists.forEach((sl, i) => {
+    const songs = sl.songs || [];
+    const isOpen = !!window.__slOpen[i];
+    const srcIcon = s => s.source === 'spotify' ? '🟢' : s.ytId ? '▶' : '📁';
+    html += '<div style="border:1px solid rgba(147,51,234,0.3);border-radius:10px;margin-bottom:8px;background:rgba(147,51,234,0.05);overflow:hidden;">';
+    html += '<div style="display:flex;align-items:center;gap:8px;padding:9px 12px;cursor:pointer;" onclick="window.__slOpen[' + i + ']=!window.__slOpen[' + i + '];refreshMyStuff();">'
+      + '<span style="color:#c084fc;font-size:0.75rem;width:14px;text-align:center;flex-shrink:0;">' + (isOpen ? '▾' : '▸') + '</span>'
+      + '<span style="color:#c084fc;font-family:Orbitron,sans-serif;font-size:0.65rem;font-weight:700;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'
+      + esc2(sl.name) + '</span>'
+      + '<span style="color:var(--dim);font-size:0.55rem;flex-shrink:0;">' + songs.length + ' song' + (songs.length !== 1 ? 's' : '') + '</span>'
+      + '<span style="display:flex;gap:4px;flex-shrink:0;" onclick="event.stopPropagation();">'
+      + '<button class="btn" onclick="playSetlistFromTop(' + i + ')" style="padding:2px 7px;font-size:0.5rem;" title="Play all songs in order">▶ ALL</button>'
+      + '<button class="btn" onclick="addCurrentToSetlist(' + i + ');refreshMyStuff();" style="padding:2px 7px;font-size:0.5rem;" title="Add current song">+ ADD</button>'
+      + '<button class="btn danger" onclick="if(confirm(\'Delete setlist?\'))delSetlist(' + i + ');" style="padding:2px 6px;font-size:0.5rem;">✕</button>'
+      + '</span></div>';
+    if (isOpen) {
+      html += '<div style="padding:0 12px 10px;border-top:1px solid rgba(147,51,234,0.2);">';
+      if (!songs.length) {
+        html += '<div style="font-size:0.58rem;color:var(--dim);padding:8px 0;">Empty — tap + ADD while a song is loaded.</div>';
+      } else {
+        songs.forEach((song, gi) => {
+          const rng = (song.end > song.start) ? fmt(song.start) + '–' + fmt(song.end) : '';
+          const sub = [song.artist, rng].filter(Boolean).join(' · ');
+          html += '<div style="display:flex;align-items:center;gap:6px;margin-top:7px;">'
+            + '<button class="btn" onclick="loadSetlistSong(' + i + ',' + gi + ')" style="flex:1;min-width:0;text-align:left;padding:5px 10px;font-size:0.6rem;">'
+            + '<span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + srcIcon(song) + ' ' + esc2(song.title) + '</span>'
+            + (sub ? '<span style="display:block;font-size:0.48rem;color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc2(sub) + '</span>' : '')
+            + '</button>'
+            + '<button class="btn danger" onclick="delSetlistSong(' + i + ',' + gi + ');refreshMyStuff();" style="padding:3px 7px;font-size:0.5rem;flex-shrink:0;">✕</button>'
+            + '</div>';
+        });
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+  slBody.innerHTML = html;
+}
 
-  // Saved loops
-  const loopList = document.getElementById('mystuff-loops-list');
-  const loopEmpty = document.getElementById('mystuff-loops-empty');
+function _renderLoops(loopListId, loopEmptyId) {
+  const loopList = document.getElementById(loopListId);
+  const loopEmpty = document.getElementById(loopEmptyId);
+  if (!loopList) return;
   const loops = JSON.parse(localStorage.getItem('cosmicSavedLoopsMaster') || '[]');
-  if (loopList) {
-    if (!loops.length) {
-      loopList.innerHTML = '';
-      if (loopEmpty) loopEmpty.style.display = '';
-    } else {
-      if (loopEmpty) loopEmpty.style.display = 'none';
-      let html = '';
-      loops.forEach((l, i) => {
-        const rng = (l.end > l.start) ? fmt(l.start) + '–' + fmt(l.end) : '—';
-        const song = l.ytTitle || l.name || 'Loop ' + (i + 1);
-        html += '<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid rgba(99,102,241,0.2);border-radius:7px;background:rgba(99,102,241,0.05);">'
-          + '<button onclick="window.loadLp(' + i + ')" style="flex:1;min-width:0;text-align:left;background:none;border:none;cursor:pointer;color:#e4e4e7;font-size:0.62rem;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0;">'
-          + '▶ ' + esc2(l.name || 'Loop') + ' <span style="color:var(--dim);font-size:0.52rem;">' + esc2(rng) + '</span>'
-          + (l.ytTitle ? '<br><span style="color:var(--dim);font-size:0.5rem;">' + esc2(l.ytTitle) + '</span>' : '')
-          + '</button>'
-          + '<button onclick="savedLoops.splice(' + i + ',1);localStorage.setItem(\'cosmicSavedLoopsMaster\',JSON.stringify(savedLoops));if(typeof renderLoopBank===\'function\')renderLoopBank();refreshMyStuff();" title="Delete loop" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);border-radius:5px;color:#f87171;padding:3px 7px;font-size:0.52rem;cursor:pointer;flex-shrink:0;">✕</button>'
-          + '</div>';
-      });
-      loopList.innerHTML = html;
-    }
+  if (!loops.length) {
+    loopList.innerHTML = '';
+    if (loopEmpty) loopEmpty.style.display = '';
+    return;
   }
+  if (loopEmpty) loopEmpty.style.display = 'none';
+  let html = '';
+  loops.forEach((l, i) => {
+    const rng = (l.end > l.start) ? fmt(l.start) + '–' + fmt(l.end) : '—';
+    html += '<div style="display:flex;align-items:center;gap:6px;padding:5px 8px;border:1px solid rgba(99,102,241,0.2);border-radius:7px;background:rgba(99,102,241,0.05);">'
+      + '<button onclick="window.loadLp(' + i + ')" style="flex:1;min-width:0;text-align:left;background:none;border:none;cursor:pointer;color:#e4e4e7;font-size:0.62rem;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;padding:0;">'
+      + '▶ ' + esc2(l.name || 'Loop') + ' <span style="color:var(--dim);font-size:0.52rem;">' + esc2(rng) + '</span>'
+      + (l.ytTitle ? '<br><span style="color:var(--dim);font-size:0.5rem;">' + esc2(l.ytTitle) + '</span>' : '')
+      + '</button>'
+      + '<button onclick="savedLoops.splice(' + i + ',1);localStorage.setItem(\'cosmicSavedLoopsMaster\',JSON.stringify(savedLoops));if(typeof renderLoopBank===\'function\')renderLoopBank();refreshMyStuff();" title="Delete loop" style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);border-radius:5px;color:#f87171;padding:3px 7px;font-size:0.52rem;cursor:pointer;flex-shrink:0;">✕</button>'
+      + '</div>';
+  });
+  loopList.innerHTML = html;
+}
 
+function refreshMyStuff() {
+  // Render into both contexts: full-page panel (mystuff-*) and in-practice sidebar (sb-*)
+  _renderSetlists('mystuff-setlist-body', 'mystuff-setlist-empty');
+  _renderSetlists('sb-setlist-body', 'sb-setlist-empty');
+  _renderLoops('mystuff-loops-list', 'mystuff-loops-empty');
+  _renderLoops('sb-loops-list', 'sb-loops-empty');
   refreshMyUploads();
 }
+
 
 // ===== My Uploads (published community versions) =====
 function refreshMyUploads() {
