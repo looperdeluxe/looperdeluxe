@@ -1141,9 +1141,10 @@
       gap: 14px;
       padding: 8px 2px 16px;
     }
-    /* Guarantee visible height for all non-play tabs on ALL screen sizes.
-       On desktop: flex:1 in a height:100vh container should distribute space, but
-       the flex math can collapse to 0 when body has overflow:hidden. min-height pins it. */
+    /* When a non-play tab is open before a song loads, body.tab-open allows scrolling
+       and lets the panel fill the page without the flex-height-collapse issue. */
+    body.tab-open { overflow-y: auto !important; overflow-x: hidden !important; }
+    body.tab-open #app-container { height: auto !important; min-height: 100vh; }
     #tab-learn-panel.active, #tab-coach-panel.active,
     #tab-settings-panel.active, #tab-uploads-panel.active {
       min-height: calc(100vh - 180px);
@@ -1240,23 +1241,29 @@
 <div id="particles"></div>
 <div id="countdown-overlay">READY</div>
 
-<!-- ── LOOP MODE VIEW ─────────────────────────────────────────────────────── -->
+<!-- ── LOOP MODE VIEW — draggable, minimizable ────────────────────────────── -->
 <div id="loop-mode-view">
-  <div id="lmv-close" title="Exit loop mode" onclick="if(typeof clearLoop==='function')clearLoop()">✕</div>
-  <div id="lmv-chord">—</div>
-  <div id="lmv-chord-label">CHORD</div>
-  <div id="lmv-ring-wrap">
-    <svg id="lmv-ring-svg" width="80" height="80" viewBox="0 0 80 80">
-      <circle id="lmv-ring-track" cx="40" cy="40" r="34"/>
-      <circle id="lmv-ring-arc"   cx="40" cy="40" r="34"
-              stroke-dasharray="213.6" stroke-dashoffset="0"/>
-    </svg>
-    <div id="lmv-ring-label">LOOP</div>
+  <div id="lmv-drag-bar" title="Drag to move">
+    <span style="font-family:'Orbitron',sans-serif;font-size:0.52rem;color:rgba(165,180,252,0.6);letter-spacing:1px;">⟳ LOOP</span>
+    <span style="display:flex;gap:6px;">
+      <span id="lmv-minimize" title="Minimize" style="width:22px;height:22px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.35);border-radius:50%;color:#a5b4fc;font-size:14px;line-height:22px;text-align:center;cursor:pointer;">−</span>
+      <span id="lmv-close" title="Exit loop mode" onclick="if(typeof clearLoop==='function')clearLoop()" style="width:22px;height:22px;background:rgba(99,102,241,0.15);border:1px solid rgba(99,102,241,0.35);border-radius:50%;color:#a5b4fc;font-size:14px;line-height:22px;text-align:center;cursor:pointer;">✕</span>
+    </span>
   </div>
-  <div id="lmv-status">PLAYING</div>
-  <div id="lmv-pips">
-    <div class="lmv-pip" id="lmv-pip-1">1</div>
-    <div class="lmv-pip" id="lmv-pip-2">2</div>
+  <div id="lmv-body">
+    <div id="lmv-ring-wrap">
+      <svg id="lmv-ring-svg" width="80" height="80" viewBox="0 0 80 80">
+        <circle id="lmv-ring-track" cx="40" cy="40" r="34"/>
+        <circle id="lmv-ring-arc"   cx="40" cy="40" r="34"
+                stroke-dasharray="213.6" stroke-dashoffset="0"/>
+      </svg>
+      <div id="lmv-ring-label">LOOP</div>
+    </div>
+    <div id="lmv-status">PLAYING</div>
+    <div id="lmv-pips">
+      <div class="lmv-pip" id="lmv-pip-1">1</div>
+      <div class="lmv-pip" id="lmv-pip-2">2</div>
+    </div>
   </div>
 </div>
 
@@ -1554,12 +1561,13 @@
           <div class="slider-container"><div class="slider-header"><span class="slider-label">VOLUME OUT</span><span id="val-track-vol" class="slider-val">100%</span></div><input type="range" id="slider-track-vol" min="0" max="1" step="0.05" value="1" /></div>
           <div class="slider-container"><div class="slider-header"><span class="slider-label">STEP UP<span id="step-quota" style="font-size:0.5rem; color:var(--dim); font-weight:400;"></span></span><span id="val-step-inc" class="slider-val">0%</span></div><input type="range" id="slider-step-inc" min="0" max="20" step="1" value="0" /></div>
           <div class="slider-container"><div class="slider-header"><span class="slider-label">GAP DELAY</span><span id="val-gap" class="slider-val">0.0s</span></div><input type="range" id="slider-gap" min="0" max="10" step="0.5" value="0" /></div>
+          <div class="slider-container"><div class="slider-header"><span class="slider-label">START DELAY</span><span id="val-start-delay" class="slider-val">0.0s</span></div><input type="range" id="slider-start-delay" min="0" max="10" step="0.5" value="0" /></div>
         </div>
         <div class="transport">
           <div class="transport-left">
             <button class="btn accent" id="btn-play">▶ PLAY</button>
             <button class="btn" id="btn-stop">■ STOP</button>
-            <button class="btn accent" id="btn-toggle-loop">⟳ LOOP ON</button>
+            <button class="btn" id="btn-toggle-loop">⟳ LOOP OFF</button>
             <button class="btn" id="btn-clear-loop" title="Clear loop points and exit loop mode [ ESC ]" style="color:#f87171; border-color:rgba(248,113,113,0.5); padding:6px 8px; font-size:0.6rem;">✕ CLEAR</button>
             <button class="btn" id="btn-set-a">◀ IN</button>
             <div style="display:flex; align-items:center; gap:4px; margin: 0 4px;">
@@ -2088,7 +2096,7 @@ setInterval(() => {
 }, 120000);
 
 let ws = null, regionsPlugin = null, activeRegion = null;
-let isVideoMediaMode = false; let loopModeActive = true; let isGapDelayPeriod = false;
+let isVideoMediaMode = false; let loopModeActive = false; let isGapDelayPeriod = false;
 // Loop Mode View state
 let lmvLoopPass = 0, lmvGapRAF = null, lmvGapStartTs = 0, lmvGapDurSec = 0;
 let savedLoops = JSON.parse(localStorage.getItem('cosmicSavedLoopsMaster')) || [];
@@ -2916,6 +2924,7 @@ document.getElementById('matrix-engine-switch').addEventListener('click', () => 
 
 document.getElementById('slider-track-vol').addEventListener('input', (e) => { const v = parseFloat(e.target.value); document.getElementById('val-track-vol').innerText = Math.round(v * 100) + '%'; if (window.StemMixer && StemMixer.isReady()) { StemMixer.setMaster(v); } else if (ws) { ws.setVolume(v); } if (vNode) vNode.volume = v; });
 document.getElementById('slider-gap').addEventListener('input', (e) => { document.getElementById('val-gap').innerText = parseFloat(e.target.value).toFixed(1) + 's'; });
+document.getElementById('slider-start-delay').addEventListener('input', (e) => { document.getElementById('val-start-delay').innerText = parseFloat(e.target.value).toFixed(1) + 's'; });
 document.getElementById('slider-step-inc').addEventListener('input', (e) => { document.getElementById('val-step-inc').innerText = e.target.value + '%'; });
 // Step-Up daily quota gate: engaging the trainer on a NEW song counts against the daily song cap.
 document.getElementById('slider-step-inc').addEventListener('change', (e) => {
@@ -3153,11 +3162,16 @@ async function initMediaPipeline(file) {
     document.getElementById('scrubber').max = ws.getDuration(); 
     if(ws.media) ws.media.preservesPitch = true;
     wireSharedAudio();
-    activeRegion = regionsPlugin.addRegion({ start: 0, end: ws.getDuration() * 0.4, color: 'rgba(147, 51, 234, 0.06)', drag: true, resize: true });
-    if (window.__pendingLoop) {   // a saved loop asked to load its linked song → apply its region now
+    // Don't auto-create a loop region — only create one if a saved loop is being restored,
+    // or when the user explicitly presses IN/OUT. This way no loop is active by default.
+    activeRegion = null;
+    if (window.__pendingLoop) {
       const pl = window.__pendingLoop; window.__pendingLoop = null;
       const dur = ws.getDuration();
-      activeRegion.setOptions({ start: Math.min(pl.start, dur), end: Math.min(pl.end, dur) });
+      activeRegion = regionsPlugin.addRegion({ start: Math.min(pl.start, dur), end: Math.min(pl.end, dur), color: 'rgba(147, 51, 234, 0.06)', drag: true, resize: true });
+      loopModeActive = true;
+      const btnTL = document.getElementById('btn-toggle-loop');
+      if (btnTL) { btnTL.className = 'btn accent'; btnTL.innerText = '⟳ LOOP ON'; }
       try { ws.setTime(Math.min(pl.start, dur)); } catch (e) {}
       setTimeout(updateLbls, 0);
     }
@@ -3305,7 +3319,25 @@ document.getElementById('btn-play').addEventListener('click', () => {
   if (!ws) return;
   if (ws.isPlaying()) { ws.pause(); return; }
   const startPlay = () => { ws.play(); setTimeout(updateTempo, 10); };
-  if (window.countInOn) doCountIn(startPlay); else startPlay();
+  if (window.countInOn) { doCountIn(startPlay); return; }
+  // Apply start delay if set — count down before starting (same mechanic as gap delay between loops)
+  const startDelay = parseFloat((document.getElementById('slider-start-delay') || {}).value || 0);
+  if (startDelay > 0) {
+    isGapDelayPeriod = true;
+    lmvGapStartTs = performance.now() / 1000;
+    lmvGapDurSec = startDelay;
+    if (loopModeActive && activeRegion) lmvShowView();
+    if (lmvGapRAF) cancelAnimationFrame(lmvGapRAF);
+    const gapTick = () => {
+      const elapsed = (performance.now() / 1000) - lmvGapStartTs;
+      if (loopModeActive && activeRegion) lmvUpdateView(undefined, true);
+      if (elapsed < lmvGapDurSec) { lmvGapRAF = requestAnimationFrame(gapTick); }
+      else { lmvGapRAF = null; lmvGapDurSec = 0; isGapDelayPeriod = false; startPlay(); }
+    };
+    lmvGapRAF = requestAnimationFrame(gapTick);
+  } else {
+    startPlay();
+  }
 });
 document.getElementById('btn-stop').addEventListener('click', () => {
   if (playSource === 'youtube') { if (ytPlayer) { try { ytPlayer.pauseVideo(); ytPlayer.seekTo(0, true); } catch (e) {} } return; }
@@ -3338,12 +3370,36 @@ function snapToBar(t) {
 document.getElementById('btn-set-a').addEventListener('click', () => {
   if (playSource === 'youtube') { if (ytPlayer && ytPlayer.getCurrentTime) { ytLoopA = snapToBar(ytPlayer.getCurrentTime() || 0); const e = document.getElementById('lbl-a'); if (e) e.textContent = fmt(ytLoopA); if (ytLoopB > ytLoopA) ytLoopOn = true; } return; }
   if (playSource === 'spotify') { spLoopA = playTime(); const e = document.getElementById('lbl-a'); if (e) e.textContent = fmt(spLoopA); if (spLoopB > spLoopA) spLoopOn = true; _redrawSpotifyLoopRegion(); return; }
-  if(ws&&activeRegion){ const s=snapToBar(ws.getCurrentTime()); if(s<activeRegion.end){ activeRegion.setOptions({start:s}); updateLbls(); lmvShowView(); } }
+  if (ws) {
+    const s = snapToBar(ws.getCurrentTime());
+    if (!activeRegion) {
+      const dur = ws.getDuration();
+      activeRegion = regionsPlugin.addRegion({ start: s, end: Math.min(s + 30, dur), color: 'rgba(147, 51, 234, 0.06)', drag: true, resize: true });
+      loopModeActive = true;
+      const btnTL = document.getElementById('btn-toggle-loop');
+      if (btnTL) { btnTL.className = 'btn accent'; btnTL.innerText = '⟳ LOOP ON'; }
+    } else if (s < activeRegion.end) {
+      activeRegion.setOptions({ start: s });
+    }
+    updateLbls(); lmvShowView();
+  }
 });
 document.getElementById('btn-set-b').addEventListener('click', () => {
   if (playSource === 'youtube') { if (ytPlayer && ytPlayer.getCurrentTime) { ytLoopB = snapToBar(ytPlayer.getCurrentTime() || 0); const e = document.getElementById('lbl-b'); if (e) e.textContent = fmt(ytLoopB); if (ytLoopB > ytLoopA) ytLoopOn = true; } return; }
   if (playSource === 'spotify') { spLoopB = playTime(); const e = document.getElementById('lbl-b'); if (e) e.textContent = fmt(spLoopB); if (spLoopB > spLoopA) spLoopOn = true; _redrawSpotifyLoopRegion(); return; }
-  if(ws&&activeRegion){ const e=snapToBar(ws.getCurrentTime()); if(e>activeRegion.start){ activeRegion.setOptions({end:e}); updateLbls(); lmvShowView(); } }
+  if (ws) {
+    const e = snapToBar(ws.getCurrentTime());
+    if (!activeRegion) {
+      const dur = ws.getDuration();
+      activeRegion = regionsPlugin.addRegion({ start: Math.max(0, e - 30), end: e, color: 'rgba(147, 51, 234, 0.06)', drag: true, resize: true });
+      loopModeActive = true;
+      const btnTL = document.getElementById('btn-toggle-loop');
+      if (btnTL) { btnTL.className = 'btn accent'; btnTL.innerText = '⟳ LOOP ON'; }
+    } else if (e > activeRegion.start) {
+      activeRegion.setOptions({ end: e });
+    }
+    updateLbls(); lmvShowView();
+  }
 });
 (function(){ const b=document.getElementById('btn-snap-bars'); if(!b) return; const paint=()=>{ b.textContent = window.quantizeLoops ? '⧉ SNAP: BARS' : '⧉ SNAP: OFF'; b.className = window.quantizeLoops ? 'btn accent' : 'btn'; }; paint(); b.addEventListener('click', ()=>{ window.quantizeLoops = !window.quantizeLoops; localStorage.setItem('looperQuantize', window.quantizeLoops ? '1' : '0'); paint(); }); })();
 
@@ -3357,11 +3413,12 @@ btnToggleLoop.addEventListener('click', () => {
 
 // Clear loop: resets all loop state for both audio and YouTube modes
 function clearLoop() {
-  // Audio (WaveSurfer) mode
-  if (ws && activeRegion) {
-    const dur = ws.getDuration() || 0;
-    activeRegion.setOptions({ start: 0, end: dur });
-    updateLbls();
+  // Audio (WaveSurfer) mode — fully remove the region
+  if (activeRegion) {
+    try { activeRegion.remove(); } catch(e) {}
+    activeRegion = null;
+    const la = document.getElementById('lbl-a'), lb = document.getElementById('lbl-b');
+    if (la) la.textContent = '—'; if (lb) lb.textContent = '—';
   }
   // Spotify mode
   spLoopOn = false; spLoopA = 0; spLoopB = 0;
@@ -6101,40 +6158,41 @@ function switchAppTab(name) {
   });
 
   const dash = document.getElementById('main-dashboard');
-  const dashVisible = dash && dash.style.display !== 'none';
+  // === FIX: must be === 'grid', not !== 'none'. If style is '' (empty/cleared),
+  // !== 'none' returns true (bug) and routes to sidebar branch, showing nothing.
+  const dashVisible = dash && dash.style.display === 'grid';
 
   if (dashVisible) {
-    // Song is loaded — use sidebar view system, keep left panel (waveform/transport) always visible
+    // Song is loaded — use sidebar + waveform layout
+    document.body.classList.remove('tab-open');
     const playPanel = document.getElementById('tab-play-panel');
-    // Hide all full-page panels
-    APP_TABS.forEach(t => { const p = document.getElementById('tab-' + t + '-panel'); if (p) p.classList.remove('active'); });
+    // Hide all full-page panels explicitly (inline display:none beats any CSS rule)
+    APP_TABS.forEach(t => {
+      const p = document.getElementById('tab-' + t + '-panel');
+      if (p) { p.classList.remove('active'); p.style.display = 'none'; }
+    });
     if (name === 'uploads') {
-      // My Stuff: show full-page uploads panel, hide the dashboard temporarily
       const up = document.getElementById('tab-uploads-panel');
-      if (up) up.classList.add('active');
+      if (up) { up.classList.add('active'); up.style.display = 'flex'; }
       refreshMyStuff();
     } else {
-      // All other tabs: keep play panel + sidebar visible
-      if (playPanel) playPanel.classList.add('active');
-      // Route to sidebar
-      if (name === 'play') {
-        setSidebarView('stage');
-      } else {
-        setSidebarView(name);
-      }
+      if (playPanel) { playPanel.classList.add('active'); playPanel.style.display = 'flex'; }
+      if (name === 'play') setSidebarView('stage');
+      else setSidebarView(name);
     }
   } else {
-    // No song loaded — full-page panel switch
+    // No song loaded — full-page tab switch.
+    // body.tab-open lets body scroll and unlocks height:100vh so panels are visible.
+    document.body.classList.toggle('tab-open', name !== 'play');
     APP_TABS.forEach(t => {
       const panel = document.getElementById('tab-' + t + '-panel');
       if (!panel) return;
       const isActive = (t === name);
       panel.classList.toggle('active', isActive);
-      // Belt-and-suspenders: also set display directly so no CSS specificity fight
-      panel.style.display = isActive ? 'flex' : '';
+      // Use explicit 'none' (not ''), so no CSS cascade ambiguity on any browser/screen.
+      panel.style.display = isActive ? 'flex' : 'none';
     });
     if (name === 'learn') refreshLearnTab();
-    if (name === 'coach') { /* coach is self-contained, just show it */ }
     if (name === 'settings') refreshSettingsTab();
     if (name === 'uploads') { if (typeof refreshMyStuff === 'function') refreshMyStuff(); }
   }
