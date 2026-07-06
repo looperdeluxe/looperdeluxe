@@ -3188,8 +3188,40 @@ document.getElementById('file-input').addEventListener('change', (e) => { if(e.t
 // ===== AUTO-CHORDS for streaming songs (Spotify/YouTube) — analyze the song's audio once, cache forever. =====
 // Spotify audio is DRM-locked, so we fetch a non-DRM YouTube copy from the engine, decode it in-browser
 // (without touching the Spotify player), analyze it with analyzeViaWorker, then cache on engine for everyone.
+// ===== TIER-1 CHORD LIBRARY (2026-07-06): pre-analyzed chords keyed by artist+title on the engine.
+// Built by the preview batch + every user's first analysis. Instant, free, no audio needed.
+async function fetchLibraryChords(trackName, artistName) {
+  if (!LOOPER_API || !trackName) return null;
+  try {
+    const r = await fetch(LOOPER_API + '/chords?artist=' + encodeURIComponent(artistName || '') +
+                          '&title=' + encodeURIComponent(trackName));
+    if (!r.ok) return null;
+    const lib = await r.json();
+    if (!lib || !lib.chords || lib.chords.length < 4) return null;
+    return {
+      ticks: lib.chords.map(c => c.t),
+      chords: lib.chords.map(c => ({ t: c.t, name: c.n, conf: lib.flagged ? 0.5 : 0.9 })),
+      bpm: lib.bpm || 120, confidence: lib.flagged ? 0.5 : 0.9,
+      partial: !!lib.partial, flagged: !!lib.flagged
+    };
+  } catch (e) { return null; }
+}
+
 async function getChordsViaYouTube(trackName, artistName, st, btn) {
   const q = artistName ? trackName + ' ' + artistName : trackName;
+  // 0) LIBRARY FIRST — instant, free, already analyzed for everyone (tier-1)
+  try {
+    const lib = await fetchLibraryChords(trackName, artistName);
+    if (lib) {
+      applyMap(lib); window.__stageDirty = true;
+      if (st) st.textContent = lib.flagged ? '\u26a1 Chords loaded (unverified \u2014 play it once to confirm)'
+                              : (lib.partial ? '\u26a1 Chords loaded from library (verified to preview)'
+                                             : '\u2705 Chords loaded from library');
+      if (btn) btn.disabled = false;
+      return;
+    }
+  } catch (e) {}
+
   if (!LOOPER_API) { if (st) st.textContent = '⚠ Engine not connected — try again later.'; return; }
   // 1) Search YouTube via engine
   if (st) st.textContent = '🔍 Finding ' + trackName + ' on YouTube…';
