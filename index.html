@@ -3214,8 +3214,8 @@ async function fetchLibraryChords(trackName, artistName) {
       lib.sections.forEach(sec => {
         if (sec.chords && sec.chords.length) {
           const cf = sec.chordSource === 'detected' ? 0.9 : 0.7;
-          sec.chords.forEach(c => { const t = sec.s + c.t; if (t < sec.e + 1) rows.push({ t: t, name: c.n, conf: cf }); });
-          rows.push({ t: sec.e, name: 'N.C.', conf: 0.3 });
+          sec.chords.forEach(c => { const t = sec.s + c.t; if (t < sec.e + 1) rows.push({ t: t, time: t, name: c.n, conf: cf }); });
+          rows.push({ t: sec.e, time: sec.e, name: 'N.C.', conf: 0.3 });
         }
       });
       rows.sort((a, b) => a.t - b.t);
@@ -3225,7 +3225,7 @@ async function fetchLibraryChords(trackName, artistName) {
     if (!rows) {
       // anchored entries know where the preview sits in the song — place the chords THERE, not at 0:00
       const off = (typeof lib.previewStart === 'number') ? lib.previewStart : 0;
-      rows = lib.chords.map(c => ({ t: c.t + off, name: c.n, conf: lib.flagged ? 0.5 : 0.9 }));
+      rows = lib.chords.map(c => ({ t: c.t + off, time: c.t + off, name: c.n, conf: lib.flagged ? 0.5 : 0.9 }));
     }
     return {
       ticks: rows.map(c => c.t),
