@@ -6100,6 +6100,13 @@ function ytPlayVideo(id) {
     else pl.style.cssText = 'position:fixed; left:-9999px; top:0; width:320px; height:180px;';   // AUDIO mode: play hidden, the scrubber shows position (no video box)
   }
   const box = document.getElementById('yt-results'); if (box) box.style.display = 'none';
+  // MODE FIX (Brooks 2026-07-06): analyzing audio set playSource='file' and NOTHING set it back,
+  // so after any analysis the yt clock loop bailed forever — frozen chords/lyrics/scrubber on
+  // every later song. Playing a YouTube song must claim streaming mode + reset per-song state.
+  playSource = 'youtube';
+  window.__scrubHold = 0;
+  window.lyricData = []; window.lastActiveLyric = -1;
+  const _lc = document.getElementById('lyrics-container'); if (_lc) _lc.innerHTML = '';
   loadYouTubeAPI(() => {
     if (!ytPlayer) {
       ytPlayer = new YT.Player('yt-player', {
@@ -6367,6 +6374,12 @@ function startYouTubeLoop() {
     _ytEndFired = false;
     if (ytLoopOn && ytLoopB > ytLoopA && t >= ytLoopB) { ytPlayer.seekTo(ytLoopA, true); }
     window.__stageDirty = true; try { renderStage(t); } catch (e) {}
+    // lyric highlight follows the YOUTUBE clock (this only existed in the file-mode loop — Brooks 2026-07-06)
+    if (window.lyricData && window.lyricData.length) {
+      let li = -1; const lo = window.lyricOffset || 0;
+      for (let i = 0; i < window.lyricData.length; i++) { if (t >= window.lyricData[i].time + lo - 0.2) li = i; else break; }
+      if (li !== -1 && li !== window.lastActiveLyric) { try { manualLyricSync(li); } catch (e) {} }
+    }
     // Drive Loop Mode View for YouTube loops
     if (ytLoopOn && ytLoopB > ytLoopA) { lmvShowView(); try { lmvUpdateView(t, false); } catch(e) {} }
     else if (playSource === 'youtube') { lmvHideView(); }
