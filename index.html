@@ -1733,7 +1733,7 @@
               </div>
               <div style="font-size:0.65rem; color:var(--cyan); font-family:'Orbitron',sans-serif;">IN: <span id="yt-a" style="color:#fff;">0:00</span> &nbsp;|&nbsp; OUT: <span id="yt-b" style="color:#fff;">END</span></div>
               <div style="font-size:0.58rem; color:var(--dim); line-height:1.5;"><b style="color:var(--cyan);">AUDIO SYSTEM</b> → loads the song as a waveform (auto-chords/BPM/loop). <b style="color:#ff4b4b;">VIDEO STUDIO</b> → plays the video. Toggle up top.</div>
-              <button id="btn-capture-yt-audio" onclick="captureYouTubeAsWaveform()" style="display:none; margin-top:8px; padding:8px 14px; font-size:0.62rem; font-family:'Orbitron',sans-serif; font-weight:700; background:linear-gradient(135deg,#15803d,#166534); border:1px solid #4ade80; border-radius:8px; color:#4ade80; cursor:pointer; width:100%; text-align:center;" title="Capture this tab's audio → auto-chords + waveform in ~90s">⬇️ ANALYZE AUDIO — auto-chords + waveform</button>
+              <button id="btn-capture-yt-audio" onclick="captureYouTubeAsWaveform()" style="display:none; margin-top:8px; padding:8px 14px; font-size:0.62rem; font-family:'Orbitron',sans-serif; font-weight:700; background:linear-gradient(135deg,#15803d,#166534); border:1px solid #4ade80; border-radius:8px; color:#4ade80; cursor:pointer; width:100%; text-align:center;" title="Capture this tab's audio → scrubbable waveform for looping (~90s). For chords use GET CHORDS.">🌊 BUILD WAVEFORM — capture tab audio</button>
               <div id="yt-capture-status" style="display:none; font-size:0.6rem; color:var(--dim); margin-top:5px; line-height:1.5;"></div>
             </div>
           </div>
@@ -1880,7 +1880,9 @@
     <button id="btn-getchords" onclick="getStreamingChords()" title="Get auto-detected chords for the playing Spotify/YouTube song (analyzes it once, then cached for everyone)" style="font-size:0.52rem; background:rgba(34,197,94,0.18); border:1px solid rgba(34,197,94,0.6); border-radius:5px; color:#4ade80; padding:3px 7px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap; flex-shrink:0;">🎸 GET CHORDS</button>
     <button id="btn-versions" onclick="loadCommunityVersions()" title="See player-submitted chord versions for this song" style="font-size:0.52rem; background:rgba(99,102,241,0.18); border:1px solid rgba(129,140,248,0.6); border-radius:5px; color:#a5b4fc; padding:3px 6px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap; flex-shrink:0;">👥 VERSIONS</button>
     <button id="btn-publish-version" onclick="publishMyVersion()" title="Publish the chords currently on screen as YOUR version for others to use and rate" style="font-size:0.52rem; background:rgba(236,72,153,0.16); border:1px solid rgba(244,114,182,0.55); border-radius:5px; color:#f9a8d4; padding:3px 6px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap; flex-shrink:0;">📤 PUBLISH</button>
-    <button id="btn-verify-chords" onclick="verifyChords()" title="Elite: run a server-side neural network chord analysis — ~90% accuracy, cached for everyone" style="font-size:0.52rem; background:rgba(34,197,94,0.12); border:1px solid rgba(34,197,94,0.45); border-radius:5px; color:#86efac; padding:3px 5px; cursor:pointer; font-family:'Orbitron',sans-serif; white-space:nowrap; flex-shrink:0;">🔬 VERIFY <span style="font-size:0.4rem; color:#fbbf24; border:1px solid rgba(251,191,36,0.5); border-radius:5px; padding:0 3px; margin-left:1px;">★ ELITE</span></button>
+<!-- VERIFY★ELITE removed 2026-07-06: its audio-pull path died with the yt-dlp removal (engine
+     /audio = 410) so it errored on every streaming song; server-side verification now happens
+     through the play-through pipeline instead. GET CHORDS is the one chords button. -->
   </div>
   <span id="chordget-status" style="font-size:0.5rem; color:var(--dim); white-space:normal; word-break:break-word; line-height:1.4; min-height:14px;"></span>
 </div>
@@ -5408,7 +5410,7 @@ async function publishMyVersion() {
     if (j.ok) {
       // Track in localStorage so user can delete it from My Stuff tab
       const mine = JSON.parse(localStorage.getItem('looperMyVersions') || '[]');
-      mine.push({ id: j.id, label: label, songKey: info.key, songTitle: info.title });
+      mine.push({ id: j.id, okey: j.okey || '', label: label, songKey: info.key, songTitle: info.title });
       localStorage.setItem('looperMyVersions', JSON.stringify(mine));
       if (st) st.textContent = '✅ Published "'+label+'"! Others can now use & rate it. (View in MY STUFF tab)';
       loadCommunityVersions();
@@ -6177,13 +6179,13 @@ function _showYtCaptureGuide() {
       'border:1px solid #4ade80','border-radius:8px',
       'color:#4ade80','cursor:pointer','width:100%','text-align:center'
     ].join(';');
-    wrap.textContent = '⬇️ ANALYZE AUDIO — auto-chords + waveform';
+    wrap.textContent = '🌊 BUILD WAVEFORM — capture tab audio';
     wrap.onclick = captureYouTubeAsWaveform;
   }
   if (st) {
     st.style.display = 'block';
     st.style.cssText = 'display:block;margin-top:5px;font-size:0.6rem;color:#9ca3af;line-height:1.5;';
-    st.innerHTML = '🎵 Your song is loading. Click <b style="color:#4ade80;">ANALYZE AUDIO</b> above → pick <b>"This Tab"</b> in Chrome → Looper auto-captures ~90s and loads everything.';
+    st.innerHTML = '🎵 Your song is loading. <b style="color:#4ade80;">🎸 GET CHORDS</b> (top bar) shows the chords. Want a scrubbable waveform to loop sections? Click <b style="color:#4ade80;">BUILD WAVEFORM</b> above → pick <b>"This Tab"</b> in Chrome.';
   }
 }
 
@@ -7014,7 +7016,7 @@ function renderScaleExplorer() {
 
 function scaleExplorerFromSong() {
   const key = window.songKey || localStorage.getItem('looperLastKey') || '';
-  if (!key) { alert('Load a song first — VERIFY or GET CHORDS to detect the key.'); return; }
+  if (!key) { alert('Load a song first — GET CHORDS detects the key.'); return; }
   const rootSel = document.getElementById('scale-root');
   if (rootSel && SCALE_NOTES.includes(key)) rootSel.value = key;
   renderScaleExplorer();
@@ -7190,7 +7192,10 @@ async function deleteMyVersion(id) {
   if (!LOOPER_API) return;
   if (!confirm('Delete this version? It will be removed for everyone.')) return;
   try {
-    await fetch(LOOPER_API + '/version?id=' + encodeURIComponent(id), { method: 'DELETE' });
+    // owner key proves it's YOUR version (engine requires it since the 2026-07-06 hardening)
+    const rec = (JSON.parse(localStorage.getItem('looperMyVersions') || '[]')).find(v => v.id === id);
+    await fetch(LOOPER_API + '/version?id=' + encodeURIComponent(id)
+                + (rec && rec.okey ? '&okey=' + encodeURIComponent(rec.okey) : ''), { method: 'DELETE' });
   } catch(e) {}
   // Remove from localStorage regardless
   const mine = JSON.parse(localStorage.getItem('looperMyVersions') || '[]');
