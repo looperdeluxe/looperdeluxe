@@ -3280,6 +3280,13 @@ async function getChordsViaYouTube(trackName, artistName, st, btn) {
     }
   } catch (e) {}
 
+  // Audio download was removed 2026-07-06 (legal cleanup) — a library miss is now an honest miss,
+  // not a doomed crawl through a dead endpoint ("YouTube 500" confusion, Brooks's Spotify test).
+  if (st) st.textContent = '📚 Not in the chord library yet — it gets analyzed within a day of being requested. Tap-along + manual chords still work now.';
+  if (btn) btn.disabled = false;
+  try { fetch(LOOPER_API + '/request_chart?artist=' + encodeURIComponent(artistName || '') + '&title=' + encodeURIComponent(trackName)).catch(()=>{}); } catch (e) {}
+  return;
+  // dead path below (unreachable) — retained for reference until the mic analyzer replaces it
   if (!LOOPER_API) { if (st) st.textContent = '⚠ Engine not connected — try again later.'; return; }
   // 1) Search YouTube via engine
   if (st) st.textContent = '🔍 Finding ' + trackName + ' on YouTube…';
@@ -3365,8 +3372,14 @@ async function getStreamingChords() {
     await getChordsViaYouTube(tName, aName, st, btn);
     return;
   }
-  // 2) YouTube fast path: pull audio from engine and analyze directly (no screen-capture popup needed)
+  // 2) YouTube: audio download removed 2026-07-06 (legal cleanup) — honest miss + auto-request.
   if (window.__ytVideoId && LOOPER_API) {
+    if (st) st.textContent = '📚 Not in the chord library yet — requested; it gets analyzed within a day.';
+    if (btn) btn.disabled = false;
+    try { fetch(LOOPER_API + '/request_chart?artist=' + encodeURIComponent(info.artist || '') + '&title=' + encodeURIComponent(info.title || window.__ytTitle || '')).catch(()=>{}); } catch (e) {}
+    return;
+  }
+  if (false && window.__ytVideoId && LOOPER_API) {   // dead path — mic analyzer replaces it
     // If waveform isn't loaded yet, auto-download it first
     if (!ws || !ws.getDecodedData || !ws.getDecodedData()) {
       if (st) st.textContent = '⏳ Loading YouTube audio for analysis (~10s)…';
