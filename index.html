@@ -41,7 +41,7 @@
       --violet: #7c3aed;
       --neon-p: #d8b4fe;
       --text: #f3e8ff;
-      --dim: #a78bfa;
+      --dim: #b9aaf9;
       --radius: 8px;
     }
 
@@ -74,11 +74,15 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-wrap: wrap;          /* half-width windows: wrap instead of pushing buttons off-screen (review 2026-07-06) */
+      row-gap: 8px;
       flex-shrink: 0;
       border-bottom: 2px solid rgba(147, 51, 234, 0.3);
       padding-bottom: 12px;
       z-index: 20;
     }
+    /* grid children default to min-width:auto and force horizontal page overflow at mid widths */
+    .workspace-left, .workspace-right { min-width: 0; }
 
     header h1 {
       font-family: 'Orbitron', sans-serif;
@@ -1463,6 +1467,7 @@
       <span id="spotify-status" style="font-size:0.55rem; color:var(--dim);"></span>
     </div>
     <span id="header-tier-badge" onclick="switchAppTab('settings')" title="Your current plan — click to manage" style="margin-left:auto; font-family:'Orbitron',sans-serif; font-size:0.52rem; padding:3px 10px; border-radius:10px; background:rgba(163,230,53,0.07); border:1px solid rgba(163,230,53,0.35); color:#a3e635; cursor:pointer; white-space:nowrap; flex-shrink:0;">🔓 FREE</span>
+    <a href="/terms.html" title="Personal practice tool — how we handle music & data" style="font-size:0.5rem; color:#8b80b3; text-decoration:none; white-space:nowrap; flex-shrink:0; margin-left:8px; align-self:center;">personal practice tool · terms</a>
   </header>
 
   <div id="app-tab-bar">
