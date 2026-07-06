@@ -14,3 +14,4 @@ stem-engine/demucs_free.js
 stem-engine/demucs-ggml-worker.js
 stem-engine/WavFileEncoder.js
 stem-engine/*.bin
+.config/
