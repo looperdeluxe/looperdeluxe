@@ -3243,7 +3243,8 @@ async function fetchLibraryChords(trackName, artistName) {
 // only drove the file-mode player). One seek for every source.
 function seekSong(t) {
   t = Math.max(0, t || 0);
-  if (playSource === 'youtube' && typeof ytPlayer !== 'undefined' && ytPlayer && ytPlayer.seekTo) { ytPlayer.seekTo(t, true); return; }
+  // callers pass SONG time (chord/lyric clicks); convert to this video's clock
+  if (playSource === 'youtube' && typeof ytPlayer !== 'undefined' && ytPlayer && ytPlayer.seekTo) { ytPlayer.seekTo(Math.max(0, t - (window.__videoSongOffset || 0)), true); return; }
   if (playSource === 'spotify') { try { spotifyControl('seek', Math.round(t * 1000)); } catch (e) {} return; }
   if (ws) ws.setTime(t);
 }
@@ -6128,6 +6129,14 @@ function ytPlayVideo(id) {
   window.__scrubHold = 0;
   window.lyricData = []; window.lastActiveLyric = -1;
   const _lc = document.getElementById('lyrics-container'); if (_lc) _lc.innerHTML = '';
+  // PER-VIDEO SYNC (2026-07-06): a music video's intro delays the whole song vs the studio
+  // recording our chords/lyrics are timed to. If any listener ever aligned THIS video, the
+  // engine knows its delay — apply it so chords+lyrics sync instantly. songTime = videoTime + offset.
+  window.__videoSongOffset = 0;
+  if (LOOPER_API) fetch(LOOPER_API + '/video_offset?vid=' + encodeURIComponent(id))
+    .then(r => r.ok ? r.json() : null)
+    .then(o => { if (o && typeof o.offset === 'number' && ytCurId === id) window.__videoSongOffset = o.offset; })
+    .catch(() => {});
   loadYouTubeAPI(() => {
     if (!ytPlayer) {
       ytPlayer = new YT.Player('yt-player', {
@@ -6245,6 +6254,29 @@ async function captureYouTubeAsWaveform() {
   const rec = new MediaRecorder(new MediaStream(aTracks));
   window.__ytCaptureRec = rec;
   rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  // PER-VIDEO SYNC (2026-07-06): while we're capturing anyway, send the first ~21s to the
+  // engine's exact matcher. One success locks THIS video's delay vs the studio recording
+  // (music-video intro vs lyric video) for every future viewer — chords+lyrics sync instantly.
+  const _alignVid = window.__ytVideoId || '';
+  const _alignVt = (ytPlayer && ytPlayer.getCurrentTime) ? (ytPlayer.getCurrentTime() || 0) : 0;
+  if (LOOPER_API && _alignVid) setTimeout(() => {
+    try {
+      if (rec.state !== 'recording' || chunks.length < 20) return;
+      const info2 = (typeof currentSongInfo === 'function') ? currentSongInfo() : null;
+      const artist2 = (info2 && info2.artist) || '', title2 = (info2 && info2.title) || window.__ytTitle || '';
+      if (!title2) return;
+      fetch(LOOPER_API + '/align?artist=' + encodeURIComponent(artist2) + '&title=' + encodeURIComponent(title2)
+            + '&vid=' + encodeURIComponent(_alignVid) + '&vt=' + _alignVt.toFixed(2),
+            { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' },
+              body: new Blob(chunks.slice(0, 22), { type: 'audio/webm' }) })
+        .then(r => r.ok ? r.json() : null)
+        .then(res => {
+          if (res && res.match && typeof res.video_offset_stored === 'number' && window.__ytVideoId === _alignVid) {
+            window.__videoSongOffset = res.video_offset_stored;
+          }
+        }).catch(() => {});
+    } catch (e) {}
+  }, 23000);
   rec.onstop = async () => {
     clearInterval(timer);
     aTracks.forEach(t => t.stop());
@@ -6285,7 +6317,7 @@ async function captureYouTubeAsWaveform() {
       if (st) { st.style.display = 'block'; st.textContent = '⚠ Could not decode: ' + (e.message || e); }
     }
   };
-  rec.start();
+  rec.start(1000);   // 1s chunks: the first ~21 form a decodable webm prefix for the sync matcher
   function stopCapture() { try { if (rec.state === 'recording') rec.stop(); } catch(e) {} }
   // Also auto-stop when YouTube video ends
   const watchEnd = setInterval(() => {
@@ -6394,11 +6426,14 @@ function startYouTubeLoop() {
     }
     _ytEndFired = false;
     if (ytLoopOn && ytLoopB > ytLoopA && t >= ytLoopB) { ytPlayer.seekTo(ytLoopA, true); }
-    window.__stageDirty = true; try { renderStage(t); } catch (e) {}
+    // chords/lyrics live at STUDIO-SONG time; this video may be delayed vs the song (music-video
+    // intro). st = the song clock; scrubber/loops stay on the raw video clock.
+    const st = t + (window.__videoSongOffset || 0);
+    window.__stageDirty = true; try { renderStage(st); } catch (e) {}
     // lyric highlight follows the YOUTUBE clock (this only existed in the file-mode loop — Brooks 2026-07-06)
     if (window.lyricData && window.lyricData.length) {
       let li = -1; const lo = window.lyricOffset || 0;
-      for (let i = 0; i < window.lyricData.length; i++) { if (t >= window.lyricData[i].time + lo - 0.2) li = i; else break; }
+      for (let i = 0; i < window.lyricData.length; i++) { if (st >= window.lyricData[i].time + lo - 0.2) li = i; else break; }
       if (li !== -1 && li !== window.lastActiveLyric) { try { manualLyricSync(li); } catch (e) {} }
     }
     // Drive Loop Mode View for YouTube loops
