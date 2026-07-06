@@ -3198,13 +3198,55 @@ async function fetchLibraryChords(trackName, artistName) {
     if (!r.ok) return null;
     const lib = await r.json();
     if (!lib || !lib.chords || lib.chords.length < 4) return null;
+    // FULL-SONG timeline (2026-07-06): entries carry an LRC section map — lay each charted
+    // section's chords at ABSOLUTE song time (detected where the preview sat, projected onto
+    // repeats). Uncharted sections end in N.C. so a wrong chord never sustains through a solo.
+    let rows = null, full = false;
+    if (Array.isArray(lib.sections) && lib.sections.some(s => s.chords && s.chords.length)) {
+      rows = [];
+      lib.sections.forEach(sec => {
+        if (sec.chords && sec.chords.length) {
+          const cf = sec.chordSource === 'detected' ? 0.9 : 0.7;
+          sec.chords.forEach(c => { const t = sec.s + c.t; if (t < sec.e + 1) rows.push({ t: t, name: c.n, conf: cf }); });
+          rows.push({ t: sec.e, name: 'N.C.', conf: 0.3 });
+        }
+      });
+      rows.sort((a, b) => a.t - b.t);
+      full = rows.length > 4;
+      if (!full) rows = null;
+    }
+    if (!rows) {
+      // anchored entries know where the preview sits in the song — place the chords THERE, not at 0:00
+      const off = (typeof lib.previewStart === 'number') ? lib.previewStart : 0;
+      rows = lib.chords.map(c => ({ t: c.t + off, name: c.n, conf: lib.flagged ? 0.5 : 0.9 }));
+    }
     return {
-      ticks: lib.chords.map(c => c.t),
-      chords: lib.chords.map(c => ({ t: c.t, name: c.n, conf: lib.flagged ? 0.5 : 0.9 })),
+      ticks: rows.map(c => c.t),
+      chords: rows,
       bpm: lib.bpm || 120, confidence: lib.flagged ? 0.5 : 0.9,
-      partial: !!lib.partial, flagged: !!lib.flagged
+      partial: !!lib.partial && !full, flagged: !!lib.flagged, fullSong: full,
+      libArtist: lib.artist || '', libTitle: lib.title || ''
     };
   } catch (e) { return null; }
+}
+
+// Auto-load tier-1 chords the moment a YouTube song starts (Brooks 2026-07-06: for library
+// songs the chords should just BE there — no button). Silent on a miss; GET CHORDS covers the rest.
+async function autoChordsFromLibrary(rawTitle) {
+  const lib = await fetchLibraryChords(rawTitle, '');
+  if (!lib) return;
+  applyMap(lib); window.__stageDirty = true;
+  const st = document.getElementById('chordget-status');
+  if (st) st.textContent = lib.fullSong ? '✅ Full-song chords loaded from library'
+                          : (lib.flagged ? '⚡ Library chords (unverified)' : '⚡ Library chords (verified to preview)');
+  // the library's canonical artist/title beat title-parsing → retry lyrics if parsing came up empty
+  if (lib.libArtist && lib.libTitle) {
+    const ai = document.getElementById('input-lyric-artist'), si = document.getElementById('input-lyric-song');
+    if (ai && si && (!ai.value || !si.value)) {
+      ai.value = lib.libArtist; si.value = lib.libTitle;
+      const b = document.getElementById('btn-fetch-lyrics'); if (b) { try { b.click(); } catch (e) {} }
+    }
+  }
 }
 
 async function getChordsViaYouTube(trackName, artistName, st, btn) {
@@ -3282,6 +3324,19 @@ async function getStreamingChords() {
   const st = document.getElementById('chordget-status'); const btn = document.getElementById('btn-getchords');
   const info = currentSongInfo();
   if (!info.ok) { if (st) st.textContent = 'Play a song first (search a Spotify/YouTube song), then get its chords.'; return; }
+  // 0) TIER-1 LIBRARY for EVERY source (2026-07-06 fix: this used to run only for Spotify, so
+  // YouTube playback never saw the pre-charted library and fell through to the dead audio path).
+  try {
+    const lib = await fetchLibraryChords(info.title || window.__ytTitle || '', info.artist);
+    if (lib) {
+      applyMap(lib); window.__stageDirty = true;
+      if (st) st.textContent = lib.fullSong ? '✅ Full-song chords loaded from library'
+                              : (lib.flagged ? '⚡ Chords loaded (unverified — play it once to confirm)'
+                                             : '⚡ Chords loaded from library (verified to preview)');
+      if (btn) btn.disabled = false;
+      return;
+    }
+  } catch (e) {}
   // 1) CACHE-FIRST: if anyone analyzed this song before, load full chords instantly.
   if (LOOPER_API) {
     try { const cr = await fetch(LOOPER_API + '/analysis?v=' + encodeURIComponent(info.key)); if (cr.ok) { const a = await cr.json(); if (a && a.ticks && a.ticks.length > 4 && a.chords) { applyMap(a); window.__stageDirty = true; if (st) st.textContent = '🔒 Full chords loaded (cached).'; return; } } } catch (e) {}
@@ -6249,6 +6304,7 @@ function ytPickResult(it) {
   }
   window.__ytTitle = it.title || '';   // remember the title so saved loops can name + relink the song
   autoLyricsFromTitle(it.title || '');  // auto-pull synced lyrics from the song title (no manual typing)
+  setTimeout(() => { try { autoChordsFromLibrary(it.title || ''); } catch (e) {} }, 600);  // tier-1 chords, no button needed
   ytPlayId(it.id);
 }
 // Parse a YouTube title ("Artist - Song (Official Video)") → fill the lyric fields + auto-fetch synced lyrics.
