@@ -3028,7 +3028,8 @@ document.getElementById('btn-fetch-lyrics').addEventListener('click', async () =
           const d = document.createElement('div');
           d.className = 'lyric-line'; 
           d.innerText = text;
-          d.onclick = () => { if(ws) ws.setTime(time); manualLyricSync(window.lyricData.length - 1); };
+          const li = window.lyricData.length - 1;
+          d.onclick = () => { seekSong(time + (window.lyricOffset || 0)); manualLyricSync(li); };
           container.appendChild(d);
         }
       }
@@ -3228,6 +3229,15 @@ async function fetchLibraryChords(trackName, artistName) {
       libArtist: lib.artist || '', libTitle: lib.title || ''
     };
   } catch (e) { return null; }
+}
+
+// UNIVERSAL SEEK (Brooks 2026-07-06: no waveform in streaming mode meant scrubber + lyric clicks
+// only drove the file-mode player). One seek for every source.
+function seekSong(t) {
+  t = Math.max(0, t || 0);
+  if (playSource === 'youtube' && typeof ytPlayer !== 'undefined' && ytPlayer && ytPlayer.seekTo) { ytPlayer.seekTo(t, true); return; }
+  if (playSource === 'spotify') { try { spotifyControl('seek', Math.round(t * 1000)); } catch (e) {} return; }
+  if (ws) ws.setTime(t);
 }
 
 // Auto-load tier-1 chords the moment a YouTube song starts (Brooks 2026-07-06: for library
@@ -3579,11 +3589,10 @@ async function initMediaPipeline(file) {
   });
 
   document.getElementById('scrubber').addEventListener('input', (e) => {
-    const v = parseFloat(e.target.value);
-    if (playSource === 'youtube') { if (ytPlayer && ytPlayer.seekTo) ytPlayer.seekTo(v, true); return; }
-    if (playSource === 'spotify') { spotifyControl('seek', v * 1000); return; }
-    if(ws) ws.setTime(v);
+    window.__scrubHold = Date.now();   // user is dragging — the RAF loop must not snap the thumb back
+    seekSong(parseFloat(e.target.value));
   });
+  document.getElementById('scrubber').addEventListener('pointerdown', () => { window.__scrubHold = Date.now(); });
   regionsPlugin.on('region-updated', (r) => { if(r === activeRegion) updateLbls(); });
   document.getElementById('slider-tempo').addEventListener('input', updateTempo);
   renderLoopBank();
@@ -6363,7 +6372,8 @@ function startYouTubeLoop() {
     else if (playSource === 'youtube') { lmvHideView(); }
     const dur = ytPlayer.getDuration ? (ytPlayer.getDuration() || 0) : 0;
     const sc = document.getElementById('scrubber'), cur = document.getElementById('scrub-current'), tot = document.getElementById('scrub-total');
-    if (sc && dur) { sc.max = dur.toFixed(2); sc.value = t.toFixed(2); }
+    // don't fight the user's finger: skip thumb updates while dragging + a grace period for the async seek
+    if (sc && dur) { sc.max = dur.toFixed(2); if (!window.__scrubHold || Date.now() - window.__scrubHold > 900) sc.value = t.toFixed(2); }
     if (cur) cur.textContent = fmt(t);
     if (tot && dur) tot.textContent = fmt(dur);
     ytRAF = requestAnimationFrame(tick);
