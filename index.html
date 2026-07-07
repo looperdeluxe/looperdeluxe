@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
   <title>LOOPER DELUXE // AUDIO & VIDEO MATRIX</title>
   
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -64,9 +64,12 @@
       position: relative;
       z-index: 10;
       height: 100vh;
+      height: 100dvh;   /* iOS Safari: 100vh hides the bottom behind the URL bar */
       display: flex;
       flex-direction: column;
       padding: 16px;
+      padding-left: max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
       gap: 14px;
     }
 
@@ -86,13 +89,15 @@
 
     header h1 {
       font-family: 'Orbitron', sans-serif;
-      font-size: 2.4rem;
+      /* adapts to any screen — was a fixed 2.4rem that clipped LOOPER DELUXE on phones/iPads */
+      font-size: clamp(1.15rem, 4.5vw, 2.4rem);
       font-weight: 900;
-      letter-spacing: 0.15em;
+      letter-spacing: clamp(0.04em, 0.8vw, 0.15em);
       margin: 0;
       display: flex;
       align-items: center;
-      gap: 12px;
+      white-space: nowrap;
+      gap: clamp(5px, 1.2vw, 12px);
     }
     
     header h1 .looper-text {
@@ -165,6 +170,19 @@
       .switch-bg-slider { width: 100px; height: 28px; }
       .switch-option { font-size: 0.58rem; letter-spacing: 0; }
       .switch-container.video-active .switch-bg-slider { left: 106px; }
+      /* Phone polish (2026-07-07): breathe, don't clip — everything stays, just fits */
+      #app-container { padding: 10px; padding-left: max(10px, env(safe-area-inset-left)); padding-right: max(10px, env(safe-area-inset-right)); gap: 10px; }
+      header { padding-bottom: 8px; row-gap: 6px; }
+      header h1 { flex-basis: 100%; justify-content: center; }
+      header > div[style*="margin-left:16px"] { margin-left: 0 !important; }
+      #header-tier-badge { margin-left: 0 !important; }
+      .app-tab-btn { min-height: 40px; font-size: 0.62rem; padding: 8px 12px; }
+      #app-tab-bar { flex-wrap: wrap; row-gap: 6px; }
+    }
+    /* iPad / mid-width: keep the logo on one line with the mode switch */
+    @media (min-width: 641px) and (max-width: 1024px) {
+      header h1 { font-size: clamp(1.3rem, 3.2vw, 2rem); }
+      header { padding-bottom: 10px; }
     }
 
     #landing-gate, .instruction-wrapper-row {
