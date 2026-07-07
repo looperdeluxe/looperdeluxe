@@ -3207,6 +3207,10 @@ async function fetchLibraryChords(trackName, artistName) {
     if (!r.ok) return null;
     const lib = await r.json();
     if (!lib || !lib.chords || lib.chords.length < 4) return null;
+    // the engine's video-song offset was polluted by previewStart — stash it so _applyVideoOffset
+    // can subtract it (whichever of chart/offset lands second triggers the correction).
+    window.__songPreviewStart = (typeof lib.previewStart === 'number') ? lib.previewStart : null;
+    if (typeof _applyVideoOffset === 'function') _applyVideoOffset();
     // FULL-SONG timeline (2026-07-06): entries carry an LRC section map — lay each charted
     // section's chords at ABSOLUTE song time (detected where the preview sat, projected onto
     // repeats). Uncharted sections end in N.C. so a wrong chord never sustains through a solo.
@@ -6135,10 +6139,10 @@ function ytPlayVideo(id) {
   // PER-VIDEO SYNC (2026-07-06): a music video's intro delays the whole song vs the studio
   // recording our chords/lyrics are timed to. If any listener ever aligned THIS video, the
   // engine knows its delay — apply it so chords+lyrics sync instantly. songTime = videoTime + offset.
-  window.__videoSongOffset = 0;
+  window.__videoSongOffset = 0; window.__videoSongOffsetRaw = 0; window.__songPreviewStart = null;
   if (LOOPER_API) fetch(LOOPER_API + '/video_offset?vid=' + encodeURIComponent(id))
     .then(r => r.ok ? r.json() : null)
-    .then(o => { if (o && typeof o.offset === 'number' && ytCurId === id) window.__videoSongOffset = o.offset; })
+    .then(o => { if (o && typeof o.offset === 'number' && ytCurId === id) { window.__videoSongOffsetRaw = o.offset; _applyVideoOffset(); } })
     .catch(() => {});
   loadYouTubeAPI(() => {
     if (!ytPlayer) {
@@ -6275,7 +6279,7 @@ async function captureYouTubeAsWaveform() {
         .then(r => r.ok ? r.json() : null)
         .then(res => {
           if (res && res.match && typeof res.video_offset_stored === 'number' && window.__ytVideoId === _alignVid) {
-            window.__videoSongOffset = res.video_offset_stored;
+            window.__videoSongOffsetRaw = res.video_offset_stored; _applyVideoOffset();
           }
         }).catch(() => {});
     } catch (e) {}
@@ -6427,6 +6431,18 @@ function renderYtSaved() {
     x.onclick = (e) => { e.stopPropagation(); localStorage.setItem('looperYtSaved', JSON.stringify(savedYt().filter(z => z.id !== s.id))); renderYtSaved(); };
     chip.appendChild(x); box.appendChild(chip);
   });
+}
+// FIX (2026-07-07): the engine stored each video's song-offset POLLUTED by previewStart — it
+// aligned the video against the 30s iTunes preview (which sits ~48s into the song, at the chorus)
+// and never subtracted where the preview sat, so ~15 songs played chords/lyrics ~48s ahead. The
+// true video-vs-song delay is the small residual once previewStart is removed. Only fires on the
+// pollution signature (raw≈previewStart and large), so a genuinely-aligned video is left untouched.
+function _applyVideoOffset() {
+  const raw = window.__videoSongOffsetRaw;
+  if (typeof raw !== 'number') return;
+  const ps = window.__songPreviewStart;
+  window.__videoSongOffset = (typeof ps === 'number' && raw > 15 && Math.abs(raw - ps) < 8)
+    ? +(raw - ps).toFixed(2) : raw;
 }
 function startYouTubeLoop() {
   stopYouTubeLoop();
