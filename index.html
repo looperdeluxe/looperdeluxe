@@ -1006,6 +1006,47 @@
       user-select: none; overflow: hidden; padding: 0;
     }
     #perf-overlay.active { display: flex; }
+    /* Speed + practice stats row — thumb-first (2026-07-07) */
+    #perf-ctrl-row {
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      width: 100%; padding: 4px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+      flex-shrink: 0;
+    }
+    #perf-speed-chips { display: flex; gap: 10px; justify-content: center; }
+    .perf-speed-chip {
+      min-width: 84px; min-height: 46px; padding: 10px 18px; border-radius: 999px;
+      font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 0.78rem;
+      color: #a5b4fc; background: rgba(99,102,241,0.10); border: 1px solid rgba(129,140,248,0.4);
+      cursor: pointer; transition: all 0.15s; touch-action: manipulation;
+    }
+    .perf-speed-chip.active {
+      color: #06121a; background: linear-gradient(135deg, var(--cyan), #67e8f9);
+      border-color: var(--cyan); box-shadow: 0 0 24px rgba(34,211,238,0.55);
+      transform: scale(1.06);
+    }
+    #perf-meta-row { display: flex; gap: 12px; justify-content: center; }
+    .perf-meta-chip {
+      font-family: 'Orbitron', sans-serif; font-weight: 700; font-size: 0.66rem;
+      padding: 7px 16px; border-radius: 999px; letter-spacing: 1px;
+      color: #c084fc; border: 1px solid rgba(192,132,252,0.4); background: rgba(147,51,234,0.12);
+    }
+    .perf-meta-chip.rep-flash {
+      animation: perfRepPop 0.6s ease;
+      color: #06121a; background: linear-gradient(135deg, #4ade80, #a3e635);
+      border-color: #4ade80; box-shadow: 0 0 26px rgba(74,222,128,0.6);
+    }
+    @keyframes perfRepPop { 0% { transform: scale(1); } 35% { transform: scale(1.25); } 100% { transform: scale(1); } }
+    #perf-curr-name.chord-pop { animation: perfChordPop 0.28s ease; }
+    @keyframes perfChordPop {
+      0% { transform: scale(1); text-shadow: 0 0 40px var(--cyan), 0 0 16px var(--cyan); }
+      40% { transform: scale(1.14); text-shadow: 0 0 70px var(--cyan), 0 0 30px #fff; }
+      100% { transform: scale(1); }
+    }
+    @media (max-width: 600px) {
+      .perf-speed-chip { min-width: 96px; min-height: 52px; font-size: 0.85rem; }
+      #perf-exit-btn { width: 44px; height: 44px; top: calc(10px + env(safe-area-inset-top, 0px)); }
+      .perf-loop-btn { min-height: 46px; }
+    }
     /* ✕ circular exit button */
     #perf-exit-btn {
       position: absolute; top: 14px; right: 14px; z-index: 10;
@@ -1423,6 +1464,18 @@
       <button class="perf-loop-btn" onclick="perfLoopIn()">◀ IN</button>
       <button class="perf-loop-btn" id="perf-btn-loop" onclick="perfLoopToggle()">⟳ LOOP</button>
       <button class="perf-loop-btn" onclick="perfLoopOut()">OUT ▶</button>
+    </div>
+  </div>
+  <!-- Speed + practice stats: the essentials, thumb-sized (2026-07-07) -->
+  <div id="perf-ctrl-row">
+    <div id="perf-speed-chips">
+      <button class="perf-speed-chip" data-rate="0.5" onclick="perfSetSpeed(0.5)">🐢 0.5×</button>
+      <button class="perf-speed-chip" data-rate="0.75" onclick="perfSetSpeed(0.75)">0.75×</button>
+      <button class="perf-speed-chip active" data-rate="1" onclick="perfSetSpeed(1)">⚡ 1×</button>
+    </div>
+    <div id="perf-meta-row">
+      <span class="perf-meta-chip" id="perf-timer">⏱ 0:00</span>
+      <span class="perf-meta-chip" id="perf-reps">🔁 0 REPS</span>
     </div>
   </div>
   <div id="perf-prog-bar"><div id="perf-prog-fill"></div></div>
@@ -4588,9 +4641,11 @@ function sizeRibbon() {
 
 // ── Loop Mode View helpers ──────────────────────────────────────────────────
 function lmvShowView() {
-  // On narrow phones, skip the floating bubble and jump straight to perf/fullscreen mode
+  // On narrow phones, skip the floating bubble and jump straight to perf/fullscreen mode.
+  // EDGE-triggered only: this runs every frame while looping, and unconditionally re-opening
+  // meant ✕ was instantly overridden — you literally couldn't leave (Brooks 2026-07-07).
   if (window.innerWidth <= 600 && loopModeActive) {
-    togglePerfMode(true);
+    if (!__perfMode && !window.__perfUserClosed) togglePerfMode(true);
     return;
   }
   const el = document.getElementById('loop-mode-view');
@@ -4600,6 +4655,7 @@ function lmvShowView() {
 function lmvHideView() {
   const el = document.getElementById('loop-mode-view');
   if (el) el.style.display = 'none';
+  window.__perfUserClosed = false;   // loop ended — next loop may auto-open fullscreen again
 }
 
 // ── PERFORMANCE / FULLSCREEN MODE ──────────────────────────────────────────
@@ -4611,6 +4667,7 @@ function togglePerfMode(on) {
   const perfBtn  = document.getElementById('btn-tab-perf');
   if (!overlay) return;
   if (__perfMode) {
+    window.__perfUserClosed = false;   // explicit open always wins
     overlay.classList.add('active');
     if (perfBtn) perfBtn.classList.add('perf-on');
     // Song title
@@ -4638,12 +4695,18 @@ function togglePerfMode(on) {
     } catch(e) {}
     // Ensure stage view active for chord updates
     if (typeof setSidebarView === 'function') setSidebarView('stage');
+    // Fresh practice session: reset timer + reps; keep the screen awake on phones
+    __perfSec = 0; __perfReps = 0; __perfPrevT = null; __perfLastWall = 0;
+    const rEl0 = document.getElementById('perf-reps'); if (rEl0) rEl0.textContent = '🔁 0 REPS';
+    try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { __perfWakeLock = l; }).catch(() => {}); } catch(e) {}
     // Render immediately so overlay isn't blank
     const t = (typeof playSource !== 'undefined' && playSource === 'file' && typeof ws !== 'undefined' && ws && ws.getCurrentTime)
       ? ws.getCurrentTime()
       : ((typeof ytPlayer !== 'undefined' && ytPlayer && ytPlayer.getCurrentTime) ? ytPlayer.getCurrentTime() : 0);
     renderPerfOverlay(t || 0);
   } else {
+    window.__perfUserClosed = true;    // respect the exit — don't auto-reopen while this loop runs
+    try { if (__perfWakeLock) { __perfWakeLock.release().catch(() => {}); __perfWakeLock = null; } } catch(e) {}
     overlay.classList.remove('active');
     if (perfBtn) perfBtn.classList.remove('perf-on');
     if (document.fullscreenElement || document.webkitFullscreenElement) {
@@ -4658,6 +4721,12 @@ document.addEventListener('fullscreenchange', () => {
 });
 document.addEventListener('webkitfullscreenchange', () => {
   if (!document.webkitFullscreenElement && __perfMode) togglePerfMode(false);
+});
+// Wake locks auto-release when the tab is backgrounded — re-grab when we come back mid-practice
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && __perfMode && !__perfWakeLock) {
+    try { if (navigator.wakeLock) navigator.wakeLock.request('screen').then(l => { __perfWakeLock = l; }).catch(() => {}); } catch(e) {}
+  }
 });
 
 function renderPerfOverlay(t) {
@@ -4798,6 +4867,53 @@ function renderPerfOverlay(t) {
   // ── Progress bar ──────────────────────────────────────────────────────────
   const fill = document.getElementById('perf-prog-fill');
   if (fill && _dur > 0) fill.style.width = Math.min(100, (t / _dur) * 100) + '%';
+
+  // ── Practice timer + rep counter (2026-07-07) ────────────────────────────
+  let playingNow = false;
+  try {
+    if (playSource === 'youtube') playingNow = !!(ytPlayer && ytPlayer.getPlayerState && ytPlayer.getPlayerState() === 1);
+    else playingNow = !!(ws && ws.isPlaying && ws.isPlaying());
+  } catch(e) {}
+  const nowMs = Date.now();
+  if (playingNow && __perfLastWall) __perfSec += Math.min(1000, nowMs - __perfLastWall) / 1000;
+  __perfLastWall = nowMs;
+  const tEl = document.getElementById('perf-timer');
+  if (tEl) {
+    const mm = Math.floor(__perfSec / 60), ss = ('0' + Math.floor(__perfSec % 60)).slice(-2);
+    const want = '⏱ ' + mm + ':' + ss;
+    if (tEl.textContent !== want) tEl.textContent = want;
+  }
+  // a rep = the playhead snapping back while a loop is on
+  if (loopOn && __perfPrevT !== null && (__perfPrevT - t) > 1 && playingNow) {
+    __perfReps++;
+    const rEl = document.getElementById('perf-reps');
+    if (rEl) {
+      rEl.textContent = (__perfReps % 5 === 0 ? '🔥 ' : '🔁 ') + __perfReps + ' REP' + (__perfReps === 1 ? '' : 'S');
+      rEl.classList.remove('rep-flash'); void rEl.offsetWidth; rEl.classList.add('rep-flash');
+    }
+  }
+  __perfPrevT = t;
+  // chord-change pop — make the big chord feel alive
+  const cn = document.getElementById('perf-curr-name');
+  if (cn && cn.textContent !== __perfPrevChord) {
+    __perfPrevChord = cn.textContent;
+    cn.classList.remove('chord-pop'); void cn.offsetWidth; cn.classList.add('chord-pop');
+  }
+}
+
+// ── LIVE mode speed + state (2026-07-07) ────────────────────────────────────
+var __perfSec = 0, __perfReps = 0, __perfPrevT = null, __perfLastWall = 0, __perfPrevChord = '', __perfWakeLock = null;
+function perfSetSpeed(r) {
+  try {
+    if (typeof playSource !== 'undefined' && playSource === 'youtube') {
+      if (typeof ytPlayer !== 'undefined' && ytPlayer && ytPlayer.setPlaybackRate) ytPlayer.setPlaybackRate(r);
+    } else {
+      const s = document.getElementById('slider-tempo');
+      if (s) { s.value = r; if (typeof updateTempo === 'function') updateTempo(); }
+    }
+  } catch(e) {}
+  document.querySelectorAll('.perf-speed-chip').forEach(c =>
+    c.classList.toggle('active', parseFloat(c.dataset.rate) === r));
 }
 
 // ── LIVE mode loop helpers ──────────────────────────────────────────────────
