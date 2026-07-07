@@ -44,7 +44,7 @@ const SONG_CAP_S = 390;          // per-song safety cap
 const NIGHT_CAP = 200;          // pull the full available set (engine max); you cycle through via the done-filter
 const STALL_LIMIT_S = 45;
 
-let player = null, stream = null, run = false, skipReq = false;
+let player = null, stream = null, run = false, skipReq = false, ytErrStreak = 0;
 let setlist = [], done = 0, queued = 0, skipped = 0, consecFails = 0;
 
 const $ = id => document.getElementById(id);
@@ -104,12 +104,20 @@ function playAndWait(vid, expectedS) {
   // Stall is measured by REAL elapsed time since playback last advanced, not a fixed +5 counter,
   // so the faster tick can't false-trigger a stall. Every player call is wrapped so a transient
   // YT API hiccup can never throw out of the interval and wedge/crash the run.
+  playAndWait._t0 = Date.now();
   return new Promise(res => {
     let lastT = -1, lastMove = Date.now(), finished = false;
     const finish = v => { if (!finished) { finished = true; clearInterval(watch); res(v); } };
+    window.__ytErr = null;              // clear any stale error before loading
     try { player.loadVideoById(vid); } catch (e) {}
     const watch = setInterval(() => {
       try {
+        // YouTube threw "An error occurred" for THIS video — bail immediately to the next one
+        if (window.__ytErr && window.__ytErr.at > (playAndWait._t0 || 0)) {
+          const c = window.__ytErr.code; window.__ytErr = null;
+          log('  ⚠ YouTube playback error (code ' + c + ') — trying another video');
+          return finish('yterror');
+        }
         if (skipReq) { skipReq = false; return finish('skip'); }
         let st = -9, t = 0, vd = 0;
         try { st = player.getPlayerState(); t = player.getCurrentTime() || 0; vd = player.getDuration() || 0; } catch (e) {}
@@ -156,6 +164,21 @@ async function captureSong(song) {
     if (rec.state === 'recording') rec.stop();
     await new Promise(r => { rec.onstop = r; setTimeout(r, 3000); });
     try { player.stopVideo(); } catch (e) {}
+    if (outcome === 'yterror') {
+      ytErrStreak++;
+      // Sustained errors = YouTube is throttling this whole session. HARD STOP so nothing
+      // hammers YouTube all night (protects your access). You can restart later once it clears.
+      if (ytErrStreak >= 8) {
+        log('⛔ YouTube keeps blocking playback (' + ytErrStreak + ' in a row) — stopping so we never hammer it. Try again in ~30 min or after a browser restart.');
+        run = false; return;
+      }
+      // Back off between retries so we're never fast-looping against a wall.
+      const waitS = Math.min(120, 15 * ytErrStreak);
+      log('  ⏸ playback error — waiting ' + waitS + 's, then trying another video…');
+      await new Promise(r => setTimeout(r, waitS * 1000));
+      continue;   // try the next candidate video for this song
+    }
+    ytErrStreak = 0;
     if (outcome === 'wrongvideo') continue;   // try the next candidate
     if (outcome === 'skip') { skipped++; markDone(song); log('  ⏭ skipped by you'); return; }
     if (outcome === 'stalled' && !run) return;   // user pressed STOP — not a failure, don't count
@@ -231,7 +254,14 @@ $('btn-start').onclick = async () => {
   if (!player) {
     await new Promise(res => {
       player = new YT.Player('yt', { height: '180', width: '320',
-        playerVars: { playsinline: 1, autoplay: 1 }, events: { onReady: res } });
+        playerVars: { playsinline: 1, autoplay: 1 },
+        events: {
+          onReady: res,
+          // YouTube "An error occurred" (codes 2/5/100/101/150 = unembeddable / removed /
+          // region-blocked / throttled). Don't sit on it — flag it so playAndWait bails to the
+          // next candidate in ~0.5s instead of waiting out the whole stall timer.
+          onError: (e) => { window.__ytErr = { code: e && e.data, at: Date.now() }; }
+        } });
     });
   }
   run = true;
