@@ -106,8 +106,8 @@ function playAndWait(vid, expectedS) {
 }
 
 async function captureSong(song) {
-  skipReq = false;
   const cands = await searchVideo(song.artist, song.title);
+  if (skipReq) { skipReq = false; skipped++; log('  ⏭ skipped by you'); return; }  // skip pressed during search
   const expectedS = (song.durationMs || 0) / 1000;
   for (const hit of cands) {
     log('▶ ' + song.artist + ' — ' + song.title + '  (' + (hit.channel || '?')
@@ -135,6 +135,7 @@ async function captureSong(song) {
     try { player.stopVideo(); } catch (e) {}
     if (outcome === 'wrongvideo') continue;   // try the next candidate
     if (outcome === 'skip') { skipped++; log('  ⏭ skipped by you'); return; }
+    if (outcome === 'stalled' && !run) return;   // user pressed STOP — not a failure, don't count
     if (outcome === 'stalled') { skipped++; consecFails++; log('  ⚠ stalled — skipped'); return; }
     done++; consecFails = 0;
     const blob = new Blob(chunks, { type: 'audio/webm' });
@@ -151,6 +152,7 @@ async function captureSong(song) {
 }
 
 async function marathon() {
+  skipReq = false;
   const r = await fetch(ENGINE + '/marathon_list?n=' + NIGHT_CAP);
   const d = await r.json();
   setlist = d.songs || [];
@@ -180,7 +182,11 @@ $('btn-start').onclick = async () => {
       stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true, preferCurrentTab: true });
       stream.getVideoTracks().forEach(t => t.stop());
       if (!stream.getAudioTracks().length) { log('⚠ No audio shared — retry and tick "Also share tab audio".'); stream = null; return; }
-      stream.getAudioTracks().forEach(t => { t.onended = () => { stream = null; log('⚠ Tab share ended by the browser — press START to re-grant.'); }; });
+      stream.getAudioTracks().forEach(t => { t.onended = () => {
+        stream = null; run = false;   // stop the loop so it can't spin/throw on a null stream
+        $('btn-start').disabled = false; $('btn-stop').disabled = true; $('btn-skip').disabled = true;
+        log('⚠ Tab share ended by the browser — marathon stopped. Press START to re-grant.');
+      }; });
     } catch (e) { log('Capture cancelled.'); return; }
   } else {
     log('Reusing the existing tab share — no new grant needed.');
