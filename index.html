@@ -6575,7 +6575,7 @@ function _applyVideoOffset() {
   const raw = window.__videoSongOffsetRaw;
   if (typeof raw !== 'number') return;
   const ps = window.__songPreviewStart;
-  window.__videoSongOffset = (typeof ps === 'number' && raw > 15 && Math.abs(raw - ps) < 8)
+  window.__videoSongOffset = (typeof ps === 'number' && raw > 15 && Math.abs(raw - ps) < 12)
     ? +(raw - ps).toFixed(2) : raw;
 }
 function startYouTubeLoop() {
