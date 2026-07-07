@@ -41,7 +41,7 @@ background); volume can be low but not muted at the tab level.</p>
 <script>
 const ENGINE = 'https://engine.looperdeluxe.com';
 const SONG_CAP_S = 390;          // per-song safety cap
-const NIGHT_CAP = 50;            // YouTube search quota: ~100 units/search, 10k/day shared
+const NIGHT_CAP = 200;          // pull the full available set (engine max); you cycle through via the done-filter
 const STALL_LIMIT_S = 45;
 
 let player = null, stream = null, run = false, skipReq = false;
@@ -56,7 +56,17 @@ function log(m) {
 function stats() {
   $('s-done').textContent = done; $('s-queued').textContent = queued;
   $('s-skip').textContent = skipped; $('s-left').textContent = setlist.length;
+  try { localStorage.setItem('marathonStats', JSON.stringify({ done, queued, skipped })); } catch (e) {}
 }
+function loadStats() {
+  try { const s = JSON.parse(localStorage.getItem('marathonStats') || '{}');
+    done = s.done || 0; queued = s.queued || 0; skipped = s.skipped || 0; } catch (e) {}
+}
+// Persistent per-device memory of songs already handled, so a REFRESH removes them from the list
+// (they don't wait on async detector verification). Captured OR user-skipped songs never reappear.
+function songKey(s) { return ((s.artist || '') + '|' + (s.title || '')).toLowerCase().trim(); }
+function doneSet() { try { return new Set(JSON.parse(localStorage.getItem('marathonDone') || '[]')); } catch (e) { return new Set(); } }
+function markDone(s) { const d = doneSet(); d.add(songKey(s)); try { localStorage.setItem('marathonDone', JSON.stringify([...d])); } catch (e) {} }
 
 function loadYT() {
   return new Promise(res => {
@@ -82,32 +92,38 @@ async function searchVideo(artist, title) {
 }
 
 function playAndWait(vid, expectedS) {
-  // resolves 'ended' | 'stalled' | 'skip' (user) | 'wrongvideo' (length way off)
+  // resolves 'ended' | 'stalled' | 'skip' (user) | 'wrongvideo' (length way off).
+  // Ticks every 500ms so SKIP registers in ~half a second (was 5s — the "press it 5 times" lag).
+  // Stall is measured by REAL elapsed time since playback last advanced, not a fixed +5 counter,
+  // so the faster tick can't false-trigger a stall. Every player call is wrapped so a transient
+  // YT API hiccup can never throw out of the interval and wedge/crash the run.
   return new Promise(res => {
-    let lastT = -1, stallS = 0, finished = false;
+    let lastT = -1, lastMove = Date.now(), finished = false;
     const finish = v => { if (!finished) { finished = true; clearInterval(watch); res(v); } };
-    player.loadVideoById(vid);
+    try { player.loadVideoById(vid); } catch (e) {}
     const watch = setInterval(() => {
-      let st = -9, t = 0, vd = 0;
-      try { st = player.getPlayerState(); t = player.getCurrentTime() || 0; vd = player.getDuration() || 0; } catch (e) {}
-      if (skipReq) { skipReq = false; return finish('skip'); }
-      if (expectedS > 60 && vd > Math.max(expectedS * 1.3, expectedS + 60)) {
-        log('  ⏭ video is ' + Math.round(vd) + 's but the song is ~' + Math.round(expectedS) + 's — wrong version');
-        return finish('wrongvideo');
-      }
-      if (st === 0) return finish('ended');
-      if (t > SONG_CAP_S) return finish('ended');
-      if (Math.abs(t - lastT) < 0.3 && st !== 3) { stallS += 5; } else { stallS = 0; }
-      lastT = t;
-      if (stallS >= STALL_LIMIT_S) return finish('stalled');
-      if (!run) return finish('stalled');
-    }, 5000);
+      try {
+        if (skipReq) { skipReq = false; return finish('skip'); }
+        let st = -9, t = 0, vd = 0;
+        try { st = player.getPlayerState(); t = player.getCurrentTime() || 0; vd = player.getDuration() || 0; } catch (e) {}
+        if (expectedS > 60 && vd > Math.max(expectedS * 1.3, expectedS + 60)) {
+          log('  ⏭ video is ' + Math.round(vd) + 's but the song is ~' + Math.round(expectedS) + 's — wrong version');
+          return finish('wrongvideo');
+        }
+        if (st === 0) return finish('ended');
+        if (t > SONG_CAP_S) return finish('ended');
+        if (Math.abs(t - lastT) >= 0.3 || st === 3) { lastMove = Date.now(); }  // advancing or buffering
+        lastT = t;
+        if (Date.now() - lastMove >= STALL_LIMIT_S * 1000) return finish('stalled');
+        if (!run) return finish('stalled');
+      } catch (e) { /* never let the watchdog throw */ }
+    }, 500);
   });
 }
 
 async function captureSong(song) {
   const cands = await searchVideo(song.artist, song.title);
-  if (skipReq) { skipReq = false; skipped++; log('  ⏭ skipped by you'); return; }  // skip pressed during search
+  if (skipReq) { skipReq = false; skipped++; markDone(song); log('  ⏭ skipped by you'); return; }  // skip pressed during search
   const expectedS = (song.durationMs || 0) / 1000;
   for (const hit of cands) {
     log('▶ ' + song.artist + ' — ' + song.title + '  (' + (hit.channel || '?')
@@ -134,7 +150,7 @@ async function captureSong(song) {
     await new Promise(r => { rec.onstop = r; setTimeout(r, 3000); });
     try { player.stopVideo(); } catch (e) {}
     if (outcome === 'wrongvideo') continue;   // try the next candidate
-    if (outcome === 'skip') { skipped++; log('  ⏭ skipped by you'); return; }
+    if (outcome === 'skip') { skipped++; markDone(song); log('  ⏭ skipped by you'); return; }
     if (outcome === 'stalled' && !run) return;   // user pressed STOP — not a failure, don't count
     if (outcome === 'stalled') { skipped++; consecFails++; log('  ⚠ stalled — skipped'); return; }
     done++; consecFails = 0;
@@ -144,7 +160,7 @@ async function captureSong(song) {
     const r = await fetch(ENGINE + '/playthrough?artist=' + encodeURIComponent(song.artist)
                           + '&title=' + encodeURIComponent(song.title) + '&vid=' + encodeURIComponent(hit.id),
                           { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: blob });
-    if (r.ok) { queued++; log('  🎧 sent to detector (' + Math.round(blob.size / 1024) + ' KB)'); }
+    if (r.ok) { queued++; markDone(song); log('  🎧 sent to detector (' + Math.round(blob.size / 1024) + ' KB)'); }
     else { const e = await r.json().catch(() => ({})); log('  ⚠ intake said: ' + (e.error || r.status)); }
     return;
   }
@@ -153,10 +169,19 @@ async function captureSong(song) {
 
 async function marathon() {
   skipReq = false;
+  loadStats();                                   // restore your running counts across refreshes
   const r = await fetch(ENGINE + '/marathon_list?n=' + NIGHT_CAP);
   const d = await r.json();
-  setlist = d.songs || [];
-  log('Set list: ' + setlist.length + ' songs (' + d.total + ' total candidates). Rolling…');
+  const dset = doneSet();
+  const seen = new Set();
+  // remove songs you've already done (refresh drops them, the rest move up) + dedupe
+  setlist = (d.songs || []).filter(s => {
+    const k = songKey(s);
+    if (dset.has(k) || seen.has(k)) return false;
+    seen.add(k); return true;
+  });
+  log('Set list: ' + setlist.length + ' fresh songs (' + d.total + ' total charted, '
+      + dset.size + ' already done on this device). Rolling…');
   stats();
   while (run && setlist.length) {
     const song = setlist.shift();
