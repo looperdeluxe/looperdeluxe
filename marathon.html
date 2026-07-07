@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Looper Marathon</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<style>
+  body { background:#0b0b12; color:#e4e4e7; font-family:system-ui,sans-serif; margin:0; padding:24px; }
+  h1 { font-size:1.1rem; color:#c084fc; letter-spacing:2px; }
+  .sub { color:#9ca3af; font-size:0.8rem; max-width:640px; line-height:1.5; }
+  button { background:linear-gradient(135deg,#7c3aed,#5b21b6); color:#e9d5ff; border:1px solid #a78bfa;
+           border-radius:8px; padding:10px 22px; font-size:0.9rem; cursor:pointer; margin:14px 0; }
+  button:disabled { opacity:0.4; cursor:default; }
+  #stats { display:flex; gap:26px; margin:10px 0; font-size:0.85rem; }
+  #stats b { color:#4ade80; font-size:1.2rem; display:block; }
+  #log { background:#111118; border:1px solid #27272a; border-radius:8px; padding:12px; font-family:monospace;
+         font-size:0.72rem; height:320px; overflow-y:auto; white-space:pre-wrap; max-width:820px; }
+  #yt-holder { margin:12px 0; }
+</style>
+</head>
+<body>
+<h1>🏃 LOOPER MARATHON</h1>
+<p class="sub">Plays the library's most-wanted songs end to end while capturing this tab's audio and
+shipping each full song to the server's neural chord detector. Every run verifies or fills real
+sections of real charts — the library gets permanently more accurate while you sleep.
+<b>One click, one "share this tab" grant, then hands-off.</b> Keep this tab open (it can be in the
+background); volume can be low but not muted at the tab level.</p>
+<button id="btn-start">▶ START MARATHON</button>
+<button id="btn-stop" disabled>⏹ STOP</button>
+<div id="stats">
+  <span><b id="s-done">0</b>songs captured</span>
+  <span><b id="s-queued">0</b>sent to detector</span>
+  <span><b id="s-skip">0</b>skipped</span>
+  <span><b id="s-left">–</b>in set list</span>
+</div>
+<div id="yt-holder"><div id="yt"></div></div>
+<div id="log"></div>
+
+<script>
+const ENGINE = 'https://engine.looperdeluxe.com';
+const SONG_CAP_S = 390;          // per-song safety cap
+const NIGHT_CAP = 50;            // YouTube search quota: ~100 units/search, 10k/day shared
+const STALL_LIMIT_S = 45;
+
+let player = null, stream = null, run = false;
+let setlist = [], done = 0, queued = 0, skipped = 0, consecFails = 0;
+
+const $ = id => document.getElementById(id);
+function log(m) {
+  const el = $('log');
+  el.textContent += new Date().toTimeString().slice(0, 8) + '  ' + m + '\n';
+  el.scrollTop = el.scrollHeight;
+}
+function stats() {
+  $('s-done').textContent = done; $('s-queued').textContent = queued;
+  $('s-skip').textContent = skipped; $('s-left').textContent = setlist.length;
+}
+
+function loadYT() {
+  return new Promise(res => {
+    if (window.YT && YT.Player) return res();
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+    window.onYouTubeIframeAPIReady = res;
+  });
+}
+
+async function searchVideo(artist, title) {
+  const r = await fetch(ENGINE + '/search?q=' + encodeURIComponent(artist + ' ' + title) + '&n=3');
+  if (!r.ok) throw new Error('search ' + r.status);
+  const d = await r.json();
+  const hit = (d.results || [])[0];
+  if (!hit || !hit.id) throw new Error('no video found');
+  return hit;
+}
+
+function playAndWait(vid) {
+  // resolves 'ended' | 'stalled' when the song finishes or the watchdog gives up
+  return new Promise(res => {
+    let lastT = -1, stallS = 0, finished = false;
+    const finish = v => { if (!finished) { finished = true; clearInterval(watch); res(v); } };
+    player.loadVideoById(vid);
+    const watch = setInterval(() => {
+      let st = -9, t = 0;
+      try { st = player.getPlayerState(); t = player.getCurrentTime() || 0; } catch (e) {}
+      if (st === 0) return finish('ended');
+      if (t > SONG_CAP_S) return finish('ended');
+      if (Math.abs(t - lastT) < 0.3 && st !== 3) { stallS += 5; } else { stallS = 0; }
+      lastT = t;
+      if (stallS >= STALL_LIMIT_S) return finish('stalled');
+      if (!run) return finish('stalled');
+    }, 5000);
+  });
+}
+
+async function captureSong(song) {
+  const hit = await searchVideo(song.artist, song.title);
+  log('▶ ' + song.artist + ' — ' + song.title + '  (' + hit.channel + ')');
+  const chunks = [];
+  const rec = new MediaRecorder(new MediaStream(stream.getAudioTracks()));
+  rec.ondataavailable = e => { if (e.data && e.data.size) chunks.push(e.data); };
+  rec.start(1000);
+  const vt0 = 0;   // recording starts as playback starts
+  // side quest: after 22s of audio, lock this video's offset for instant sync site-wide
+  setTimeout(() => {
+    if (rec.state !== 'recording' || chunks.length < 20) return;
+    fetch(ENGINE + '/align?artist=' + encodeURIComponent(song.artist) + '&title=' + encodeURIComponent(song.title)
+          + '&vid=' + encodeURIComponent(hit.id) + '&vt=' + vt0,
+          { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' },
+            body: new Blob(chunks.slice(0, 22), { type: 'audio/webm' }) })
+      .then(r => r.json()).then(j => { if (j && j.match) log('  🎯 video offset locked (' + j.video_offset_stored + 's)'); })
+      .catch(() => {});
+  }, 24000);
+
+  const outcome = await playAndWait(hit.id);
+  if (rec.state === 'recording') rec.stop();
+  await new Promise(r => { rec.onstop = r; setTimeout(r, 3000); });
+  try { player.stopVideo(); } catch (e) {}
+  if (outcome === 'stalled') { skipped++; consecFails++; log('  ⚠ stalled — skipped'); return; }
+  done++; consecFails = 0;
+  const blob = new Blob(chunks, { type: 'audio/webm' });
+  if (blob.size < 200000) { log('  ⚠ capture too small — not sent'); return; }
+  if (blob.size > 11800000) { log('  ⚠ capture too big — not sent'); return; }
+  const r = await fetch(ENGINE + '/playthrough?artist=' + encodeURIComponent(song.artist)
+                        + '&title=' + encodeURIComponent(song.title) + '&vid=' + encodeURIComponent(hit.id),
+                        { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: blob });
+  if (r.ok) { queued++; log('  🎧 sent to detector (' + Math.round(blob.size / 1024) + ' KB)'); }
+  else { const e = await r.json().catch(() => ({})); log('  ⚠ intake said: ' + (e.error || r.status)); }
+}
+
+async function marathon() {
+  const r = await fetch(ENGINE + '/marathon_list?n=' + NIGHT_CAP);
+  const d = await r.json();
+  setlist = d.songs || [];
+  log('Set list: ' + setlist.length + ' songs (' + d.total + ' total candidates). Rolling…');
+  stats();
+  while (run && setlist.length) {
+    const song = setlist.shift();
+    stats();
+    try { await captureSong(song); }
+    catch (e) { skipped++; consecFails++; log('  ⚠ ' + (e.message || e)); }
+    stats();
+    if (consecFails >= 3) { log('⛔ 3 failures in a row — stopping so nothing spins all night.'); break; }
+    await new Promise(res => setTimeout(res, 4000));
+  }
+  run = false;
+  $('btn-start').disabled = false; $('btn-stop').disabled = true;
+  log('Marathon over: ' + done + ' captured, ' + queued + ' sent, ' + skipped + ' skipped. '
+      + 'The detector processes the queue every 15 min — charts upgrade automatically.');
+}
+
+$('btn-start').onclick = async () => {
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true, preferCurrentTab: true });
+    stream.getVideoTracks().forEach(t => t.stop());
+    if (!stream.getAudioTracks().length) { log('⚠ No audio shared — retry and tick "Also share tab audio".'); return; }
+  } catch (e) { log('Capture cancelled.'); return; }
+  await loadYT();
+  if (!player) {
+    await new Promise(res => {
+      player = new YT.Player('yt', { height: '180', width: '320',
+        playerVars: { playsinline: 1, autoplay: 1 }, events: { onReady: res } });
+    });
+  }
+  run = true;
+  $('btn-start').disabled = true; $('btn-stop').disabled = false;
+  marathon();
+};
+$('btn-stop').onclick = () => { run = false; log('Stopping after the current song…'); };
+</script>
+</body>
+</html>
