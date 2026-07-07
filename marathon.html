@@ -68,11 +68,15 @@ function loadYT() {
 }
 
 async function searchVideo(artist, title) {
-  const r = await fetch(ENGINE + '/search?q=' + encodeURIComponent(artist + ' ' + title) + '&n=3');
+  // artist/title params let the engine pin the play-through-PROVEN video first
+  // (hit.cached) and demote videos that failed alignment before (bad_sync)
+  const r = await fetch(ENGINE + '/search?q=' + encodeURIComponent(artist + ' ' + title)
+    + '&artist=' + encodeURIComponent(artist) + '&title=' + encodeURIComponent(title) + '&n=3');
   if (!r.ok) throw new Error('search ' + r.status);
   const d = await r.json();
-  const hit = (d.results || [])[0];
-  if (!hit || !hit.id) throw new Error('no video found');
+  const hit = (d.results || []).find(h => h && h.id && !h.bad_sync);
+  if (!hit) throw new Error('no video found (all candidates previously failed sync)');
+  if (hit.cached) log('  🎯 using the proven-sync video for this song');
   return hit;
 }
 
