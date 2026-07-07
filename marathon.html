@@ -67,6 +67,13 @@ function loadStats() {
 function songKey(s) { return ((s.artist || '') + '|' + (s.title || '')).toLowerCase().trim(); }
 function doneSet() { try { return new Set(JSON.parse(localStorage.getItem('marathonDone') || '[]')); } catch (e) { return new Set(); } }
 function markDone(s) { const d = doneSet(); d.add(songKey(s)); try { localStorage.setItem('marathonDone', JSON.stringify([...d])); } catch (e) {} }
+// fetch with a hard timeout — a hung request must NEVER freeze the marathon loop (that's what
+// stopped auto-advance + made skip unresponsive: the upload after a song hung with no timeout).
+function fetchT(url, opts, ms) {
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, Object.assign({}, opts, { signal: ctrl.signal })).finally(() => clearTimeout(t));
+}
 
 function loadYT() {
   return new Promise(res => {
@@ -82,8 +89,8 @@ async function searchVideo(artist, title) {
   // artist/title params let the engine pin the play-through-PROVEN video first
   // (hit.cached), demote videos that failed alignment (bad_sync), and sink
   // wrong-length versions (dur_mismatch — album rips, 21-min live cuts)
-  const r = await fetch(ENGINE + '/search?q=' + encodeURIComponent(artist + ' ' + title)
-    + '&artist=' + encodeURIComponent(artist) + '&title=' + encodeURIComponent(title) + '&n=4');
+  const r = await fetchT(ENGINE + '/search?q=' + encodeURIComponent(artist + ' ' + title)
+    + '&artist=' + encodeURIComponent(artist) + '&title=' + encodeURIComponent(title) + '&n=4', {}, 15000);
   if (!r.ok) throw new Error('search ' + r.status);
   const d = await r.json();
   const cands = (d.results || []).filter(h => h && h.id && !h.bad_sync && !h.dur_mismatch).slice(0, 3);
@@ -157,12 +164,16 @@ async function captureSong(song) {
     const blob = new Blob(chunks, { type: 'audio/webm' });
     if (blob.size < 200000) { log('  ⚠ capture too small — not sent'); return; }
     if (blob.size > 11800000) { log('  ⚠ capture too big — not sent'); return; }
-    const r = await fetch(ENGINE + '/playthrough?artist=' + encodeURIComponent(song.artist)
-                          + '&title=' + encodeURIComponent(song.title) + '&vid=' + encodeURIComponent(hit.id),
-                          { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: blob });
-    if (r.ok) { queued++; markDone(song); log('  🎧 sent to detector (' + Math.round(blob.size / 1024) + ' KB)'); }
-    else { const e = await r.json().catch(() => ({})); log('  ⚠ intake said: ' + (e.error || r.status)); }
-    return;
+    try {
+      const r = await fetchT(ENGINE + '/playthrough?artist=' + encodeURIComponent(song.artist)
+                            + '&title=' + encodeURIComponent(song.title) + '&vid=' + encodeURIComponent(hit.id),
+                            { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: blob }, 90000);
+      if (r.ok) { queued++; markDone(song); log('  🎧 sent to detector (' + Math.round(blob.size / 1024) + ' KB)'); }
+      else { const e = await r.json().catch(() => ({})); markDone(song); log('  ⚠ intake said: ' + (e.error || r.status)); }
+    } catch (e) {
+      markDone(song); log('  ⚠ upload timed out/failed — moving on (' + (e.message || e) + ')');
+    }
+    return;   // always advance to the next song
   }
   skipped++; log('  ⚠ every candidate was the wrong length — song skipped');
 }
@@ -189,7 +200,7 @@ async function marathon() {
     try { await captureSong(song); }
     catch (e) { skipped++; consecFails++; log('  ⚠ ' + (e.message || e)); }
     stats();
-    if (consecFails >= 3) { log('⛔ 3 failures in a row — stopping so nothing spins all night.'); break; }
+    if (consecFails >= 5) { log('⛔ 5 failures in a row — stopping so nothing spins all night.'); break; }
     await new Promise(res => setTimeout(res, 4000));
   }
   run = false;
