@@ -3215,7 +3215,8 @@ async function fetchLibraryChords(trackName, artistName) {
       rows = [];
       lib.sections.forEach(sec => {
         if (sec.chords && sec.chords.length) {
-          const cf = sec.chordSource === 'detected' ? 0.9 : 0.7;
+          // verified = independent full-audio agreement (play-through pipeline)
+          const cf = sec.verified ? 0.95 : (sec.chordSource === 'detected' ? 0.9 : sec.chordSource === 'playthrough' ? 0.8 : 0.7);
           sec.chords.forEach(c => { const t = sec.s + c.t; if (t < sec.e + 1) rows.push({ t: t, time: t, name: c.n, conf: cf }); });
           rows.push({ t: sec.e, time: sec.e, name: 'N.C.', conf: 0.3 });
         }
@@ -6294,6 +6295,21 @@ async function captureYouTubeAsWaveform() {
       if (st) st.textContent = '✅ Got it! Loading waveform + detecting chords…';
       showYtCaptureBtn(false);
       initMediaPipeline(file);
+      // FULL-SONG PIPELINE (2026-07-07): ship this capture to the strong server detector too.
+      // It verifies/fills the song's sections within ~15 min — the browser detector is the
+      // instant tier, never the ground truth. ≥25s of audio required server-side.
+      try {
+        if (LOOPER_API && blob.size > 200000 && blob.size < 12000000) {
+          const info3 = (typeof currentSongInfo === 'function') ? currentSongInfo() : null;
+          const a3 = (info3 && info3.artist) || '', t3 = (info3 && info3.title) || window.__ytTitle || '';
+          if (t3) fetch(LOOPER_API + '/playthrough?artist=' + encodeURIComponent(a3) + '&title=' + encodeURIComponent(t3)
+                        + '&vid=' + encodeURIComponent(window.__ytVideoId || ''),
+                        { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: blob })
+            .then(r => r.ok ? r.json() : null)
+            .then(j => { if (j && j.queued && st) st.textContent += ' · 🎧 full-song analysis queued (upgrades automatically).'; })
+            .catch(() => {});
+        }
+      } catch (e) {}
       // Cache analysis on engine so future visitors get it instantly
       setTimeout(async () => {
         if (LOOPER_API && window.__ytVideoId) {
