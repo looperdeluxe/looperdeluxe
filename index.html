@@ -5438,6 +5438,7 @@ async function verifyChords() {
         if (a && a.verified && a.chords && a.chords.length) {
           applyDetectedChords(a.chords);
           if (a.key) { window.songKey = a.key; const kv = document.getElementById('stage-key-val'); if (kv) kv.textContent = a.key; }
+          if (a.capo != null && a.capo !== '') { setCapo(parseInt(a.capo) || 0); const kv3 = document.getElementById('stage-key-val'); if (kv3 && a.key) kv3.textContent = a.key; }  // show recommended capo + easy shapes, keep true key
           updateChordSourceBadge('verified');
           if (st) st.textContent = '✅ Loaded from server cache (verified).';
           return;
@@ -5497,6 +5498,7 @@ async function verifyChords() {
     // Apply and display
     applyDetectedChords(result.chords);
     if (result.key) { window.songKey = result.key; const kv = document.getElementById('stage-key-val'); if (kv) kv.textContent = result.key; }
+    if (result.capo != null && result.capo !== '') { setCapo(parseInt(result.capo) || 0); const kv3 = document.getElementById('stage-key-val'); if (kv3 && result.key) kv3.textContent = result.key; }  // show recommended capo + easy shapes, keep true key
     updateChordSourceBadge('verified');
     if (st) st.textContent = '✅ ' + (result.accuracy_note || 'Verified!') + ' · Cached for everyone.';
 
