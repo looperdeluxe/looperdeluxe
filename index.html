@@ -3297,6 +3297,15 @@ async function fetchLibraryChords(trackName, artistName) {
         }
       });
       rows.sort((a, b) => a.t - b.t);
+      // De-noise section-boundary N.C. (Brooks 2026-07-08: "NC occasionally"): the per-section
+      // end-cap N.C. is meant to stop a chord sustaining into an UNKNOWN section — but between two
+      // back-to-back charted sections it just flashes. Drop an N.C. whose next real chord starts
+      // within 1.2s (no real gap); keep it before a genuine gap/solo.
+      rows = rows.filter((r, i) => {
+        if (r.name !== 'N.C.') return true;
+        const nxt = rows[i + 1];
+        return !(nxt && nxt.name !== 'N.C.' && (nxt.t - r.t) < 1.2);
+      });
       full = rows.length > 4;
       if (!full) rows = null;
     }
@@ -4665,7 +4674,10 @@ function lmvShowView() {
   // On narrow phones, skip the floating bubble and jump straight to perf/fullscreen mode.
   // EDGE-triggered only: this runs every frame while looping, and unconditionally re-opening
   // meant ✕ was instantly overridden — you literally couldn't leave (Brooks 2026-07-07).
-  if (window.innerWidth <= 600 && loopModeActive) {
+  // Fire for BOTH audio-mode loops (loopModeActive) AND YouTube-mode loops (ytLoopOn) — Brooks
+  // practices in Video Studio, where the old check never triggered so he never saw the new view.
+  const _looping = loopModeActive || (typeof ytLoopOn !== 'undefined' && ytLoopOn && ytLoopB > ytLoopA);
+  if (window.innerWidth <= 600 && _looping) {
     if (!__perfMode && !window.__perfUserClosed) togglePerfMode(true);
     return;
   }
