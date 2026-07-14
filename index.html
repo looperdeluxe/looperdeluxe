@@ -3345,6 +3345,7 @@ async function autoChordsFromLibrary(rawTitle) {
   const lib = await fetchLibraryChords(rawTitle, '');
   if (!lib) return;
   applyMap(lib); window.__stageDirty = true;
+  try { updateChordSourceBadge('library', lib); } catch (e) {}
   const st = document.getElementById('chordget-status');
   if (st) st.textContent = lib.fullSong ? '✅ Full-song chords loaded from library'
                           : (lib.flagged ? '⚡ Library chords (unverified)' : '⚡ Library chords (verified to preview)');
@@ -3365,6 +3366,7 @@ async function getChordsViaYouTube(trackName, artistName, st, btn) {
     const lib = await fetchLibraryChords(trackName, artistName);
     if (lib) {
       applyMap(lib); window.__stageDirty = true;
+      try { updateChordSourceBadge('library', lib); } catch (e) {}
       if (st) st.textContent = lib.flagged ? '\u26a1 Chords loaded (unverified \u2014 play it once to confirm)'
                               : (lib.partial ? '\u26a1 Chords loaded from library (verified to preview)'
                                              : '\u2705 Chords loaded from library');
@@ -5474,14 +5476,20 @@ document.getElementById('slider-lyric-offset').addEventListener('input', (e) => 
 });
 
 // Where the chords came from — shown as a badge so it's clear how trustworthy they are.
-function updateChordSourceBadge(src) {
+function updateChordSourceBadge(src, opts) {
   window.chordSource = src;
   const b = document.getElementById('chord-source-badge'); if (!b) return;
-  b.className = (src === 'community' ? 'ug' : src);
+  b.className = (src === 'community' ? 'ug' : (src === 'library' ? 'verified' : src));
   if (src === 'community') b.textContent = '👥 COMMUNITY VERSION';
   else if (src === 'ug') b.textContent = '✓ UG · EXACT';
   else if (src === 'manual') b.textContent = '✎ YOUR CHORDS';
   else if (src === 'verified') b.textContent = '✅ SERVER-VERIFIED · ~90% ACCURATE';
+  else if (src === 'library') {
+    // one source of truth with the status line (was: status said "library verified" while this badge said "AUTO · 1ST PASS")
+    const o = opts || {};
+    b.textContent = o.flagged ? '⚠ LIBRARY · UNVERIFIED' : (o.fullSong ? '✅ LIBRARY · FULL SONG' : '⚡ LIBRARY · PREVIEW-VERIFIED');
+    if (o.flagged) b.className = 'auto';
+  }
   else b.textContent = '⚠ AUTO · 1ST PASS';
 }
 
