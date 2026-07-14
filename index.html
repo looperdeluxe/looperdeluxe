@@ -1846,8 +1846,10 @@
           <div class="panel-title" style="font-size:0.6rem; margin-bottom:2px;">METRONOME HUD</div>
           <div class="metro-display-hud">
             <div style="display:flex; justify-content:center; align-items:center; gap:4px;">
+              <button id="btn-bpm-half" title="Halve the BPM — auto-detect sometimes counts double-time" style="background:rgba(0,0,0,0.5); border:1px solid var(--border); border-radius:4px; color:var(--dim); font-size:0.62rem; padding:2px 5px; cursor:pointer;">÷2</button>
               <input type="number" id="input-metro-bpm" value="120" style="background:rgba(0,0,0,0.5); border:1px solid var(--border); border-radius:4px; width:65px; text-align:center; outline:none; font-family:'Orbitron', sans-serif; font-size:1.1rem; font-weight:700; color:var(--cyan); padding:2px;" />
               <span style="color:var(--cyan); font-family:'Orbitron', sans-serif; font-size:1.1rem; font-weight:700;">BPM</span>
+              <button id="btn-bpm-double" title="Double the BPM — auto-detect sometimes counts half-time" style="background:rgba(0,0,0,0.5); border:1px solid var(--border); border-radius:4px; color:var(--dim); font-size:0.62rem; padding:2px 5px; cursor:pointer;">×2</button>
             </div>
             <div class="metro-visual-indicator" id="metro-tick-light"></div>
           </div>
@@ -3726,6 +3728,18 @@ function advanceAutoChordSequencer() {
 
 function updateTempo() { if (!ws) return; const t = parseFloat(document.getElementById('slider-tempo').value); document.getElementById('val-tempo').innerText = `${t.toFixed(2)}x`; ws.setPlaybackRate(t, true); if (ws.media) ws.media.preservesPitch = true; if (window.StemMixer && StemMixer.isReady()) StemMixer.setRate(t); if (syncScheduler) resyncClock(); }
 ['input-metro-bpm','input-metro-offset'].forEach(id => document.getElementById(id).addEventListener('change', () => { if (syncScheduler) resyncClock(); }));
+// half/double-time flip: auto-BPM often lands on the wrong "octave" (QA 2026-07-14, e.g. Can't You See 166 vs the felt 83)
+[['btn-bpm-half', 0.5], ['btn-bpm-double', 2]].forEach(([id, mult]) => {
+  const b = document.getElementById(id);
+  if (b) b.addEventListener('click', () => {
+    const inp = document.getElementById('input-metro-bpm');
+    const v = (parseFloat(inp.value) || 120) * mult;
+    if (v < 20 || v > 400) return;                    // keep it sane
+    detectedBpm = Math.round(v * 100) / 100;
+    inp.value = detectedBpm.toFixed(2);
+    inp.dispatchEvent(new Event('change'));           // reuses the resync path
+  });
+});
 
 function trigReset() {
   lmvLoopPass++;
