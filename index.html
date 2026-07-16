@@ -3387,7 +3387,14 @@ function seekSong(t) {
 // Auto-load tier-1 chords the moment a YouTube song starts (Brooks 2026-07-06: for library
 // songs the chords should just BE there — no button). Silent on a miss; GET CHORDS covers the rest.
 async function autoChordsFromLibrary(rawTitle) {
-  const lib = await fetchLibraryChords(rawTitle, '');
+  // parse "Artist - Song" so the library lookup gets a real artist (was sending artist='' →
+  // relied entirely on fuzzy title match, a wrong-song risk — QA 2026-07-16)
+  let a = '', tt = String(rawTitle || '').replace(/\([^)]*\)|\[[^\]]*\]/g, '')
+    .replace(/official\s*(music\s*)?video|lyric[s]?\s*(video)?|audio|visualizer|hd|4k|hq|mv/ig, '').trim();
+  const parts = tt.split(/\s+[-–—|]\s+/);
+  if (parts.length >= 2) { a = parts[0].trim(); tt = parts.slice(1).join(' ').trim(); }
+  let lib = await fetchLibraryChords(tt, a);
+  if (!lib && a) lib = await fetchLibraryChords(rawTitle, '');   // fall back to fuzzy title-only
   if (!lib) return;
   applyMap(lib); window.__stageDirty = true;
   try { updateChordSourceBadge('library', lib); } catch (e) {}
@@ -4553,7 +4560,24 @@ function applyDetectedChords(chords) {
   if (s) s.textContent += `  ·  🎸 ${seq.length} chords auto-detected${uncertain ? ' (' + uncertain + ' uncertain)' : ''}`;
   window.__stageDirty = true; __stageIdx = -2; renderStage(ws ? ws.getCurrentTime() : 0);
   renderChordPalette();
-  updateChordSourceBadge('auto');
+  // DON'T stomp a known source (library/verified/community/manual). applyMap runs this for
+  // library loads too, and re-applies during playback — that flipped a verified badge to
+  // "AUTO · 1ST PASS" mid-song (QA 2026-07-16). Only claim 'auto' when nothing better is set.
+  if (!window.__chordSourceLocked) updateChordSourceBadge('auto');
+}
+
+// Reset per-song UI so a previous song's KEY/CAPO/chords/lyrics/badge never linger on the next
+// (QA 2026-07-16: "No Hard Feelings" D minor/Capo 5 stayed showing on "Can't You See").
+function resetSongState() {
+  window.__chordSourceLocked = false;
+  window.songChords = []; window.songChordsOriginal = []; window.__songEnvelope = null;
+  const kv = document.getElementById('stage-key-val'); if (kv) kv.textContent = '—';
+  const ci = document.getElementById('stage-capo-input'); if (ci) ci.value = '';
+  window.songKey = ''; window.lyricData = []; window.lastActiveLyric = -1;
+  const lc = document.getElementById('lyrics-container');
+  if (lc) lc.innerHTML = '<div class="lyric-line" style="opacity:0.5;">Loading lyrics…</div>';
+  const env = document.getElementById('yt-envelope'); if (env) env.style.display = 'none';
+  const b = document.getElementById('chord-source-badge'); if (b) { b.textContent = '… loading'; b.className = 'auto'; }
 }
 
 document.getElementById('btn-build-prog').addEventListener('click', () => {
@@ -5537,6 +5561,8 @@ function updateChordSourceBadge(src, opts) {
   window.chordSource = src;
   const b = document.getElementById('chord-source-badge'); if (!b) return;
   b.className = (src === 'community' ? 'ug' : (src === 'library' ? 'verified' : src));
+  // a real source locks the badge so re-applied chords (applyMap during playback) can't revert it
+  window.__chordSourceLocked = (src === 'library' || src === 'verified' || src === 'community' || src === 'manual' || src === 'ug');
   if (src === 'community') b.textContent = '👥 COMMUNITY VERSION';
   else if (src === 'ug') b.textContent = '✓ UG · EXACT';
   else if (src === 'manual') b.textContent = '✎ YOUR CHORDS';
@@ -6620,6 +6646,7 @@ function renderYtResults(items) {
 function _decodeEntities(s) { const ta = document.createElement('textarea'); ta.innerHTML = s || ''; return ta.value; }
 function ytPickResult(it) {
   it = Object.assign({}, it, { title: _decodeEntities(it.title) });
+  try { resetSongState(); } catch (e) {}   // clear the prior song's key/capo/chords/lyrics/badge
   const box = document.getElementById('yt-results');
   if (box && !isVideoStudio()) {
     box.innerHTML = '<div style="padding:14px; color:var(--cyan); font-size:0.74rem; line-height:1.6;">⏳ Loading <b>' + _verEsc(it.title || 'song') + '</b><br><span style="color:var(--dim);font-size:0.66rem;">pulling &amp; analyzing the audio — ~10s the first time, instant after…</span></div>';
