@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v7 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v8 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -36,14 +36,15 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 .view{display:none;flex:1}.view.on{display:flex;flex-direction:column;animation:fadein .25s ease}
 @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @media(max-width:760px){.side{width:56px}.nav span.lbl{display:none}.side .foot{display:none}.bar input{width:120px}}
-.grid{display:grid;grid-template-columns:1.25fr 1fr;gap:12px;flex:1;min-height:0}
-@media(max-width:1000px){.grid{grid-template-columns:1fr}}
+.grid{display:grid;grid-template-columns:1fr;gap:12px;flex:1;min-height:0}  /* v8: everything full width, every device */
 .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px;display:flex;flex-direction:column;position:relative}
 .ptitle{font-family:Orbitron;font-size:.56rem;letter-spacing:2px;color:#c4b5fd;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .cap{font-family:Orbitron;font-size:.5rem;letter-spacing:2px;color:var(--dim);margin:10px 0 4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.vthumb{width:170px;height:96px;background:#000;border:1px solid #1c1c2e;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#2c2c44;font-family:Orbitron;font-size:.58rem;float:right;margin:0 0 8px 10px;cursor:pointer;transition:.2s}
-.vthumb:hover{border-color:var(--purple)}
-.vthumb.big{width:100%;height:210px;float:none;margin:0 0 8px}
+.mediarow{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.vthumb{width:150px;height:84px;background:linear-gradient(135deg,#0a0a14,#141425);border:1px solid #23233a;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#4c4c6e;font-family:Orbitron;font-size:.56rem;cursor:pointer;transition:.2s;flex-shrink:0}
+.vthumb:hover{border-color:var(--purple);color:#a78bfa}
+.vthumb.big{width:100%;height:230px}
+.mediarow.big{flex-direction:column;align-items:stretch}
 .ribbon{background:#0a0a14;border:1px solid var(--border);border-radius:10px;height:96px;position:relative;overflow:hidden}
 .chip{position:absolute;top:20px;height:38px;background:rgba(124,58,237,.32);border-radius:7px;color:#d8b4fe;font-size:1.15rem;font-weight:700;padding:6px 13px;will-change:left}
 .chip.cur{background:rgba(34,211,238,.32);color:var(--cyan);animation:pulse 1.2s ease-in-out infinite}
@@ -113,7 +114,8 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 #vBoard.on{display:flex;animation:fadein .25s ease}
 #vBoard h3{font-family:Orbitron;color:#d8b4fe;letter-spacing:2px;font-size:.85rem;margin:4px 0 12px}
 #vBoard table{border-collapse:collapse}
-#vBoard td{border-left:1px solid #34345a;border-bottom:1px solid #23233a;width:44px;height:34px;position:relative}
+#vBoard td{border-left:1px solid #34345a;border-bottom:1px solid #23233a;width:min(44px,11vw);height:calc((100vh - 190px)/13);min-height:26px;position:relative}
+#vBoard td.fn{border:none;width:26px;font-family:Orbitron;font-size:.54rem;color:var(--dim);text-align:right;padding-right:6px}
 #vBoard tr:first-child td{border-top:5px solid #8b8ba3}
 #vBoard .ndot{min-width:22px;height:22px;font-size:.56rem}
 #vBoard .hint{font-size:.6rem;color:var(--dim);margin-top:10px}
@@ -159,7 +161,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 #loopLyric{font-size:clamp(.95rem,4vw,1.25rem);color:#e8e8f0;text-align:center;max-width:86vw;line-height:2.4}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v7 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v8 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -188,12 +190,14 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
       <div class="grid">
         <div class="panel">
           <div class="ptitle">NOW PLAYING · Turmoil &amp; Tinfoil — Billy Strings <span style="color:var(--green)">✅ FULL SONG</span></div>
-          <div>
-            <div class="vthumb" id="vthumb" onclick="this.classList.toggle('big');toast(this.classList.contains('big')?'video expanded':'video tucked away')">▶ video (tap to grow)</div>
-            <div class="cap" style="margin-top:0">CHORDS · flowing with the song · white line = NOW</div>
-            <div class="ribbon"><div class="lane" id="lane"></div><div class="now-line"></div><div class="now-tag">NOW</div></div>
+          <div class="mediarow" id="mediarow">
+            <div class="vthumb" id="vthumb" onclick="document.getElementById('mediarow').classList.toggle('big');this.classList.toggle('big');toast(this.classList.contains('big')?'video expanded':'video tucked away')">▶ VIDEO</div>
+            <div style="flex:1">
+              <div class="cap" style="margin:0 0 4px">CHORDS · flowing with the song · white line = NOW</div>
+            </div>
           </div>
-          <div class="cap" style="clear:both">WAVEFORM · the whole song · CLICK TO JUMP · loop region in cyan</div>
+          <div class="ribbon"><div class="lane" id="lane"></div><div class="now-line"></div><div class="now-tag">NOW</div></div>
+          <div class="cap">WAVEFORM · the whole song · CLICK TO JUMP · loop region in cyan</div>
           <div class="map" id="map"><span class="region" id="region"></span><span class="ph" id="mph"></span></div>
           <div class="looprow">
             <span class="lbl">🔁 LOOP</span>
@@ -288,7 +292,13 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
         </div>
 
         <div class="pane" id="lpane-chords">
-          <div class="cap">EVERY CHORD IN THIS SONG · tap any chord on the STAGE and it highlights here</div>
+          <div class="cap">HOW DO YOU WANT TO PLAY THEM?</div>
+          <div class="scalechips">
+            <span class="kc on" onclick="setVmode(this,'OPEN')">OPEN / CAPO SHAPES</span>
+            <span class="kc" onclick="setVmode(this,'BARRE')">BARRE</span>
+            <span class="kc" onclick="setVmode(this,'CAGED')">CAGED POSITIONS</span>
+          </div>
+          <div class="cap">EVERY CHORD IN THIS SONG · ‹ › cycles voicings, like the shape stepper today</div>
           <div class="fbrow" id="fbrow"></div>
         </div>
       </div>
@@ -557,11 +567,13 @@ function drawHfb(){
 function openVBoard(){
   const set=scaleSet(), rootPc=NOTES.indexOf(selKey);
   document.getElementById('vTitle').textContent=selKey+' '+selScale;
-  let h='<table><tr>';
+  // fill the screen: row height is set in CSS from 100vh; fret count adapts to tall screens
+  const frets=window.innerHeight>900?15:12;
+  let h='<table><tr><td class="fn"></td>';
   TUNING.forEach(([,nm])=>h+='<td class="vfb-sn" style="border:none">'+nm+'</td>');
   h+='</tr>';
-  for(let f=0;f<=12;f++){
-    h+='<tr>';
+  for(let f=0;f<=frets;f++){
+    h+='<tr><td class="fn">'+(f===0?'':f)+'</td>';
     TUNING.forEach(([pc])=>{
       const note=(pc+f)%12;
       h+='<td>'+(set.has(note)?'<span class="ndot'+(note===rootPc?' root':'')+'">'+NOTES[note]+'</span>':'')+'</td>';
@@ -572,16 +584,40 @@ function openVBoard(){
   document.getElementById('vTbl').innerHTML=h;
   document.getElementById('vBoard').classList.add('on');
 }
-/* song-chord mini boards (SONG CHORDS tab) */
-const BOARDS=[
-  ['D shape','sounds F',[[2,0],[3,1],[2,2]],[1,2]],
-  ['G shape','sounds B♭',[[0,2],[1,0],[5,2]],[5,2]],
-  ['C shape','sounds E♭',[[1,1],[3,0],[4,2]],[4,2]],
-  ['Dm shape','sounds Fm',[[0,0],[2,1],[3,2]],[1,2]]
+/* song-chord boards: 3 voicings per chord (open / barre / CAGED), ‹ › cycles, mode chips jump all */
+const CHORD_VOICINGS=[
+  ['F (as D shape)',[
+    ['open · capo 3',[[2,0],[3,1],[2,2]],[1,2]],
+    ['barre @ 1st',[[0,1],[1,3],[2,3],[3,2],[4,1],[5,1]],[0,1]],
+    ['CAGED · E-shape @ 1',[[0,1],[3,2],[4,3]],[0,1]]]],
+  ['B♭ (as G shape)',[
+    ['open · capo 3',[[0,2],[1,0],[5,2]],[5,2]],
+    ['barre @ 6th',[[0,1],[1,3],[2,3],[3,2]],[0,1]],
+    ['CAGED · A-shape @ 1',[[1,1],[2,3],[3,3],[4,3]],[1,1]]]],
+  ['E♭ (as C shape)',[
+    ['open · capo 3',[[1,1],[3,0],[4,2]],[4,2]],
+    ['barre @ 6th',[[0,2],[1,1],[2,3],[3,3]],[1,1]],
+    ['CAGED · G-shape @ 3',[[0,3],[1,2],[5,3]],[0,3]]]],
+  ['Fm (as Dm shape)',[
+    ['open · capo 3',[[0,0],[2,1],[3,2]],[1,2]],
+    ['barre @ 1st',[[0,1],[1,3],[2,3],[4,1],[5,1]],[0,1]],
+    ['CAGED · Em-shape @ 1',[[0,1],[3,2],[4,2]],[0,1]]]]
 ];
-(function(){
+const MODE_IDX={'OPEN':0,'BARRE':1,'CAGED':2};
+let vSel=[0,0,0,0];
+function setVmode(el,mode){
+  document.querySelectorAll('#lpane-chords .kc').forEach(k=>k.classList.remove('on'));
+  el.classList.add('on');
+  vSel=vSel.map(()=>MODE_IDX[mode]);
+  drawChordBoards();
+  toast(mode+' voicings for every chord in the song');
+}
+function cycleV(i,d){ vSel[i]=(vSel[i]+d+3)%3; drawChordBoards(); }
+function drawChordBoards(){
   const fbrow=document.getElementById('fbrow');
-  BOARDS.forEach(([nm,sub,dots,root])=>{
+  fbrow.innerHTML='';
+  CHORD_VOICINGS.forEach(([nm,vars],i)=>{
+    const [sub,dots,root]=vars[vSel[i]];
     const div=document.createElement('div'); div.className='vfb';
     let rows='';
     for(let f=0;f<4;f++){ rows+='<tr>';
@@ -590,10 +626,15 @@ const BOARDS=[
         const isRoot=root[0]===s&&root[1]===f;
         rows+='<td>'+(d?('<span class="dot'+(isRoot?' root':'')+'"></span>'):'')+'</td>';
       } rows+='</tr>'; }
-    div.innerHTML='<div class="nm">'+nm+'</div><table>'+rows+'</table><div class="cap2">'+sub+'</div>';
+    div.innerHTML='<div class="nm" style="display:flex;align-items:center;justify-content:center;gap:8px">'
+      +'<span class="kc" style="padding:2px 7px" onclick="cycleV('+i+',-1)">‹</span>'
+      +'<span>'+nm+'</span>'
+      +'<span class="kc" style="padding:2px 7px" onclick="cycleV('+i+',1)">›</span></div>'
+      +'<table>'+rows+'</table><div class="cap2">'+sub+' · '+(vSel[i]+1)+'/3</div>';
     fbrow.appendChild(div);
   });
-})();
+}
+drawChordBoards();
 buildChips(); drawHfb();
 renderRibbon(); syncStage();
 </script>
