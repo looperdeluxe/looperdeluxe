@@ -29,6 +29,7 @@ background); volume can be low but not muted at the tab level.</p>
 <button id="btn-start">▶ START MARATHON</button>
 <button id="btn-stop" disabled>⏹ STOP</button>
 <button id="btn-skip" disabled>⏭ SKIP SONG</button>
+<button id="btn-reset" title="Clear this device's done-list so previously played songs can be captured again (needed after the Jul 7-14 outage lost captures server-side)">♻ RESET DEVICE MEMORY</button>
 <div id="stats">
   <span><b id="s-done">0</b>songs captured</span>
   <span><b id="s-queued">0</b>sent to detector</span>
@@ -269,6 +270,14 @@ $('btn-start').onclick = async () => {
   marathon();
 };
 $('btn-stop').onclick = () => { run = false; log('Stopping after the current song… (your tab share stays alive for restart)'); };
+$('btn-reset').onclick = () => {
+  if (run) { log('⚠ Stop the marathon first, then reset.'); return; }
+  const n = doneSet().size;
+  localStorage.removeItem('marathonDone'); localStorage.removeItem('marathonStats');
+  done = queued = skipped = 0; stats();
+  log('♻ Device memory cleared (' + n + ' songs forgotten) — the next START pulls the full fresh list. '
+      + 'Songs the server already verified stay off the list automatically.');
+};
 $('btn-skip').onclick = () => { skipReq = true; log('⏭ skipping this song…'); };
 </script>
 </body>
