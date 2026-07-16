@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v11 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v12 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -42,10 +42,14 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 .ptitle{font-family:Orbitron;font-size:.56rem;letter-spacing:2px;color:#c4b5fd;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .cap{font-family:Orbitron;font-size:.5rem;letter-spacing:2px;color:var(--dim);margin:10px 0 4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .mediarow{display:flex;align-items:center;gap:10px;margin-bottom:4px}
-.vthumb{width:150px;height:84px;background:linear-gradient(135deg,#0a0a14,#141425);border:1px solid #23233a;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#4c4c6e;font-family:Orbitron;font-size:.56rem;cursor:pointer;transition:.2s;flex-shrink:0}
-.vthumb:hover{border-color:var(--purple);color:#a78bfa}
-.vthumb.big{width:100%;height:230px}
-.mediarow.big{flex-direction:column;align-items:stretch}
+#bigPlay{width:150px;height:84px;background:linear-gradient(135deg,#2e1065,#5b21b6);border:1px solid var(--purple);border-radius:12px;
+         display:flex;align-items:center;justify-content:center;color:#fff;font-size:2.2rem;cursor:pointer;transition:.2s;flex-shrink:0;
+         box-shadow:0 0 18px rgba(124,58,237,.35)}
+#bigPlay:hover{box-shadow:0 0 28px rgba(168,85,247,.6);transform:translateY(-1px)}
+#bigPlay:active{transform:translateY(1px)}
+#gapCount{display:none;position:absolute;inset:0;z-index:3;background:rgba(8,8,15,.55);border-radius:8px;
+          align-items:center;justify-content:center;font-family:Orbitron;font-weight:900;font-size:2rem;color:var(--pink);
+          text-shadow:0 0 18px rgba(240,171,252,.8);letter-spacing:2px}
 .ribbon{background:#0a0a14;border:1px solid var(--border);border-radius:10px;height:96px;position:relative;overflow:hidden}
 .chip{position:absolute;top:20px;height:38px;background:rgba(124,58,237,.32);border-radius:7px;color:#d8b4fe;font-size:1.15rem;font-weight:700;padding:6px 13px;will-change:left}
 .chip.cur{background:rgba(34,211,238,.32);color:var(--cyan);animation:pulse 1.2s ease-in-out infinite}
@@ -175,7 +179,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 #loopLyric .line.up2{opacity:.3;font-size:.7em}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v11 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v12 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -199,7 +203,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
       <div class="card"><b>🎤 STAGE</b>Lyrics with the chords above the exact word they change on. Pink build-up = change coming, pop = now.</div>
       <div class="card"><b>🔁 LOOP</b>IN and OUT mark a section on the waveform. It repeats until you own it. 💾 saves it forever.</div>
       <div class="card"><b>◉ LOOP MODE</b>Fullscreen ring for hands-free practice — chord in the middle, lyrics below, phone on the music stand.</div>
-      <div class="card"><b>🎯 PRACTICE</b>Step-up speeds each pass up +4%. Gap gives you a breather. Start delay counts you in.</div>
+      <div class="card"><b>🎯 PRACTICE</b>Step-up speeds each pass +4% and caps at 100%. Gap counts you back in with a live decimal countdown (1.5… 0.8… 0.0). Start delay counts you in.</div>
       <div class="card"><b>🎵 STRUM</b>Auto-detected pattern for the song's feel — or scroll ‹ › to pick your own.</div>
       <div class="card"><b>🎼 LEARN</b>Any key × any scale on a live neck. Flip it vertical. Ask in plain English: "D minor but darker."</div>
       <div class="card"><b>🎚 STEMS</b>Mute your instrument, play with the rest of the band.</div>
@@ -229,14 +233,15 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
         <div class="panel">
           <div class="ptitle">NOW PLAYING · Turmoil &amp; Tinfoil — Billy Strings <span style="color:var(--green)">✅ FULL SONG</span></div>
           <div class="mediarow" id="mediarow">
-            <div class="vthumb" id="vthumb" onclick="document.getElementById('mediarow').classList.toggle('big');this.classList.toggle('big');toast(this.classList.contains('big')?'video expanded':'video tucked away')">▶ VIDEO</div>
+            <div id="bigPlay" onclick="togglePlay()" title="the obvious button">▶</div>
             <div style="flex:1">
               <div class="cap" style="margin:0 0 4px">CHORDS · flowing with the song · white line = NOW</div>
+              <div style="font-size:.6rem;color:var(--dim)">🎬 video lives in VIDEO STUDIO when you want it — this screen is for playing</div>
             </div>
           </div>
           <div class="ribbon"><div class="lane" id="lane"></div><div class="now-line"></div><div class="now-tag">NOW</div></div>
           <div class="cap">WAVEFORM · the whole song · CLICK TO JUMP · loop region in cyan</div>
-          <div class="map" id="map"><span class="region" id="region"></span><span class="ph" id="mph"></span></div>
+          <div class="map" id="map"><span class="region" id="region"></span><span class="ph" id="mph"></span><div id="gapCount">1.5</div></div>
           <div class="looprow">
             <span class="lbl">🔁 LOOP</span>
             <button class="btn" onclick="setIn()">◀ IN</button>
@@ -262,8 +267,8 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
           </div>
           <div class="looprow" style="border-color:rgba(240,171,252,.3)">
             <span class="lbl" style="color:var(--pink)">🎯 PRACTICE</span>
-            <span class="sl"><input type="checkbox" checked style="accent-color:#f0abfc" onchange="toast('mock: step-up '+(this.checked?'ON — speeds up each loop pass':'off'))"> STEP-UP <input type="range" value="4"> <b style="color:var(--pink);font-size:.62rem">+4%/pass</b></span>
-            <span class="sl"><input type="checkbox" style="accent-color:#f0abfc" onchange="toast('mock: gap delay '+(this.checked?'ON — breather between passes':'off'))"> GAP <input type="range" value="15"> <b style="color:var(--pink);font-size:.62rem">1.5s</b></span>
+            <span class="sl"><input type="checkbox" id="suChk" checked style="accent-color:#f0abfc" onchange="toast('step-up '+(this.checked?'ON — each pass +4% until it hits 100%, never past':'off'))"> STEP-UP <input type="range" value="4"> <b style="color:var(--pink);font-size:.62rem">+4%/pass · caps at 100%</b></span>
+            <span class="sl"><input type="checkbox" id="gapChk" checked style="accent-color:#f0abfc" onchange="toast('gap delay '+(this.checked?'ON — decimal countdown between passes':'off'))"> GAP <input type="range" id="gapSl" min="5" max="40" value="15" oninput="gapS=this.value/10;document.getElementById('gapVal').textContent=gapS.toFixed(1)+'s'"> <b id="gapVal" style="color:var(--pink);font-size:.62rem">1.5s</b></span>
             <span class="sl"><input type="checkbox" style="accent-color:#f0abfc" onchange="toast('mock: start delay '+(this.checked?'ON — count-in before each pass':'off'))"> START DELAY <b style="color:var(--pink);font-size:.62rem">2.0s</b></span>
           </div>
         </div>
@@ -520,8 +525,12 @@ function frame(ts){
   if(!playing){ raf=null; return; }
   if(lastTs==null) lastTs=ts;
   const dt=(ts-lastTs)/1000; lastTs=ts;
+  if(gapping){ runGap(ts); raf=requestAnimationFrame(frame); return; }   // countdown holds the song
   pos+=dt*(100/SONG_S)*SPEED;
-  if(loopA!=null&&loopB!=null&&pos>loopB){ pos=loopA; loopN++; document.getElementById('loopCnt').textContent=loopN; }
+  if(loopA!=null&&loopB!=null&&pos>loopB){
+    pos=loopA; loopN++; document.getElementById('loopCnt').textContent=loopN;
+    if(document.getElementById('gapChk').checked) startGap(ts);          // breather w/ decimal countdown
+  }
   if(pos>=100) pos-=100;
   document.getElementById('mph').style.left=pos+'%';
   renderRibbon();
@@ -557,7 +566,31 @@ function frame(ts){
 function togglePlay(){
   playing=!playing;
   document.getElementById('btnPlay').textContent=playing?'⏸ PAUSE':'▶ PLAY';
+  document.getElementById('bigPlay').textContent=playing?'⏸':'▶';
   if(playing){ lastTs=null; raf=requestAnimationFrame(frame); }
+}
+let gapS=1.5, gapping=false, gapEnd=0;
+function startGap(ts){
+  gapping=true; gapEnd=ts+gapS*1000;
+  document.getElementById('gapCount').style.display='flex';
+}
+function runGap(ts){
+  const left=Math.max(0,(gapEnd-ts)/1000);
+  const txt=left.toFixed(1);
+  document.getElementById('gapCount').textContent=txt;
+  if(loopOn){ const lc=document.getElementById('loopChord'); lc.textContent=txt; lc.style.color='var(--pink)'; }
+  if(ts>=gapEnd){
+    gapping=false;
+    document.getElementById('gapCount').style.display='none';
+    if(loopOn) document.getElementById('loopChord').style.color='';
+    // STEP-UP: each pass +4%, hard-capped at 100%
+    if(document.getElementById('suChk').checked && SPEED<1){
+      SPEED=Math.min(1,SPEED+0.04);
+      const v=Math.round(SPEED*100);
+      document.getElementById('spd').value=v;
+      document.getElementById('spdVal').textContent=v+'%';
+    }
+  }
 }
 const SONG_DISPLAY_S=230;  // shown as a ~3:50 song
 function fmtT(p){ const s=Math.round(p/100*SONG_DISPLAY_S); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
