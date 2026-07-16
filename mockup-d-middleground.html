@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v8 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v9 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -36,7 +36,8 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 .view{display:none;flex:1}.view.on{display:flex;flex-direction:column;animation:fadein .25s ease}
 @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @media(max-width:760px){.side{width:56px}.nav span.lbl{display:none}.side .foot{display:none}.bar input{width:120px}}
-.grid{display:grid;grid-template-columns:1fr;gap:12px;flex:1;min-height:0}  /* v8: everything full width, every device */
+.grid{display:grid;grid-template-columns:1.3fr 1fr;gap:12px;flex:1;min-height:0}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}  /* smart detection: phones stack, everything else half-and-half */
 .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px;display:flex;flex-direction:column;position:relative}
 .ptitle{font-family:Orbitron;font-size:.56rem;letter-spacing:2px;color:#c4b5fd;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .cap{font-family:Orbitron;font-size:.5rem;letter-spacing:2px;color:var(--dim);margin:10px 0 4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -57,13 +58,14 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 .map .region{position:absolute;top:0;bottom:0;background:rgba(34,211,238,.13);border-left:2px solid var(--cyan);border-right:2px solid var(--cyan);display:none;pointer-events:none}
 .looprow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;padding:9px;border:1px dashed rgba(34,211,238,.35);border-radius:10px}
 .looprow .lbl{font-family:Orbitron;font-size:.52rem;letter-spacing:2px;color:var(--cyan)}
-.sl{display:flex;align-items:center;gap:5px;font-size:.58rem;color:var(--dim)}.sl input[type=range]{width:80px;accent-color:#a855f7}
+.sl{display:flex;align-items:center;gap:5px;font-size:.6rem;color:var(--dim);flex:1 1 auto;min-width:150px}
+.sl input[type=range]{flex:1;min-width:70px;max-width:220px;accent-color:#a855f7}
 .tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
 .tab{font-family:Orbitron;font-size:.54rem;padding:6px 10px;border-radius:8px;border:1px solid var(--border);color:var(--dim);cursor:pointer;transition:.15s}
 .tab:hover{color:#fff;border-color:var(--purple)}
 .tab.on{border-color:var(--cyan);color:var(--cyan);background:rgba(34,211,238,.08);box-shadow:0 0 12px rgba(34,211,238,.15)}
 .pane{display:none;flex:1;min-height:0}.pane.on{display:flex;flex-direction:column;animation:fadein .2s ease}
-.stage{font-size:.84rem;flex:1;overflow-y:auto;padding-right:4px}
+.stage{font-size:.84rem;flex:1;overflow-y:auto;padding-right:4px;min-height:260px}
 .stage .line{padding:4px 10px 7px;border-radius:8px;color:var(--dim);transition:.3s;display:flex;flex-wrap:wrap;align-items:flex-end;gap:0 6px}
 .seg{display:inline-flex;flex-direction:column;align-items:flex-start}
 .seg .ich{font-family:Orbitron;font-size:.58rem;font-weight:700;color:var(--purple);background:rgba(124,58,237,.14);
@@ -105,7 +107,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 .ndot{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);min-width:19px;height:19px;border-radius:10px;padding:0 3px;
       background:radial-gradient(circle at 35% 30%,#c084fc,#7c3aed);color:#fff;font-size:.5rem;font-weight:700;
       display:flex;align-items:center;justify-content:center;box-shadow:0 0 9px rgba(168,85,247,.6)}
-.ndot.root{background:radial-gradient(circle at 35% 30%,#67e8f9,#0891b2);box-shadow:0 0 11px rgba(34,211,238,.75)}
+.ndot.root{background:radial-gradient(circle at 35% 30%,#60a5fa,#1e40af);box-shadow:0 0 9px rgba(59,130,246,.55)}
 .hfb .fnums td{border:none;height:14px}
 .hfb .fnums span{font-size:.5rem;color:var(--dim);font-family:Orbitron}
 /* vertical fullscreen board */
@@ -129,7 +131,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 .vfb td:first-child{border-left:1px solid #23233a}
 .dot{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:13px;height:13px;border-radius:50%;
      background:radial-gradient(circle at 35% 30%,#c084fc,#7c3aed);box-shadow:0 0 8px rgba(168,85,237,.6)}
-.dot.root{background:radial-gradient(circle at 35% 30%,#67e8f9,#0891b2);box-shadow:0 0 10px rgba(34,211,238,.7)}
+.dot.root{background:radial-gradient(circle at 35% 30%,#60a5fa,#1e40af);box-shadow:0 0 9px rgba(59,130,246,.55)}
 .vfb .cap2{font-size:.48rem;color:var(--dim);margin-top:4px;font-family:Orbitron}
 .card{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px;font-size:.66rem;color:var(--dim);transition:.15s}
 .card:hover{border-color:var(--purple);transform:translateY(-2px)}
@@ -161,7 +163,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 #loopLyric{font-size:clamp(.95rem,4vw,1.25rem);color:#e8e8f0;text-align:center;max-width:86vw;line-height:2.4}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v8 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v9 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -275,7 +277,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
           <div class="keychips" id="keychips"></div>
           <div class="cap">PICK A SCALE</div>
           <div class="scalechips" id="scalechips"></div>
-          <div class="cap"><span id="hfbTitle">D MINOR PENTATONIC · full neck · cyan = root</span>
+          <div class="cap"><span id="hfbTitle">D MINOR PENTATONIC · full neck · blue = root</span>
             <span style="flex:1"></span>
             <span class="tab" onclick="openVBoard()">⛶ VERTICAL</span>
           </div>
@@ -548,7 +550,7 @@ function askScale(k,s){ selKey=k; selScale=s; lpane('scales'); buildChips(); dra
 function scaleSet(){ const r=NOTES.indexOf(selKey); return new Set(SCALES[selScale].map(i=>(r+i)%12)); }
 function drawHfb(){
   const set=scaleSet(), rootPc=NOTES.indexOf(selKey);
-  document.getElementById('hfbTitle').textContent=selKey+' '+selScale+' · full neck · cyan = root';
+  document.getElementById('hfbTitle').textContent=selKey+' '+selScale+' · full neck · blue = root';
   let h='<table>';
   // horizontal: high e on top (like tab), nut on the left
   [...TUNING].reverse().forEach(([pc,nm])=>{
