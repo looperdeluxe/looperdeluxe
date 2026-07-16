@@ -30,6 +30,9 @@ background); volume can be low but not muted at the tab level.</p>
 <button id="btn-stop" disabled>⏹ STOP</button>
 <button id="btn-skip" disabled>⏭ SKIP SONG</button>
 <button id="btn-reset" title="Forgets which songs THIS DEVICE already played, so they can be offered again. Deletes NOTHING — every chart and verification lives on the server and is untouched by this button.">♻ FORGET PLAY HISTORY (deletes nothing)</button>
+<label style="display:block; font-size:0.8rem; color:#9ca3af; margin:4px 0 10px;">
+  <input type="checkbox" id="chk-kiosk"> <b style="color:#4ade80;">KIOSK MODE</b> — never stop: when the list runs dry, keep watching for new requests (re-checks every 10 min between songs, never interrupts a song mid-capture); auto-resumes after YouTube-throttle cooldowns.
+</label>
 <div id="stats">
   <span><b id="s-done">0</b>songs captured</span>
   <span><b id="s-queued">0</b>sent to detector</span>
@@ -47,6 +50,11 @@ const STALL_LIMIT_S = 45;
 
 let player = null, stream = null, run = false, skipReq = false, ytErrStreak = 0;
 let setlist = [], done = 0, queued = 0, skipped = 0, consecFails = 0;
+let lastListPull = 0;
+const KIOSK_IDLE_MS = 10 * 60 * 1000;    // empty list -> re-check for new requests every 10 min
+const KIOSK_REFRESH_MS = 5 * 60 * 1000;  // between songs, refresh the priority list at most this often
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const kioskOn = () => !!(document.getElementById('chk-kiosk') || {}).checked;
 
 const $ = id => document.getElementById(id);
 function log(m) {
@@ -129,6 +137,11 @@ function playAndWait(vid, expectedS) {
         if (st === 0) return finish('ended');
         if (t > SONG_CAP_S) return finish('ended');
         if (Math.abs(t - lastT) >= 0.3 || st === 3) { lastMove = Date.now(); }  // advancing or buffering
+        // ADS: a pre-roll ad plays with state=playing while the VIDEO clock sits at ~0 — that
+        // must not count as a stall (we never block/skip ads; the aligner finds where the real
+        // song starts inside the capture and the rest is discarded after analysis). Give the
+        // ad break up to 150s before stall-judging kicks in.
+        else if ((st === 1 || st === -1) && t < 1 && (Date.now() - (playAndWait._t0 || 0)) < 150 * 1000) { lastMove = Date.now(); }
         lastT = t;
         if (Date.now() - lastMove >= STALL_LIMIT_S * 1000) return finish('stalled');
         if (!run) return finish('stalled');
@@ -170,6 +183,13 @@ async function captureSong(song) {
       // Sustained errors = YouTube is throttling this whole session. HARD STOP so nothing
       // hammers YouTube all night (protects your access). You can restart later once it clears.
       if (ytErrStreak >= 8) {
+        if (kioskOn()) {
+          log('⏸ YouTube keeps blocking playback (' + ytErrStreak + ' in a row) — kiosk cooldown 35 min so we never hammer it, then auto-resuming.');
+          await sleep(35 * 60 * 1000);
+          ytErrStreak = 0;
+          if (!run) return;
+          continue;   // retry this song's candidates after the cooldown
+        }
         log('⛔ YouTube keeps blocking playback (' + ytErrStreak + ' in a row) — stopping so we never hammer it. Try again in ~30 min or after a browser restart.');
         run = false; return;
       }
@@ -202,29 +222,69 @@ async function captureSong(song) {
   skipped++; log('  ⚠ every candidate was the wrong length — song skipped');
 }
 
-async function marathon() {
-  skipReq = false;
-  loadStats();                                   // restore your running counts across refreshes
-  const r = await fetch(ENGINE + '/marathon_list?n=' + NIGHT_CAP);
+// Pull the server's priority list (server order = priority: requested rank-1 songs first),
+// filtered by this device's done-set. Used for the initial pull AND kiosk refreshes — a
+// refresh REPLACES the pending list between songs, so a new request jumps the queue without
+// ever touching the song currently being captured.
+async function pullList() {
+  const r = await fetchT(ENGINE + '/marathon_list?n=' + NIGHT_CAP, {}, 15000);
+  if (!r.ok) throw new Error('marathon_list ' + r.status);
   const d = await r.json();
+  lastListPull = Date.now();
   const dset = doneSet();
   const seen = new Set();
-  // remove songs you've already done (refresh drops them, the rest move up) + dedupe
-  setlist = (d.songs || []).filter(s => {
+  const list = (d.songs || []).filter(s => {
     const k = songKey(s);
     if (dset.has(k) || seen.has(k)) return false;
     seen.add(k); return true;
   });
-  log('Set list: ' + setlist.length + ' fresh songs (' + d.total + ' total charted, '
-      + dset.size + ' already done on this device). Rolling…');
+  return { list, total: d.total };
+}
+
+async function marathon() {
+  skipReq = false;
+  loadStats();                                   // restore your running counts across refreshes
+  let first;
+  try { first = await pullList(); }
+  catch (e) {
+    // a failed first pull must reset the buttons, not wedge the run
+    log('⚠ could not load the set list (' + (e.message || e) + ') — press START to retry.');
+    run = false;
+    $('btn-start').disabled = false; $('btn-stop').disabled = true; $('btn-skip').disabled = true;
+    return;
+  }
+  setlist = first.list;
+  log('Set list: ' + setlist.length + ' fresh songs (' + first.total + ' total needing work, '
+      + doneSet().size + ' already done on this device). ' + (kioskOn() ? 'KIOSK mode — running forever.' : 'Rolling…'));
   stats();
-  while (run && setlist.length) {
+  while (run) {
+    if (!setlist.length) {
+      if (!kioskOn()) break;
+      log('💤 list empty — kiosk idle, checking for new requests in 10 min…');
+      await sleep(KIOSK_IDLE_MS);
+      if (!run) break;
+      try { setlist = (await pullList()).list; } catch (e) { log('  ⚠ list check failed (' + (e.message || e) + ') — will retry'); }
+      stats();
+      continue;
+    }
+    // kiosk: refresh priorities between songs so a fresh request jumps the queue mid-run
+    if (kioskOn() && Date.now() - lastListPull > KIOSK_REFRESH_MS) {
+      try {
+        const fresh = (await pullList()).list;
+        if (fresh.length && songKey(fresh[0]) !== songKey(setlist[0] || {})) log('🔄 list refreshed — new priorities picked up');
+        setlist = fresh;
+        if (!setlist.length) continue;           // everything got handled elsewhere — go idle
+      } catch (e) { /* keep the old list; next refresh retries */ }
+    }
     const song = setlist.shift();
     stats();
     try { await captureSong(song); }
     catch (e) { skipped++; consecFails++; log('  ⚠ ' + (e.message || e)); }
     stats();
-    if (consecFails >= 5) { log('⛔ 5 failures in a row — stopping so nothing spins all night.'); break; }
+    if (consecFails >= 5) {
+      if (kioskOn()) { log('⏸ 5 failures in a row — kiosk cooldown 15 min, then resuming.'); consecFails = 0; await sleep(15 * 60 * 1000); continue; }
+      log('⛔ 5 failures in a row — stopping so nothing spins all night.'); break;
+    }
     await new Promise(res => setTimeout(res, 4000));
   }
   run = false;
