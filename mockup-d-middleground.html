@@ -93,14 +93,34 @@ h1 b{background:linear-gradient(90deg,#a855f7,#22d3ee);-webkit-background-clip:t
 /* expand mode: stage panel takes the whole window */
 .panel.max{position:fixed;inset:0;z-index:40;border-radius:0;padding:22px clamp(14px,6vw,90px)}
 .panel.max .stage{font-size:1.05rem;line-height:2.6}
+/* ── LOOP MODE: fullscreen spinning ring + giant chord + lyric (iPhone-first) ── */
+#loopMode{display:none;position:fixed;inset:0;z-index:50;background:radial-gradient(circle at 50% 42%, #17172a, #08080f 70%);
+          flex-direction:column;align-items:center;justify-content:center;gap:18px;cursor:pointer}
+#loopMode.on{display:flex;animation:fadein .3s ease}
+.ringwrap{position:relative;width:min(64vw,300px);height:min(64vw,300px)}
+.ringwrap svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ringbg{fill:none;stroke:#1e1e33;stroke-width:9}
+.ring{fill:none;stroke:url(#lgrad);stroke-width:9;stroke-linecap:round;stroke-dasharray:565;stroke-dashoffset:420;
+      filter:drop-shadow(0 0 10px rgba(168,85,247,.8));transition:stroke-dashoffset .4s linear}
+.ringspin{position:absolute;inset:-14px;border-radius:50%;border:1px dashed rgba(168,85,247,.25);animation:spin 9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.bigchord{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.bigchord b{font-family:Orbitron;font-weight:900;font-size:clamp(3.4rem,17vw,5.5rem);color:#fff;
+            text-shadow:0 0 30px rgba(34,211,238,.8),0 0 70px rgba(124,58,237,.5);line-height:1}
+.bigchord small{font-family:Orbitron;font-size:.6rem;color:var(--pink);letter-spacing:2px;margin-top:6px}
+.bigchord .cnt{font-size:.6rem;color:var(--dim);margin-top:4px}
+#loopLyric{font-size:clamp(.95rem,4vw,1.25rem);color:#e8e8f0;text-align:center;max-width:86vw;line-height:2}
+#loopLyric .ich{font-family:Orbitron;font-size:.65em;font-weight:700;color:var(--cyan);background:rgba(34,211,238,.12);
+                border:1px solid rgba(34,211,238,.4);border-radius:6px;padding:1px 7px;margin:0 6px;vertical-align:12%}
+#loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v3 — press ▶ PLAY: chords now sit INSIDE the lyric where they change, words light up as they're sung, the upcoming chord pulses pink before it lands. ⛶ EXPAND on the stage. Nothing real loads.</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v4 — NEW: hit 🔁 LOOP for the fullscreen spinning-ring practice view · press ▶ PLAY: chords now sit INSIDE the lyric where they change, words light up as they're sung, the upcoming chord pulses pink before it lands. ⛶ EXPAND on the stage. Nothing real loads.</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER <b>DELUXE</b></h1>
   <input placeholder="Search any song…" onkeydown="if(event.key==='Enter')toast('mock: would search + auto-load chords')">
   <button class="btn primary" id="btnPlay" onclick="togglePlay()">▶ PLAY</button>
-  <button class="btn" onclick="toast('mock: loop set to current section')">🔁 LOOP</button>
+  <button class="btn" onclick="openLoop()">🔁 LOOP</button>
   <button class="btn chords" onclick="toast('mock: chords re-fetched from library')">🎸 GET CHORDS</button>
   <span class="kchip">KEY F</span><span class="kchip capo">CAPO 3</span><span class="kchip">133 BPM</span>
   <button class="btn" style="padding:6px 9px" onclick="toast('mock: BPM halved')">÷2</button>
@@ -237,6 +257,21 @@ h1 b{background:linear-gradient(90deg,#a855f7,#22d3ee);-webkit-background-clip:t
     </div>
   </div>
 </div>
+<!-- LOOP MODE — the fullscreen ring view (tap anywhere to exit) -->
+<div id="loopMode" onclick="closeLoop()">
+  <div class="ringwrap">
+    <svg viewBox="0 0 200 200">
+      <defs><linearGradient id="lgrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#a855f7"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs>
+      <circle class="ringbg" cx="100" cy="100" r="90"/>
+      <circle class="ring" id="loopRing" cx="100" cy="100" r="90"/>
+    </svg>
+    <div class="ringspin"></div>
+    <div class="bigchord"><b id="loopChord">B♭</b><small>NEXT → <span id="loopNext">F</span></small><span class="cnt">loop ×<span id="loopCnt">3</span> · 2:41–3:05</span></div>
+  </div>
+  <div id="loopLyric"></div>
+  <div class="hint">LOOP MODE · chords over lyrics, hands-free · tap anywhere to exit</div>
+</div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -314,12 +349,31 @@ function step(){
     });
     wi++;
   } else setLine(li+1);
+  loopStep();
 }
 function togglePlay(){
   playing=!playing;
   document.getElementById('btnPlay').textContent=playing?'⏸ PAUSE':'▶ PLAY';
   if(playing){ tick=setInterval(step,420); toast('simulated playback — watch chords land INSIDE the lyrics'); }
   else clearInterval(tick);
+}
+// ── LOOP MODE: fullscreen ring — progress sweeps each loop pass, chord + lyric ride along ──
+let loopOn=false, loopP=0, loopN=3;
+function openLoop(){
+  loopOn=true; document.getElementById('loopMode').classList.add('on');
+  if(!playing) togglePlay();                       // loop mode implies playing
+  toast('LOOP MODE — this is the fullscreen practice view (tap to exit)');
+}
+function closeLoop(){ loopOn=false; document.getElementById('loopMode').classList.remove('on'); }
+function loopStep(){
+  if(!loopOn) return;
+  loopP=(loopP+1.6)%100;
+  if(loopP<1.6){ loopN++; document.getElementById('loopCnt').textContent=loopN; }
+  document.getElementById('loopRing').style.strokeDashoffset=565-(565*loopP/100);
+  document.getElementById('loopChord').textContent=chips[ci].textContent;
+  document.getElementById('loopNext').textContent=chips[(ci+1)%chips.length].textContent;
+  const line=stageEl.children[li];
+  document.getElementById('loopLyric').innerHTML=line?line.innerHTML:'';
 }
 document.getElementById('map').addEventListener('click',e=>{
   pos=(e.offsetX/e.currentTarget.clientWidth)*100;
