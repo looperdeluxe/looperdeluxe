@@ -220,10 +220,14 @@ async function captureSong(song) {
       const r = await fetchT(ENGINE + '/playthrough?artist=' + encodeURIComponent(song.artist)
                             + '&title=' + encodeURIComponent(song.title) + '&vid=' + encodeURIComponent(hit.id),
                             { method: 'POST', headers: { 'Content-Type': 'application/octet-stream' }, body: blob }, 90000);
-      if (r.ok) { queued++; markDone(song); log('  🎧 sent to detector (' + Math.round(blob.size / 1024) + ' KB)'); }
-      else { const e = await r.json().catch(() => ({})); markDone(song); log('  ⚠ intake said: ' + (e.error || r.status)); }
+      // NO markDone on captures (2026-07-16): the SERVER is the single source of truth — intake
+      // hides a song 48h while it processes, a DROPPED capture un-hides it for retry, success
+      // removes it from the list permanently. The local done-list re-hiding captured songs FOUGHT
+      // that self-healing (dropped songs never re-offered on this device). Done-list = user skips only.
+      if (r.ok) { queued++; log('  🎧 sent to detector (' + Math.round(blob.size / 1024) + ' KB)'); }
+      else { const e = await r.json().catch(() => ({})); log('  ⚠ intake said: ' + (e.error || r.status)); }
     } catch (e) {
-      markDone(song); log('  ⚠ upload timed out/failed — moving on (' + (e.message || e) + ')');
+      log('  ⚠ upload timed out/failed — moving on (the server re-offers it next round)');
     }
     return;   // always advance to the next song
   }
