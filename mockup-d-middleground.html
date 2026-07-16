@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v12 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v13 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -82,7 +82,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 .stage .now .ich.hit{background:rgba(34,211,238,.3);border-color:var(--cyan);color:var(--cyan);animation:pop .22s ease-out}  /* the big-bang pop on the change */
 @keyframes buildup{from{background:rgba(124,58,237,.14);box-shadow:0 0 0 rgba(240,171,252,0);color:#c084fc}
                    to{background:rgba(240,171,252,.3);box-shadow:0 0 18px rgba(240,171,252,.85);color:var(--pink)}}
-.stage .now .ich.soon{animation:buildup .5s linear forwards;border-color:var(--pink)}  /* fixed 0.5s gradient build — you SEE it coming */
+.stage .now .ich.soon{animation:buildup .4s linear forwards;border-color:var(--pink)}  /* fixed 0.4s build ALWAYS — keep this timing in the real engine too */
 @keyframes pop{0%{transform:scale(1.35);box-shadow:0 0 28px rgba(34,211,238,1)}100%{transform:scale(1);box-shadow:0 0 12px rgba(34,211,238,.7)}}
 .next{margin-top:8px;padding:8px 10px;border:1px dashed var(--border);border-radius:8px;font-size:.6rem;color:var(--dim);flex-shrink:0}
 .next b{font-family:Orbitron;color:var(--pink);font-size:.88rem;text-shadow:0 0 10px rgba(240,171,252,.5)}
@@ -179,7 +179,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 #loopLyric .line.up2{opacity:.3;font-size:.7em}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v12 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v13 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -190,7 +190,6 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
   <button class="btn" style="padding:6px 9px" onclick="toast('mock: BPM halved')">÷2</button>
   <button class="btn" style="padding:6px 9px" onclick="toast('mock: BPM doubled')">×2</button>
   <span style="flex:1"></span>
-  <button class="btn" title="quick tour of everything" onclick="document.getElementById('helpOv').classList.add('on')" style="border-color:var(--cyan);color:var(--cyan)">? HELP</button>
   <span style="font-size:.64rem;color:var(--dim)">★ELITE · Brooks</span>
 </div>
 
@@ -222,6 +221,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
     <div class="nav" id="nav-learn" onclick="nav('learn')">🎼 <span class="lbl">LEARN</span></div>
     <div class="nav" id="nav-coach" onclick="nav('coach')">🤖 <span class="lbl">COACH</span></div>
     <div class="nav" id="nav-stuff" onclick="nav('stuff')">📁 <span class="lbl">MY STUFF</span></div>
+    <div class="nav" onclick="document.getElementById('helpOv').classList.add('on')" style="color:var(--cyan);border-color:rgba(34,211,238,.35)">❓ <span class="lbl">HELP</span></div>
     <div class="nav" id="nav-settings" onclick="nav('settings')">⚙ <span class="lbl">SETTINGS</span></div>
     <div class="foot">Every feature keeps a home — one hop away.</div>
   </div>
@@ -511,7 +511,7 @@ function syncStage(){
   }
   const words=[...line.querySelectorAll('.w')];
   const frac=(pos-ln*LINE_SPAN)/LINE_SPAN;
-  const wcut=Math.floor(frac*words.length);
+  const wcut=Math.floor(frac*words.length+0.4);   // slight lead: the LAST word pops before the line flips
   words.forEach((w,i)=>w.classList.toggle('sung',i<wcut));
   const segs=[...line.querySelectorAll('.seg')];
   segs.forEach(s=>{
