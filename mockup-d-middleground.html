@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v15 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v16 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -179,7 +179,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 #loopLyric .line.up2{opacity:.3;font-size:.7em}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v15 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v16 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -198,23 +198,27 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
     <div style="font-family:Orbitron;font-size:1rem;letter-spacing:3px;color:#d8b4fe;margin-bottom:4px">EVERYTHING IN 60 SECONDS</div>
     <div style="font-size:.66rem;color:var(--dim);margin-bottom:14px">tap a card to TRY that feature · tap anywhere else to close</div>
     <div class="cardgrid">
-      <div class="card"><b>🔍 SEARCH → PLAY</b>Type any song. Chords, key, capo and lyrics load themselves — no buttons.</div>
-      <div class="card" onclick="event.stopPropagation();document.getElementById('helpOv').classList.remove('on');nav('play');if(!playing)togglePlay()" style="cursor:pointer"><b>🎤 STAGE → TAP TO TRY</b>Lyrics with the chords above the exact word they change on. Pink build-up = change coming, pop = now.</div>
-      <div class="card"><b>🔁 LOOP</b>IN and OUT mark a section on the waveform. It repeats until you own it. 💾 saves it forever.</div>
-      <div class="card" onclick="event.stopPropagation();document.getElementById('helpOv').classList.remove('on');nav('play');openLoop()" style="cursor:pointer"><b>◉ LOOP MODE → TAP TO TRY</b>Fullscreen ring for hands-free practice — chord in the middle, lyrics below, phone on the music stand.</div>
-      <div class="card"><b>🎯 PRACTICE</b>Step-up speeds each pass +4% and caps at 100%. Gap counts you back in with a live decimal countdown (1.5… 0.8… 0.0). Start delay counts you in.</div>
-      <div class="card"><b>🎵 STRUM</b>Auto-detected pattern for the song's feel — or scroll ‹ › to pick your own.</div>
-      <div class="card" onclick="event.stopPropagation();document.getElementById('helpOv').classList.remove('on');nav('learn')" style="cursor:pointer"><b>🎼 LEARN → TAP TO TRY</b>Any key × any scale on a live neck. Flip it vertical. Ask in plain English: "D minor but darker."</div>
-      <div class="card"><b>🎚 STEMS</b>Mute your instrument, play with the rest of the band.</div>
-      <div class="card"><b>🎤 CHORD COACH</b>Listens through the mic and tells you which chords you're actually hitting.</div>
-      <div class="card" onclick="event.stopPropagation();document.getElementById('helpOv').classList.remove('on');nav('coach')" style="cursor:pointer"><b>🤖 AI COACH → TAP TO TRY</b>Ask anything about the song you're playing — theory, voicings, why it sounds the way it does.</div>
-      <div class="card"><b>👥 VERSIONS &amp; TABS</b>Community charts, or upload your own tab — it becomes playable, synced to the song.</div>
-      <div class="card"><b>⛶ EXPAND</b>The stage, fullscreen. Current line pinned to the top. Built for the phone on your stand.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('play',null,'.bar input')"><b>🔍 SEARCH → PLAY</b>Type any song. Chords, key, capo and lyrics load themselves — no buttons.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('play','stage','#stagePanel')"><b>🎤 STAGE</b>Lyrics with the chords above the exact word they change on. Pink build-up = change coming, pop = now.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('play',null,'#loopRowMain')"><b>🔁 LOOP</b>IN and OUT mark a section on the waveform. It repeats until you own it. 💾 saves it forever.</div>
+      <div class="card" onclick="event.stopPropagation();document.getElementById('helpOv').classList.remove('on');nav('play');openLoop()"><b>◉ LOOP MODE</b>Fullscreen ring for hands-free practice — chord in the middle, lyrics below, phone on the music stand.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('play',null,'#practiceRow')"><b>🎯 PRACTICE</b>Step-up speeds each pass +4% and caps at 100%. Gap counts you back in with a live decimal countdown. Start delay counts you in.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('play',null,'#strumRow')"><b>🎵 STRUM</b>Auto-detected pattern for the song's feel — or scroll ‹ › to pick your own.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('learn',null,'#hfb')"><b>🎼 LEARN</b>Any key × any scale on a live neck. Flip it vertical. Ask in plain English: "D minor but darker."</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('play','stems','#pane-stems .card')"><b>🎚 STEMS</b>Mute your instrument, play with the rest of the band.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('play','ccoach','#pane-ccoach .card')"><b>🎤 CHORD COACH</b>Listens through the mic and tells you which chords you're actually hitting.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('coach',null,'#view-coach .panel')"><b>🤖 AI COACH</b>Ask anything about the song you're playing — theory, voicings, why it sounds the way it does.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('play','versions','#pane-versions .card')"><b>👥 VERSIONS &amp; TABS</b>Community charts, or upload your own tab — it becomes playable, synced to the song.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('play','stage','#stagePanel .tabs .tab:last-child')"><b>⛶ EXPAND</b>The stage, fullscreen. Current line pinned to the top. Built for the phone on your stand.</div>
     </div>
   </div>
 </div>
 <style>
+.spot{outline:2px solid var(--pink) !important;box-shadow:0 0 30px rgba(240,171,252,.75) !important;border-radius:10px;transition:box-shadow .4s, outline-color .4s}
 #helpOv{display:none}
+#helpOv .cardgrid{grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px}
+#helpOv .card{font-size:.8rem;padding:16px;line-height:1.6;min-height:96px;cursor:pointer}
+#helpOv .card b{font-size:.7rem;margin-bottom:8px}
 #helpOv.on{display:block;animation:fadein .25s ease}
 /* features slide in one after another — the tour should feel alive */
 @keyframes slidein{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
@@ -251,7 +255,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
           <div class="ribbon"><div class="lane" id="lane"></div><div class="now-line"></div></div>
           <div class="cap">WAVEFORM · the whole song · CLICK TO JUMP · loop region in cyan</div>
           <div class="map" id="map"><span class="region" id="region"></span><span class="ph" id="mph"></span><div id="gapCount">1.5</div></div>
-          <div class="looprow">
+          <div class="looprow" id="loopRowMain">
             <span class="lbl">🔁 LOOP</span>
             <button class="btn" onclick="setIn()">◀ IN</button>
             <button class="btn" onclick="setOut()">OUT ▶</button>
@@ -266,7 +270,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
               <b id="trVal" style="color:var(--cyan);font-size:.66rem;min-width:38px;text-align:center">0 st</b>
               <button class="btn" style="padding:4px 9px" onclick="trAdj(1)">+</button></span>
           </div>
-          <div class="looprow" style="border-color:rgba(74,222,128,.3)">
+          <div class="looprow" id="strumRow" style="border-color:rgba(74,222,128,.3)">
             <span class="lbl" style="color:var(--green)">🎵 STRUM</span>
             <span class="kc on" id="strumAuto" onclick="setStrum(0)">AUTO · SMART</span>
             <span class="kc" style="padding:3px 8px" onclick="cycleStrum(-1)">‹</span>
@@ -274,7 +278,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
             <span class="kc" style="padding:3px 8px" onclick="cycleStrum(1)">›</span>
             <span id="strumName" style="font-size:.6rem;color:var(--dim)">detected from the song's feel (133 BPM, driving)</span>
           </div>
-          <div class="looprow" style="border-color:rgba(240,171,252,.3)">
+          <div class="looprow" id="practiceRow" style="border-color:rgba(240,171,252,.3)">
             <span class="lbl" style="color:var(--pink)">🎯 PRACTICE</span>
             <span class="sl"><input type="checkbox" id="suChk" checked style="accent-color:#f0abfc" onchange="toast('step-up '+(this.checked?'ON — each pass +4% until it hits 100%, never past':'off'))"> STEP-UP <input type="range" value="4"> <b style="color:var(--pink);font-size:.62rem">+4%/pass · caps at 100%</b></span>
             <span class="sl"><input type="checkbox" id="gapChk" checked style="accent-color:#f0abfc" onchange="toast('gap delay '+(this.checked?'ON — decimal countdown between passes':'off'))"> GAP <input type="range" id="gapSl" min="5" max="40" value="15" oninput="gapS=this.value/10;document.getElementById('gapVal').textContent=gapS.toFixed(1)+'s'"> <b id="gapVal" style="color:var(--pink);font-size:.62rem">1.5s</b></span>
@@ -429,6 +433,18 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 <div class="toast" id="toast"></div>
 
 <script>
+function helpGo(view, tabPane, sel){
+  document.getElementById('helpOv').classList.remove('on');
+  nav(view);
+  if(tabPane){ const tb=document.querySelector('.tab[data-pane="'+tabPane+'"]'); if(tb) pane(tb); }
+  setTimeout(()=>{
+    const el=document.querySelector(sel);
+    if(!el) return;
+    el.classList.add('spot');
+    el.scrollIntoView({block:'center',behavior:'smooth'});
+    setTimeout(()=>el.classList.remove('spot'),2600);   // the highlight lets go on its own
+  },240);
+}
 function nav(k){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   document.querySelectorAll('.nav').forEach(n=>n.classList.remove('on'));
