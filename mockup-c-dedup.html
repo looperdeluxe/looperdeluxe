@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>MOCKUP C — Same Site, Deduped</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0b12;--panel:#131320;--border:#2c2c44;--cyan:#22d3ee;--purple:#a855f7;--dim:#8b8ba3;--green:#4ade80}
+*{box-sizing:border-box}body{background:var(--bg);color:#e4e4e7;font-family:'JetBrains Mono',monospace;margin:0;padding:14px}
+.banner{background:#78350f;color:#fde68a;font-size:.7rem;padding:6px 12px;border-radius:8px;margin-bottom:12px;text-align:center}
+h1{font-family:Orbitron;font-size:1.3rem;letter-spacing:3px;margin:0;color:#fff}h1 b{color:var(--purple)}
+.top{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.pill{font-family:Orbitron;font-size:.6rem;padding:5px 12px;border-radius:16px;border:1px solid var(--border);color:var(--dim)}
+.pill.on{border-color:var(--purple);color:#fff;background:rgba(124,58,237,.25)}
+.btn{font-family:Orbitron;font-size:.62rem;padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:#191927;color:#e4e4e7;cursor:pointer;white-space:nowrap}
+.btn.chords{background:linear-gradient(135deg,#065f46,#064e3b);border-color:var(--green);color:var(--green)}
+.btn.primary{background:linear-gradient(135deg,#7c3aed,#5b21b6);border-color:var(--purple);color:#fff}
+.sec{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px}
+.sec>b{display:block;font-family:Orbitron;font-size:.58rem;letter-spacing:2px;color:#c4b5fd;margin-bottom:8px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.search input{width:280px;background:#0a0a14;border:1px solid var(--border);border-radius:8px;color:#fff;padding:9px 11px;font-family:inherit;font-size:.75rem}
+.video{background:#000;border-radius:10px;height:190px;display:flex;align-items:center;justify-content:center;color:#333;font-family:Orbitron;margin-bottom:8px}
+.ribbon{background:#0a0a14;border:1px solid var(--border);border-radius:8px;height:50px;position:relative;margin-bottom:6px}
+.chip{position:absolute;top:9px;height:24px;background:rgba(124,58,237,.35);border-radius:4px;color:#d8b4fe;font-size:.8rem;font-weight:700;padding:2px 8px}
+.chip.cur{background:rgba(34,211,238,.3);color:var(--cyan)}
+.map{height:26px;background:#0a0a14;border:1px solid var(--border);border-radius:6px;position:relative}
+.map i{position:absolute;bottom:3px;width:2.2%;background:rgba(124,58,237,.55)}
+.stat{font-size:.68rem;color:var(--dim)}.stat b{color:var(--cyan);font-size:.9rem}
+.sl{display:flex;align-items:center;gap:6px;font-size:.62rem;color:var(--dim)}
+.sl input[type=range]{width:90px}
+details.extras{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+details.extras summary{font-family:Orbitron;font-size:.62rem;letter-spacing:2px;color:var(--dim);cursor:pointer}
+.exgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-top:10px}
+.excard{background:#0f0f1c;border:1px solid var(--border);border-radius:8px;padding:9px;font-size:.64rem;color:var(--dim)}
+.excard b{display:block;font-family:Orbitron;font-size:.56rem;color:#c4b5fd;margin-bottom:4px}
+.note{font-size:.62rem;color:var(--dim);margin-top:6px}
+</style></head><body>
+<div class="banner">⚠ MOCKUP C — "SAME SITE, DEDUPED" · closest to today's layout · not functional</div>
+<div class="top"><h1>LOOPER <b>DELUXE</b></h1><span class="pill on">AUDIO SYSTEM</span><span class="pill">VIDEO STUDIO</span><span style="flex:1"></span><span class="stat">connected: Brooks ★ELITE</span></div>
+
+<div class="sec"><b>SONG</b>
+  <div class="row search">
+    <input placeholder="turmoil and tinfoil">
+    <button class="btn primary">▶ PLAY</button>
+    <button class="btn chords">🎸 GET CHORDS</button>
+    <span style="flex:1"></span>
+    <span class="stat">KEY <b>F</b> · CAPO <b>3</b> · <b>133</b> BPM <button class="btn" style="padding:3px 7px">÷2</button><button class="btn" style="padding:3px 7px">×2</button></span>
+  </div>
+  <div class="note">THE fix: one search, ONE play, ONE GET CHORDS, ONE key/capo/BPM readout — each existed 2-3× before, all duplicates gone.</div>
+</div>
+
+<div class="sec"><b>STAGE</b>
+  <div class="video">▶ VIDEO / WAVEFORM</div>
+  <div class="ribbon"><span class="chip" style="left:2%">F</span><span class="chip cur" style="left:24%">B♭</span><span class="chip" style="left:50%">F</span><span class="chip" style="left:73%">E♭</span><span class="chip" style="left:90%">Fm</span></div>
+  <div class="map"><i style="left:3%;height:8px"></i><i style="left:7%;height:15px"></i><i style="left:11%;height:19px"></i><i style="left:15%;height:11px"></i><i style="left:19%;height:18px"></i><i style="left:23%;height:14px"></i><i style="left:27%;height:20px"></i><i style="left:31%;height:17px"></i><i style="left:35%;height:12px"></i><i style="left:39%;height:19px"></i><i style="left:43%;height:8px"></i><i style="left:47%;height:16px"></i><i style="left:51%;height:20px"></i><i style="left:55%;height:13px"></i><i style="left:59%;height:18px"></i><i style="left:63%;height:15px"></i><i style="left:67%;height:19px"></i><i style="left:71%;height:11px"></i><i style="left:75%;height:17px"></i><i style="left:79%;height:14px"></i><i style="left:83%;height:9px"></i><i style="left:87%;height:13px"></i><i style="left:91%;height:6px"></i></div>
+</div>
+
+<div class="sec"><b>LOOP &amp; FEEL</b>
+  <div class="row">
+    <button class="btn">◀ IN</button><button class="btn">OUT ▶</button><button class="btn primary">🔁 LOOP</button><button class="btn">✕ CLEAR</button>
+    <span style="flex:1"></span>
+    <span class="sl">SPEED <input type="range"></span>
+    <span class="sl">VOLUME <input type="range"></span>
+    <span class="sl">TRANSPOSE <input type="range"></span>
+  </div>
+  <div class="note">Loop + the three sliders people actually move. Step-up/gap-delay/start-delay moved into EXTRAS below.</div>
+</div>
+
+<details class="extras"><summary>▸ PRACTICE TOOLS — metronome · stems · coach · saved loops · versions · lyrics sync</summary>
+  <div class="exgrid">
+    <div class="excard"><b>METRONOME</b>133 BPM · tap-to-lock (T) · offset · click sync</div>
+    <div class="excard"><b>🎚 STEMS</b>Isolate/mute your instrument</div>
+    <div class="excard"><b>🎤 COACH</b>Mic check: are you hitting the chords?</div>
+    <div class="excard"><b>💾 SAVED LOOPS</b>Your loop bank</div>
+    <div class="excard"><b>👥 VERSIONS</b>Community charts · publish</div>
+    <div class="excard"><b>ADVANCED</b>Step-up % · gap delay · start delay · lyric sync</div>
+  </div>
+</details>
+</body></html>

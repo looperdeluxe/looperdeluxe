@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>MOCKUP B — One Toolbar</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0b12;--panel:#131320;--border:#2c2c44;--cyan:#22d3ee;--purple:#a855f7;--dim:#8b8ba3;--green:#4ade80}
+*{box-sizing:border-box}body{background:var(--bg);color:#e4e4e7;font-family:'JetBrains Mono',monospace;margin:0;padding:14px}
+.banner{background:#78350f;color:#fde68a;font-size:.7rem;padding:6px 12px;border-radius:8px;margin-bottom:12px;text-align:center}
+h1{font-family:Orbitron;font-size:1.2rem;letter-spacing:3px;margin:0;color:#fff}h1 b{color:var(--purple)}
+.bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:12px;position:sticky;top:8px}
+.bar input{width:230px;background:#0a0a14;border:1px solid var(--border);border-radius:8px;color:#fff;padding:8px 10px;font-family:inherit;font-size:.72rem}
+.btn{font-family:Orbitron;font-size:.6rem;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:#191927;color:#e4e4e7;cursor:pointer;white-space:nowrap}
+.btn.primary{background:linear-gradient(135deg,#7c3aed,#5b21b6);border-color:var(--purple);color:#fff}
+.stat{font-size:.66rem;color:var(--dim);white-space:nowrap}.stat b{color:var(--cyan);font-size:.85rem}
+.grid{display:grid;grid-template-columns:1.4fr 1fr;gap:12px}
+@media(max-width:820px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:12px}
+.video{background:#000;border-radius:10px;height:230px;display:flex;align-items:center;justify-content:center;color:#333;font-family:Orbitron;margin-bottom:10px}
+.ribbon{background:#0a0a14;border:1px solid var(--border);border-radius:8px;height:52px;position:relative;margin-bottom:6px}
+.chip{position:absolute;top:9px;height:24px;background:rgba(124,58,237,.35);border-radius:4px;color:#d8b4fe;font-size:.8rem;font-weight:700;padding:2px 8px}
+.chip.cur{background:rgba(34,211,238,.3);color:var(--cyan)}
+.map{height:26px;background:#0a0a14;border:1px solid var(--border);border-radius:6px;position:relative}
+.map i{position:absolute;bottom:3px;width:2.2%;background:rgba(124,58,237,.55)}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tab{font-family:Orbitron;font-size:.58rem;padding:6px 12px;border-radius:8px;border:1px solid var(--border);color:var(--dim);cursor:pointer}
+.tab.on{border-color:var(--cyan);color:var(--cyan);background:rgba(34,211,238,.08)}
+.lyr{font-size:.78rem;line-height:2;color:var(--dim)}.lyr .now{color:#fff;background:rgba(124,58,237,.25);border-radius:4px;padding:1px 6px}
+.lyr .ch{color:var(--cyan);font-size:.66rem;font-weight:700;margin-right:6px}
+.note{font-size:.64rem;color:var(--dim);margin-top:8px}
+</style></head><body>
+<div class="banner">⚠ MOCKUP B — "ONE TOOLBAR" · not functional, layout demo only</div>
+
+<div class="bar">
+  <h1>L<b>D</b></h1>
+  <input placeholder="Search song…">
+  <button class="btn primary">▶</button><button class="btn">⏸</button><button class="btn">🔁 LOOP</button>
+  <span class="stat">KEY <b>F</b></span><span class="stat">CAPO <b>3</b></span><span class="stat"><b>133</b>BPM</span>
+  <button class="btn">÷2</button><button class="btn">×2</button>
+  <span class="stat">SPEED <b>1.0×</b></span>
+  <span style="flex:1"></span><span class="stat">★ Brooks</span>
+</div>
+
+<div class="grid">
+  <div class="panel">
+    <div class="video">▶ VIDEO / WAVEFORM</div>
+    <div class="ribbon"><span class="chip" style="left:2%">F</span><span class="chip cur" style="left:24%">B♭</span><span class="chip" style="left:50%">F</span><span class="chip" style="left:72%">E♭</span><span class="chip" style="left:90%">Fm</span></div>
+    <div class="map"><i style="left:3%;height:8px"></i><i style="left:7%;height:16px"></i><i style="left:11%;height:20px"></i><i style="left:15%;height:12px"></i><i style="left:19%;height:19px"></i><i style="left:23%;height:15px"></i><i style="left:27%;height:21px"></i><i style="left:31%;height:18px"></i><i style="left:35%;height:13px"></i><i style="left:39%;height:20px"></i><i style="left:43%;height:9px"></i><i style="left:47%;height:17px"></i><i style="left:51%;height:21px"></i><i style="left:55%;height:14px"></i><i style="left:59%;height:19px"></i><i style="left:63%;height:16px"></i><i style="left:67%;height:20px"></i><i style="left:71%;height:12px"></i><i style="left:75%;height:18px"></i><i style="left:79%;height:15px"></i><i style="left:83%;height:10px"></i><i style="left:87%;height:14px"></i><i style="left:91%;height:7px"></i></div>
+    <div class="note">Main stage = just the song. Every control lives in the ONE sticky toolbar up top — nothing else floats around it.</div>
+  </div>
+  <div class="panel">
+    <div class="tabs"><span class="tab on">📜 LYRICS+CHORDS</span><span class="tab">🎚 STEMS</span><span class="tab">🎤 COACH</span><span class="tab">💾 SAVED</span><span class="tab">👥 VERSIONS</span></div>
+    <div class="lyr">
+      <div><span class="ch">F</span>I recall a silver morning</div>
+      <div class="now"><span class="ch">B♭</span>Everything was new and shining</div>
+      <div><span class="ch">F</span>Time was moving, always turning</div>
+      <div><span class="ch">E♭</span>Nothing ever stays the same</div>
+      <div><span class="ch">Fm</span>Turmoil and the tinfoil crown…</div>
+    </div>
+    <div class="note">One right-hand panel, five tabs — LYRICS is home. STEMS/COACH/SAVED/VERSIONS each get a full clean tab instead of stacking on the page. GET CHORDS lives inside VERSIONS as "re-fetch".</div>
+  </div>
+</div>
+</body></html>
