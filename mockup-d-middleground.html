@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v13 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v14 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -42,7 +42,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 .ptitle{font-family:Orbitron;font-size:.56rem;letter-spacing:2px;color:#c4b5fd;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .cap{font-family:Orbitron;font-size:.5rem;letter-spacing:2px;color:var(--dim);margin:10px 0 4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .mediarow{display:flex;align-items:center;gap:10px;margin-bottom:4px}
-#bigPlay{width:150px;height:84px;background:linear-gradient(135deg,#2e1065,#5b21b6);border:1px solid var(--purple);border-radius:12px;
+#bigPlay{width:128px;height:72px;background:linear-gradient(135deg,#2e1065,#5b21b6);border:1px solid var(--purple);border-radius:12px;
          display:flex;align-items:center;justify-content:center;color:#fff;font-size:2.2rem;cursor:pointer;transition:.2s;flex-shrink:0;
          box-shadow:0 0 18px rgba(124,58,237,.35)}
 #bigPlay:hover{box-shadow:0 0 28px rgba(168,85,247,.6);transform:translateY(-1px)}
@@ -179,7 +179,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 #loopLyric .line.up2{opacity:.3;font-size:.7em}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v13 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v14 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -196,18 +196,18 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 <div id="helpOv" onclick="this.classList.remove('on')" style="display:none;position:fixed;inset:0;z-index:58;background:rgba(8,8,15,.93);backdrop-filter:blur(4px);overflow-y:auto;padding:26px;cursor:pointer">
   <div style="max-width:860px;margin:0 auto">
     <div style="font-family:Orbitron;font-size:1rem;letter-spacing:3px;color:#d8b4fe;margin-bottom:4px">EVERYTHING IN 60 SECONDS</div>
-    <div style="font-size:.66rem;color:var(--dim);margin-bottom:14px">tap anywhere to close · this lives behind the ? forever, so the app never has to explain itself on your screen</div>
+    <div style="font-size:.66rem;color:var(--dim);margin-bottom:14px">tap a card to TRY that feature · tap anywhere else to close</div>
     <div class="cardgrid">
       <div class="card"><b>🔍 SEARCH → PLAY</b>Type any song. Chords, key, capo and lyrics load themselves — no buttons.</div>
-      <div class="card"><b>🎤 STAGE</b>Lyrics with the chords above the exact word they change on. Pink build-up = change coming, pop = now.</div>
+      <div class="card" onclick="event.stopPropagation();document.getElementById('helpOv').classList.remove('on');nav('play');if(!playing)togglePlay()" style="cursor:pointer"><b>🎤 STAGE → TAP TO TRY</b>Lyrics with the chords above the exact word they change on. Pink build-up = change coming, pop = now.</div>
       <div class="card"><b>🔁 LOOP</b>IN and OUT mark a section on the waveform. It repeats until you own it. 💾 saves it forever.</div>
-      <div class="card"><b>◉ LOOP MODE</b>Fullscreen ring for hands-free practice — chord in the middle, lyrics below, phone on the music stand.</div>
+      <div class="card" onclick="event.stopPropagation();document.getElementById('helpOv').classList.remove('on');nav('play');openLoop()" style="cursor:pointer"><b>◉ LOOP MODE → TAP TO TRY</b>Fullscreen ring for hands-free practice — chord in the middle, lyrics below, phone on the music stand.</div>
       <div class="card"><b>🎯 PRACTICE</b>Step-up speeds each pass +4% and caps at 100%. Gap counts you back in with a live decimal countdown (1.5… 0.8… 0.0). Start delay counts you in.</div>
       <div class="card"><b>🎵 STRUM</b>Auto-detected pattern for the song's feel — or scroll ‹ › to pick your own.</div>
-      <div class="card"><b>🎼 LEARN</b>Any key × any scale on a live neck. Flip it vertical. Ask in plain English: "D minor but darker."</div>
+      <div class="card" onclick="event.stopPropagation();document.getElementById('helpOv').classList.remove('on');nav('learn')" style="cursor:pointer"><b>🎼 LEARN → TAP TO TRY</b>Any key × any scale on a live neck. Flip it vertical. Ask in plain English: "D minor but darker."</div>
       <div class="card"><b>🎚 STEMS</b>Mute your instrument, play with the rest of the band.</div>
       <div class="card"><b>🎤 CHORD COACH</b>Listens through the mic and tells you which chords you're actually hitting.</div>
-      <div class="card"><b>🤖 AI COACH</b>Ask anything about the song you're playing — theory, voicings, why it sounds the way it does.</div>
+      <div class="card" onclick="event.stopPropagation();document.getElementById('helpOv').classList.remove('on');nav('coach')" style="cursor:pointer"><b>🤖 AI COACH → TAP TO TRY</b>Ask anything about the song you're playing — theory, voicings, why it sounds the way it does.</div>
       <div class="card"><b>👥 VERSIONS &amp; TABS</b>Community charts, or upload your own tab — it becomes playable, synced to the song.</div>
       <div class="card"><b>⛶ EXPAND</b>The stage, fullscreen. Current line pinned to the top. Built for the phone on your stand.</div>
     </div>
@@ -234,12 +234,9 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
           <div class="ptitle">NOW PLAYING · Turmoil &amp; Tinfoil — Billy Strings <span style="color:var(--green)">✅ FULL SONG</span></div>
           <div class="mediarow" id="mediarow">
             <div id="bigPlay" onclick="togglePlay()" title="the obvious button">▶</div>
-            <div style="flex:1">
-              <div class="cap" style="margin:0 0 4px">CHORDS · flowing with the song · white line = NOW</div>
-              <div style="font-size:.6rem;color:var(--dim)">🎬 video lives in VIDEO STUDIO when you want it — this screen is for playing</div>
-            </div>
+            <div style="flex:1"></div>
           </div>
-          <div class="ribbon"><div class="lane" id="lane"></div><div class="now-line"></div><div class="now-tag">NOW</div></div>
+          <div class="ribbon"><div class="lane" id="lane"></div><div class="now-line"></div></div>
           <div class="cap">WAVEFORM · the whole song · CLICK TO JUMP · loop region in cyan</div>
           <div class="map" id="map"><span class="region" id="region"></span><span class="ph" id="mph"></span><div id="gapCount">1.5</div></div>
           <div class="looprow">
@@ -448,8 +445,7 @@ function toast(m){
 const SONG_S=64;                          // base pace — 100% feels like a real song now
 let SPEED=1;
 function setSpeed(v){ SPEED=v/100; document.getElementById('spdVal').textContent=v+'%'; }
-const CHANGES=[[2,'F'],[9,'B♭'],[16,'F'],[22,'E♭'],[28,'F'],[34,'Fm'],[41,'F'],[49,'B♭'],
-               [57,'F'],[64,'E♭'],[72,'F'],[80,'Fm'],[88,'F'],[95,'B♭']];
+let CHANGES=[];   // built from LINES below — the ribbon and the stage share ONE timeline
 const WIN=22, NOWX=12;
 const LINES=[
   [["F","I recall a"],[null,"silver"],["B♭","morning"]],
@@ -464,6 +460,17 @@ const LINES=[
   [[null,"Everything was"],["F","new and shining"]]
 ];
 const LINE_SPAN=100/LINES.length;
+// derive the ribbon timeline FROM the lyrics: a chord's position = its line's slice of the song
+// + its word's position in the line, offset to match the stage pop (wcut lead +0.4)
+LINES.forEach((seg,li)=>{
+  const total=seg.reduce((n,[,w])=>n+w.split(' ').length,0);
+  let w=0;
+  seg.forEach(([ch,words])=>{
+    if(ch) CHANGES.push([li*LINE_SPAN+((w+0.6)/total)*LINE_SPAN, ch]);
+    w+=words.split(' ').length;
+  });
+});
+CHANGES.sort((a,b)=>a[0]-b[0]);
 const stageEl=document.getElementById('stage');
 LINES.forEach(seg=>{
   const d=document.createElement('div'); d.className='line';
