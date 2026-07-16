@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v16 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v17 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -179,7 +179,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 #loopLyric .line.up2{opacity:.3;font-size:.7em}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v16 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v17 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -247,10 +247,13 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
     <div class="view on" id="view-play">
       <div class="grid">
         <div class="panel">
-          <div class="ptitle">NOW PLAYING · Turmoil &amp; Tinfoil — Billy Strings <span style="color:var(--green)">✅ FULL SONG</span></div>
           <div class="mediarow" id="mediarow">
             <div id="bigPlay" onclick="togglePlay()" title="the obvious button">▶</div>
-            <div style="flex:1"></div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:5px;justify-content:center">
+              <div class="ptitle" style="margin:0">NOW PLAYING</div>
+              <div style="font-size:.95rem;color:#fff;font-weight:700">Turmoil &amp; Tinfoil <span style="color:var(--dim);font-weight:400">— Billy Strings</span></div>
+              <div style="font-size:.62rem;color:var(--green)">✅ FULL SONG · verified from a real play-through · 🎬 video in VIDEO STUDIO</div>
+            </div>
           </div>
           <div class="ribbon"><div class="lane" id="lane"></div><div class="now-line"></div></div>
           <div class="cap">WAVEFORM · the whole song · CLICK TO JUMP · loop region in cyan</div>
