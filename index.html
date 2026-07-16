@@ -3099,11 +3099,14 @@ document.getElementById('btn-fetch-lyrics').addEventListener('click', async () =
   const songInput = document.getElementById('input-lyric-song').value.trim();
   const container = document.getElementById('lyrics-container');
   
-  if (!artistInput || !songInput) { 
-    container.innerHTML = "<div class='lyric-line' style='opacity:1;'>>> AWAITING INPUT</div>"; 
-    return; 
+  if (!artistInput || !songInput) {
+    container.innerHTML = "<div class='lyric-line' style='opacity:1;'>>> AWAITING INPUT</div>";
+    return;
   }
-  
+  // immediate feedback — the first fetch used to sit BLANK for seconds (no ws duration in YouTube
+  // mode skips tier-1, tier-2 search is slow), so it looked broken and users clicked twice (QA 2026-07-16)
+  container.innerHTML = "<div class='lyric-line active-lyric' style='opacity:1;'>>> Fetching lyrics…</div>";
+
   container.innerHTML = "<div class='lyric-line active-lyric'>>> INITIATING FUZZY ENGINE SEARCH...</div>";
   window.lyricData = []; 
   window.lastActiveLyric = -1;
