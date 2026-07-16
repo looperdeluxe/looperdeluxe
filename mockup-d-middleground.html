@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v3 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -8,14 +8,13 @@
 html,body{height:100%}
 body{background:var(--bg);color:#e4e4e7;font-family:'JetBrains Mono',monospace;margin:0;display:flex;flex-direction:column;
      background-image:radial-gradient(circle at 15% 20%, rgba(124,58,237,.10), transparent 40%),radial-gradient(circle at 85% 70%, rgba(34,211,238,.08), transparent 45%)}
-.banner{background:#78350f;color:#fde68a;font-size:.66rem;padding:5px 12px;text-align:center;flex-shrink:0}
-/* ── top bar ─────────────────────────────── */
+.banner{background:#78350f;color:#fde68a;font-size:.64rem;padding:5px 12px;text-align:center;flex-shrink:0}
 .bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:rgba(19,19,32,.94);backdrop-filter:blur(8px);
      border-bottom:1px solid var(--border);padding:10px 16px;position:sticky;top:0;z-index:10;flex-shrink:0}
 h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;margin:0;color:#fff;cursor:pointer;
    text-shadow:0 0 18px rgba(168,85,247,.85),0 0 44px rgba(168,85,247,.4)}
 h1 b{background:linear-gradient(90deg,#a855f7,#22d3ee);-webkit-background-clip:text;background-clip:text;color:transparent}
-.bar input{width:200px;background:#0a0a14;border:1px solid var(--border);border-radius:8px;color:#fff;padding:8px 11px;font-family:inherit;font-size:.72rem;transition:.2s}
+.bar input{width:190px;background:#0a0a14;border:1px solid var(--border);border-radius:8px;color:#fff;padding:8px 11px;font-family:inherit;font-size:.72rem;transition:.2s}
 .bar input:focus{border-color:var(--cyan);outline:none;box-shadow:0 0 12px rgba(34,211,238,.3)}
 .btn{font-family:Orbitron;font-size:.58rem;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:#191927;color:#e4e4e7;cursor:pointer;white-space:nowrap;transition:.15s}
 .btn:hover{border-color:var(--purple);box-shadow:0 0 14px rgba(168,85,247,.4);transform:translateY(-1px)}
@@ -25,61 +24,77 @@ h1 b{background:linear-gradient(90deg,#a855f7,#22d3ee);-webkit-background-clip:t
 .kchip{font-family:Orbitron;font-size:.6rem;padding:6px 10px;border-radius:8px;white-space:nowrap;
        background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.5);color:var(--cyan);text-shadow:0 0 8px rgba(34,211,238,.5)}
 .kchip.capo{background:rgba(240,171,252,.08);border-color:rgba(240,171,252,.45);color:var(--pink)}
-/* ── shell: sidebar + main ────────────────── */
 .shell{display:flex;flex:1;min-height:0}
-.side{width:170px;flex-shrink:0;background:var(--panel2);border-right:1px solid var(--border);padding:14px 10px;display:flex;flex-direction:column;gap:6px}
+.side{width:168px;flex-shrink:0;background:var(--panel2);border-right:1px solid var(--border);padding:14px 10px;display:flex;flex-direction:column;gap:6px}
 .nav{font-family:Orbitron;font-size:.62rem;letter-spacing:1px;padding:11px 12px;border-radius:10px;color:var(--dim);cursor:pointer;border:1px solid transparent;transition:.15s;display:flex;gap:9px;align-items:center}
 .nav:hover{color:#fff;border-color:var(--border);transform:translateX(3px)}
 .nav.on{color:#fff;background:linear-gradient(90deg,rgba(124,58,237,.3),rgba(124,58,237,.06));border-color:var(--purple);box-shadow:0 0 16px rgba(124,58,237,.2)}
-.side .foot{margin-top:auto;font-size:.58rem;color:var(--dim);padding:8px 10px}
-.main{flex:1;overflow-y:auto;padding:14px}
-.view{display:none}.view.on{display:block;animation:fadein .25s ease}
+.side .foot{margin-top:auto;font-size:.56rem;color:var(--dim);padding:8px 10px}
+.main{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column}
+.view{display:none;flex:1}.view.on{display:flex;flex-direction:column;animation:fadein .25s ease}
 @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
-@media(max-width:760px){.side{width:58px}.nav span.lbl{display:none}.side .foot{display:none}}
-/* ── PLAY view ───────────────────────────── */
-.grid{display:grid;grid-template-columns:1.35fr 1fr;gap:12px}
+@media(max-width:760px){.side{width:56px}.nav span.lbl{display:none}.side .foot{display:none}.bar input{width:120px}}
+/* ── PLAY ── */
+.grid{display:grid;grid-template-columns:1.3fr 1fr;gap:12px;flex:1;min-height:0}
 @media(max-width:1000px){.grid{grid-template-columns:1fr}}
-.panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:12px}
-.ptitle{font-family:Orbitron;font-size:.56rem;letter-spacing:2px;color:#c4b5fd;margin-bottom:8px}
-.video{background:#000;border-radius:10px;height:210px;display:flex;align-items:center;justify-content:center;color:#2c2c44;font-family:Orbitron;margin-bottom:10px;border:1px solid #1c1c2e;font-size:.8rem}
-.ribbon{background:#0a0a14;border:1px solid var(--border);border-radius:8px;height:54px;position:relative;margin-bottom:6px;overflow:hidden}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px;display:flex;flex-direction:column}
+.ptitle{font-family:Orbitron;font-size:.56rem;letter-spacing:2px;color:#c4b5fd;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.cap{font-family:Orbitron;font-size:.5rem;letter-spacing:2px;color:var(--dim);margin:8px 0 4px}
+.video{background:#000;border-radius:10px;flex:1;min-height:170px;display:flex;align-items:center;justify-content:center;color:#2c2c44;font-family:Orbitron;border:1px solid #1c1c2e;font-size:.78rem}
+.ribbon{background:#0a0a14;border:1px solid var(--border);border-radius:8px;height:54px;position:relative;overflow:hidden}
 .chip{position:absolute;top:10px;height:26px;background:rgba(124,58,237,.35);border-radius:5px;color:#d8b4fe;font-size:.85rem;font-weight:700;padding:3px 9px;transition:.3s}
 .chip.cur{background:rgba(34,211,238,.32);color:var(--cyan);animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{0%,100%{box-shadow:0 0 6px rgba(34,211,238,.5)}50%{box-shadow:0 0 22px rgba(34,211,238,1)}}
 .playhead{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 12px var(--cyan);left:2%}
-.map{height:32px;background:#0a0a14;border:1px solid var(--border);border-radius:6px;position:relative;cursor:pointer;margin-bottom:8px}
+.map{height:34px;background:#0a0a14;border:1px solid var(--border);border-radius:6px;position:relative;cursor:pointer}
 .map i{position:absolute;bottom:3px;width:2.1%;background:linear-gradient(to top,rgba(124,58,237,.75),rgba(168,85,247,.3));border-radius:1px}
 .map .ph{position:absolute;top:0;bottom:0;width:2px;background:var(--cyan);box-shadow:0 0 10px var(--cyan);left:2%}
-.looprow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.looprow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px}
 .sl{display:flex;align-items:center;gap:5px;font-size:.58rem;color:var(--dim)}.sl input[type=range]{width:80px;accent-color:#a855f7}
 .tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
 .tab{font-family:Orbitron;font-size:.54rem;padding:6px 10px;border-radius:8px;border:1px solid var(--border);color:var(--dim);cursor:pointer;transition:.15s}
 .tab:hover{color:#fff;border-color:var(--purple)}
 .tab.on{border-color:var(--cyan);color:var(--cyan);background:rgba(34,211,238,.08);box-shadow:0 0 12px rgba(34,211,238,.15)}
-.pane{display:none}.pane.on{display:block;animation:fadein .2s ease}
-.stage{font-size:.78rem;line-height:1.45}
-.stage .line{padding:7px 9px;border-radius:8px;color:var(--dim);display:flex;gap:10px;align-items:baseline;transition:.3s}
-.stage .ch{font-family:Orbitron;font-size:.66rem;font-weight:700;color:var(--purple);min-width:32px;text-align:right}
-.stage .now{background:linear-gradient(90deg,rgba(124,58,237,.32),rgba(34,211,238,.12));color:#fff;box-shadow:0 0 14px rgba(124,58,237,.3)}
-.stage .now .ch{color:var(--cyan);text-shadow:0 0 8px rgba(34,211,238,.7)}
-.next{margin-top:10px;padding:8px 10px;border:1px dashed var(--border);border-radius:8px;font-size:.6rem;color:var(--dim)}
+.pane{display:none;flex:1;min-height:0}.pane.on{display:flex;flex-direction:column;animation:fadein .2s ease}
+/* ── STAGE v3: chords INLINE where they land + karaoke sweep ── */
+.stage{font-size:.86rem;line-height:2.3;flex:1;overflow-y:auto;padding-right:4px}
+.stage .line{padding:6px 10px;border-radius:8px;color:var(--dim);position:relative;transition:.3s}
+.stage .line .w{position:relative;transition:color .2s}
+.stage .ich{font-family:Orbitron;font-size:.6rem;font-weight:700;color:var(--purple);background:rgba(124,58,237,.14);
+            border:1px solid rgba(124,58,237,.4);border-radius:5px;padding:1px 6px;margin:0 5px 0 2px;vertical-align:8%;transition:.25s}
+.stage .now{background:linear-gradient(90deg,rgba(124,58,237,.28),rgba(34,211,238,.1));color:#e8e8f0;box-shadow:0 0 14px rgba(124,58,237,.3)}
+.stage .now .w.sung{color:var(--cyan);text-shadow:0 0 8px rgba(34,211,238,.45)}
+.stage .now .ich.hit{background:rgba(34,211,238,.3);border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 12px rgba(34,211,238,.7)}
+.stage .now .ich.soon{animation:pulse 0.8s ease-in-out infinite;color:var(--pink);border-color:var(--pink)}
+.next{margin-top:8px;padding:8px 10px;border:1px dashed var(--border);border-radius:8px;font-size:.6rem;color:var(--dim);flex-shrink:0}
 .next b{font-family:Orbitron;color:var(--pink);font-size:.88rem;text-shadow:0 0 10px rgba(240,171,252,.5)}
-/* misc content bits */
+/* fretboard (LEARN) */
+.fb{background:#0a0a14;border:1px solid var(--border);border-radius:10px;padding:14px 12px;position:relative}
+.fb table{border-collapse:collapse;width:100%}
+.fb td{border-right:2px solid #3a3a55;border-bottom:1px solid #23233a;height:26px;position:relative;min-width:40px}
+.fb tr:first-child td{border-top:1px solid #23233a}
+.fb td:first-child{border-right:4px solid #8b8ba3}
+.dot{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:18px;height:18px;border-radius:50%;
+     background:radial-gradient(circle at 35% 30%,#c084fc,#7c3aed);color:#fff;font-size:.55rem;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 0 10px rgba(168,85,247,.6)}
+.dot.root{background:radial-gradient(circle at 35% 30%,#67e8f9,#0891b2);box-shadow:0 0 12px rgba(34,211,238,.7)}
+.fb .fnum{font-size:.5rem;color:var(--dim);text-align:center;padding-top:4px}
 .card{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px;font-size:.66rem;color:var(--dim);transition:.15s}
 .card:hover{border-color:var(--purple);transform:translateY(-2px)}
 .card b{display:block;font-family:Orbitron;font-size:.56rem;color:#c4b5fd;margin-bottom:5px}
-.cardgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.cardgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
 .meter{height:10px;border-radius:6px;background:#0a0a14;border:1px solid var(--border);overflow:hidden;margin:6px 0}
 .meter i{display:block;height:100%;width:72%;background:linear-gradient(90deg,#7c3aed,#22d3ee);animation:meter 2.2s ease-in-out infinite alternate}
 @keyframes meter{from{width:52%}to{width:88%}}
 .bubble{border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:.68rem;margin-bottom:8px;max-width:88%}
 .bubble.ai{background:rgba(34,211,238,.06);border-color:rgba(34,211,238,.3)}
 .bubble.me{background:rgba(124,58,237,.12);margin-left:auto}
-.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1c1c2e;border:1px solid var(--purple);color:#e9d5ff;font-size:.66rem;padding:8px 16px;border-radius:20px;opacity:0;transition:.3s;pointer-events:none;z-index:50}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1c1c2e;border:1px solid var(--purple);color:#e9d5ff;font-size:.66rem;padding:8px 16px;border-radius:20px;opacity:0;transition:.3s;pointer-events:none;z-index:60}
 .toast.show{opacity:1}
-.fret{font-size:.6rem;color:var(--dim);letter-spacing:2px;line-height:1.9;background:#0a0a14;border:1px solid var(--border);border-radius:8px;padding:10px;overflow-x:auto}
+/* expand mode: stage panel takes the whole window */
+.panel.max{position:fixed;inset:0;z-index:40;border-radius:0;padding:22px clamp(14px,6vw,90px)}
+.panel.max .stage{font-size:1.05rem;line-height:2.6}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE — nothing real loads, but everything navigates: click the sidebar, tabs, play, the song map. This is the redesign proposal, feel it out.</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v3 — press ▶ PLAY: chords now sit INSIDE the lyric where they change, words light up as they're sung, the upcoming chord pulses pink before it lands. ⛶ EXPAND on the stage. Nothing real loads.</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER <b>DELUXE</b></h1>
@@ -87,9 +102,9 @@ h1 b{background:linear-gradient(90deg,#a855f7,#22d3ee);-webkit-background-clip:t
   <button class="btn primary" id="btnPlay" onclick="togglePlay()">▶ PLAY</button>
   <button class="btn" onclick="toast('mock: loop set to current section')">🔁 LOOP</button>
   <button class="btn chords" onclick="toast('mock: chords re-fetched from library')">🎸 GET CHORDS</button>
-  <span class="kchip">KEY F</span><span class="kchip capo">CAPO 3</span><span class="kchip" id="bpmChip">133 BPM</span>
-  <button class="btn" style="padding:6px 9px" onclick="bpm(0.5)">÷2</button>
-  <button class="btn" style="padding:6px 9px" onclick="bpm(2)">×2</button>
+  <span class="kchip">KEY F</span><span class="kchip capo">CAPO 3</span><span class="kchip">133 BPM</span>
+  <button class="btn" style="padding:6px 9px" onclick="toast('mock: BPM halved')">÷2</button>
+  <button class="btn" style="padding:6px 9px" onclick="toast('mock: BPM doubled')">×2</button>
   <span style="flex:1"></span><span style="font-size:.64rem;color:var(--dim)">★ELITE · Brooks</span>
 </div>
 
@@ -100,58 +115,49 @@ h1 b{background:linear-gradient(90deg,#a855f7,#22d3ee);-webkit-background-clip:t
     <div class="nav" id="nav-coach" onclick="nav('coach')">🤖 <span class="lbl">COACH</span></div>
     <div class="nav" id="nav-stuff" onclick="nav('stuff')">📁 <span class="lbl">MY STUFF</span></div>
     <div class="nav" id="nav-settings" onclick="nav('settings')">⚙ <span class="lbl">SETTINGS</span></div>
-    <div class="foot">Every current feature keeps a home — nothing is cut, it's all one hop away.</div>
+    <div class="foot">Every feature keeps a home — one hop away.</div>
   </div>
 
   <div class="main">
     <!-- ════ PLAY ════ -->
     <div class="view on" id="view-play">
       <div class="grid">
-        <div>
-          <div class="panel">
-            <div class="ptitle">NOW PLAYING · Turmoil &amp; Tinfoil — Billy Strings · <span style="color:var(--green)">✅ LIBRARY · FULL SONG</span></div>
-            <div class="video">▶ VIDEO / WAVEFORM AREA</div>
-            <div class="ribbon" id="ribbon">
-              <span class="chip" style="left:2%">F</span><span class="chip" style="left:26%">B♭</span>
-              <span class="chip" style="left:52%">F</span><span class="chip" style="left:74%">E♭</span>
-              <span class="chip" style="left:91%">Fm</span><span class="playhead" id="rph"></span>
-            </div>
-            <div class="map" id="map" title="click to jump">
-              <span class="ph" id="mph"></span>
-            </div>
-            <div class="looprow">
-              <button class="btn" onclick="toast('mock: loop IN set')">◀ IN</button>
-              <button class="btn" onclick="toast('mock: loop OUT set')">OUT ▶</button>
-              <button class="btn" onclick="toast('mock: loop cleared')">✕ CLEAR</button>
-              <span style="flex:1"></span>
-              <span class="sl">SPEED <input type="range"></span>
-              <span class="sl">VOL <input type="range"></span>
-              <span class="sl">TRANSPOSE <input type="range"></span>
-            </div>
+        <div class="panel">
+          <div class="ptitle">NOW PLAYING · Turmoil &amp; Tinfoil — Billy Strings <span style="color:var(--green)">✅ FULL SONG</span></div>
+          <div class="video">▶ VIDEO</div>
+          <div class="cap">CHORDS · 4 BARS AHEAD</div>
+          <div class="ribbon" id="ribbon">
+            <span class="chip" style="left:2%">F</span><span class="chip" style="left:26%">B♭</span>
+            <span class="chip" style="left:52%">F</span><span class="chip" style="left:74%">E♭</span>
+            <span class="chip" style="left:91%">Fm</span><span class="playhead" id="rph"></span>
+          </div>
+          <div class="cap">SONG MAP · loud &amp; quiet parts · CLICK TO JUMP</div>
+          <div class="map" id="map"><span class="ph" id="mph"></span></div>
+          <div class="looprow">
+            <button class="btn" onclick="toast('mock: loop IN set')">◀ IN</button>
+            <button class="btn" onclick="toast('mock: loop OUT set')">OUT ▶</button>
+            <button class="btn" onclick="toast('mock: loop cleared')">✕ CLEAR</button>
+            <span style="flex:1"></span>
+            <span class="sl">SPEED <input type="range"></span>
+            <span class="sl">VOL <input type="range"></span>
+            <span class="sl">TRANSPOSE <input type="range"></span>
           </div>
         </div>
-        <div class="panel">
+        <div class="panel" id="stagePanel">
           <div class="tabs">
             <span class="tab on" data-pane="stage" onclick="pane(this)">🎤 STAGE</span>
             <span class="tab" data-pane="stems" onclick="pane(this)">🎚 STEMS</span>
             <span class="tab" data-pane="ccoach" onclick="pane(this)">🎤 CHORD COACH</span>
             <span class="tab" data-pane="versions" onclick="pane(this)">👥 VERSIONS</span>
+            <span style="flex:1"></span>
+            <span class="tab" onclick="document.getElementById('stagePanel').classList.toggle('max');toast('stage expanded — press again to shrink')">⛶ EXPAND</span>
           </div>
           <div class="pane on" id="pane-stage">
-            <div class="stage" id="stage">
-              <div class="line"><span class="ch">F</span>I recall a silver morning</div>
-              <div class="line"><span class="ch">B♭</span>Everything was new and shining</div>
-              <div class="line"><span class="ch">F</span>Time was moving, always turning</div>
-              <div class="line"><span class="ch">E♭</span>Nothing ever stays the same</div>
-              <div class="line"><span class="ch">Fm</span>Turmoil and the tinfoil crown</div>
-              <div class="line"><span class="ch">F</span>Spinning ever faster down</div>
-              <div class="line"><span class="ch">B♭</span>All the wires hum and glisten</div>
-              <div class="line"><span class="ch">F</span>No one's left who wants to listen</div>
-            </div>
-            <div class="next">NEXT UP → <b id="nextCh">B♭</b> <span style="opacity:.6">in 2 bars</span></div>
+            <div class="stage" id="stage"></div>
+            <div class="next">NEXT CHANGE → <b id="nextCh">B♭</b> <span style="opacity:.6" id="nextIn">in 2 beats — watch it pulse pink on the lyric</span></div>
           </div>
           <div class="pane" id="pane-stems">
-            <div class="card"><b>🎚 STEM ISOLATOR · PREMIUM</b>Pick your instrument, mute it, play along with the rest.
+            <div class="card"><b>🎚 STEM ISOLATOR · PREMIUM</b>Pick your instrument, mute it, play with the rest.
               <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
                 <button class="btn" onclick="toast('mock: guitar muted — backing track mode')">MUTE GUITAR</button>
                 <button class="btn" onclick="toast('mock: vocals isolated')">VOCALS ONLY</button>
@@ -175,17 +181,32 @@ h1 b{background:linear-gradient(90deg,#a855f7,#22d3ee);-webkit-background-clip:t
 
     <!-- ════ LEARN ════ -->
     <div class="view" id="view-learn">
-      <div class="panel"><div class="ptitle">LEARN · scales &amp; shapes for the key you're in (F major · capo 3 = D shapes)</div>
+      <div class="panel" style="flex:1">
+        <div class="ptitle">LEARN · you're in F major · capo 3 → play D shapes</div>
         <div class="cardgrid">
-          <div class="card"><b>SCALE EXPLORER</b><div class="fret">e|--1--3--5--·--<br>B|--1--3--·--6--<br>G|--2--3--5--·--<br>D|--3--·--5--7--</div></div>
-          <div class="card"><b>CHORD SHAPES</b>D-position: D · G · A7 · Bm — tap any chord on the stage to see its shape here.</div>
+          <div class="card" style="grid-column:1/-1"><b>SCALE EXPLORER — D major position (capo 3 = sounds as F)</b>
+            <div class="fb"><table>
+              <tr><td></td><td><span class="dot">2</span></td><td></td><td><span class="dot root">R</span></td><td></td></tr>
+              <tr><td></td><td><span class="dot">3</span></td><td><span class="dot">4</span></td><td></td><td></td></tr>
+              <tr><td></td><td><span class="dot">1</span></td><td></td><td><span class="dot">2</span></td><td></td></tr>
+              <tr><td><span class="dot root">R</span></td><td></td><td><span class="dot">2</span></td><td></td><td></td></tr>
+              <tr><td></td><td></td><td><span class="dot">6</span></td><td></td><td></td></tr>
+              <tr><td></td><td><span class="dot">2</span></td><td></td><td><span class="dot root">R</span></td><td></td></tr>
+            </table>
+            <div style="display:flex"><span class="fnum" style="flex:1">capo</span><span class="fnum" style="flex:1">+1</span><span class="fnum" style="flex:1">+2</span><span class="fnum" style="flex:1">+3</span><span class="fnum" style="flex:1">+4</span></div></div>
+            <div class="cap" style="margin-top:6px">cyan = root note · tap any chord on the STAGE and this board jumps to its shape</div>
+          </div>
+          <div class="card"><b>CHORD SHAPES IN THIS SONG</b>D · G · A7 · Bm · Dm — five shapes cover the whole song at capo 3.</div>
           <div class="card"><b>STRUM PATTERN</b>↓ · ↓↑ · ↑↓↑ — auto-suggested from the song's feel (133 BPM, driving).</div>
-        </div></div>
+          <div class="card"><b>PRACTICE LOOP IDEAS</b>The E♭→Fm turn (2:41–3:05) is the hard part — one tap sends it to your loop bank.</div>
+        </div>
+      </div>
     </div>
 
     <!-- ════ COACH ════ -->
     <div class="view" id="view-coach">
-      <div class="panel"><div class="ptitle">🤖 AI COACH · ask anything about the song you're playing</div>
+      <div class="panel" style="flex:1">
+        <div class="ptitle">🤖 AI COACH · ask anything about the song you're playing</div>
         <div class="bubble me">What key is this and why does the Fm feel so dark?</div>
         <div class="bubble ai">You're in F major, but that Fm is a <b>borrowed iv chord</b> — taking the minor four from F minor. It's the classic "sunshine turns to shadow" move. Try letting it ring longer than written.</div>
         <div class="bubble me">Give me an easier voicing for E♭ at capo 3.</div>
@@ -196,7 +217,7 @@ h1 b{background:linear-gradient(90deg,#a855f7,#22d3ee);-webkit-background-clip:t
 
     <!-- ════ MY STUFF ════ -->
     <div class="view" id="view-stuff">
-      <div class="panel"><div class="ptitle">📁 MY STUFF · loops, saved songs, setlists</div>
+      <div class="panel" style="flex:1"><div class="ptitle">📁 MY STUFF · loops, saved songs, setlists</div>
         <div class="cardgrid">
           <div class="card"><b>💾 SAVED LOOPS</b>Turmoil solo (2:41–3:05) · NHF bridge (3:10–3:44) · CYS intro ×3<div style="margin-top:6px"><button class="btn" onclick="toast('mock: loop loaded + playing')">▶ PLAY LOOP</button></div></div>
           <div class="card"><b>★ SAVED SONGS</b>Turmoil &amp; Tinfoil · No Hard Feelings · Can't You See · Mercy</div>
@@ -206,7 +227,7 @@ h1 b{background:linear-gradient(90deg,#a855f7,#22d3ee);-webkit-background-clip:t
 
     <!-- ════ SETTINGS ════ -->
     <div class="view" id="view-settings">
-      <div class="panel"><div class="ptitle">⚙ SETTINGS · the fine-tuning that used to crowd the main page</div>
+      <div class="panel" style="flex:1"><div class="ptitle">⚙ SETTINGS · the fine-tuning that used to crowd the main page</div>
         <div class="cardgrid">
           <div class="card"><b>METRONOME</b>133 BPM · tap-to-lock (T) · click sync · offset 0.00s</div>
           <div class="card"><b>TIMING</b>Step-up % · gap delay · start delay · latency cal ±0ms</div>
@@ -219,7 +240,6 @@ h1 b{background:linear-gradient(90deg,#a855f7,#22d3ee);-webkit-background-clip:t
 <div class="toast" id="toast"></div>
 
 <script>
-// ── prototype interactivity: nothing real, everything navigable ──
 function nav(k){
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
   document.querySelectorAll('.nav').forEach(n=>n.classList.remove('on'));
@@ -227,7 +247,8 @@ function nav(k){
   document.getElementById('nav-'+k).classList.add('on');
 }
 function pane(el){
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  if(!el.dataset.pane) return;
+  document.querySelectorAll('.tab[data-pane]').forEach(t=>t.classList.remove('on'));
   document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));
   el.classList.add('on');
   document.getElementById('pane-'+el.dataset.pane).classList.add('on');
@@ -235,28 +256,70 @@ function pane(el){
 let _t=null;
 function toast(m){
   const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show');
-  clearTimeout(_t); _t=setTimeout(()=>t.classList.remove('show'),1800);
+  clearTimeout(_t); _t=setTimeout(()=>t.classList.remove('show'),1900);
 }
-// simulated playback: playhead drifts, chords + stage lines light up in sequence
-let playing=false, pos=2, tick=null, li=0, ci=0;
-const chips=[...document.querySelectorAll('#ribbon .chip')];
-const chipPos=[2,26,52,74,91];
-function togglePlay(){
-  playing=!playing;
-  document.getElementById('btnPlay').textContent = playing?'⏸ PAUSE':'▶ PLAY';
-  if(playing){ tick=setInterval(step,300); toast('simulated playback — watch the stage + chords'); }
-  else clearInterval(tick);
+// ── STAGE v3: lyrics with chords INLINE at the exact word where they change ──
+// each line: [ [chord|null, "words"] ... ] — chord chip renders right where it lands
+const LINES=[
+  [["F","I recall a"],[null,"silver"],["B♭","morning"]],
+  [[null,"Everything was"],["F","new and shining"]],
+  [[null,"Time was moving,"],["E♭","always"],[null,"turning"]],
+  [["F","Nothing ever"],[null,"stays the same"]],
+  [["Fm","Turmoil and the"],[null,"tinfoil"],["F","crown"]],
+  [[null,"Spinning ever"],["B♭","faster"],[null,"down"]],
+  [["F","All the wires"],["E♭","hum and glisten"]],
+  [[null,"No one's left who"],["F","wants to"],["Fm","listen"]],
+  [["F","I recall a"],[null,"silver"],["B♭","morning"]],
+  [[null,"Everything was"],["F","new and shining"]]
+];
+const stageEl=document.getElementById('stage');
+LINES.forEach((seg,li)=>{
+  const d=document.createElement('div'); d.className='line';
+  seg.forEach(([ch,words])=>{
+    if(ch){ const c=document.createElement('span'); c.className='ich'; c.textContent=ch; d.appendChild(c); }
+    words.split(' ').forEach(w=>{ const s=document.createElement('span'); s.className='w'; s.textContent=w+' '; d.appendChild(s); });
+  });
+  stageEl.appendChild(d);
+});
+// simulated playback: line-by-line karaoke sweep; chip pulses PINK just before its word, flips CYAN on hit
+let playing=false,tick=null,li=0,wi=0,pos=2,ci=1;
+const chips=[...document.querySelectorAll('#ribbon .chip')],chipPos=[2,26,52,74,91];
+function setLine(n){
+  [...stageEl.children].forEach(l=>l.classList.remove('now'));
+  li=n%LINES.length; const line=stageEl.children[li]; line.classList.add('now');
+  [...line.querySelectorAll('.w')].forEach(w=>w.classList.remove('sung'));
+  [...line.querySelectorAll('.ich')].forEach(c=>c.classList.remove('hit','soon'));
+  wi=0; line.scrollIntoView({block:'nearest',behavior:'smooth'});
 }
 function step(){
-  pos=(pos+0.55)%100;
+  pos=(pos+0.5)%100;
   document.getElementById('rph').style.left=pos+'%';
   document.getElementById('mph').style.left=pos+'%';
   let cur=0; chipPos.forEach((p,i)=>{ if(pos>=p) cur=i; });
   if(cur!==ci){ ci=cur; chips.forEach((c,i)=>c.classList.toggle('cur',i===ci));
     document.getElementById('nextCh').textContent=chips[(ci+1)%chips.length].textContent; }
-  if(Math.random()<0.13){ const lines=[...document.querySelectorAll('#stage .line')];
-    lines.forEach(l=>l.classList.remove('now')); li=(li+1)%lines.length; lines[li].classList.add('now');
-    lines[li].scrollIntoView({block:'nearest',behavior:'smooth'}); }
+  // word-by-word sweep on the current line
+  const line=stageEl.children[li], nodes=[...line.childNodes];
+  const words=[...line.querySelectorAll('.w')];
+  if(wi<words.length){
+    words[wi].classList.add('sung');
+    // chord chip immediately after this word? light it "soon" one word early, "hit" on arrival
+    const nxt=words[wi+1];
+    nodes.forEach((n,idx)=>{
+      if(n.classList&&n.classList.contains('ich')){
+        const after=nodes[idx+1];
+        if(after&&after===nxt) n.classList.add('soon');
+        if(after&&after===words[wi]){ n.classList.remove('soon'); n.classList.add('hit'); }
+      }
+    });
+    wi++;
+  } else setLine(li+1);
+}
+function togglePlay(){
+  playing=!playing;
+  document.getElementById('btnPlay').textContent=playing?'⏸ PAUSE':'▶ PLAY';
+  if(playing){ tick=setInterval(step,420); toast('simulated playback — watch chords land INSIDE the lyrics'); }
+  else clearInterval(tick);
 }
 document.getElementById('map').addEventListener('click',e=>{
   pos=(e.offsetX/e.currentTarget.clientWidth)*100;
@@ -264,12 +327,9 @@ document.getElementById('map').addEventListener('click',e=>{
   document.getElementById('mph').style.left=pos+'%';
   toast('jumped to '+Math.round(pos)+'% of the song');
 });
-// paint the loudness map bars
 (function(){ const m=document.getElementById('map');
   for(let i=0;i<44;i++){ const b=document.createElement('i');
-    b.style.left=(2+i*2.15)+'%'; b.style.height=(6+Math.abs(Math.sin(i*.7))*18)+'px'; m.appendChild(b); } })();
-// start with a lit stage line + current chord
-document.querySelectorAll('#stage .line')[1].classList.add('now');
-chips[1].classList.add('cur');
+    b.style.left=(2+i*2.15)+'%'; b.style.height=(6+Math.abs(Math.sin(i*.7))*20)+'px'; m.appendChild(b); } })();
+setLine(0); chips[1].classList.add('cur');
 </script>
 </body></html>
