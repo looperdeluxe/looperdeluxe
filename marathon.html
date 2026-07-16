@@ -29,7 +29,7 @@ background); volume can be low but not muted at the tab level.</p>
 <button id="btn-start">▶ START MARATHON</button>
 <button id="btn-stop" disabled>⏹ STOP</button>
 <button id="btn-skip" disabled>⏭ SKIP SONG</button>
-<button id="btn-reset" title="Clear this device's done-list so previously played songs can be captured again (needed after the Jul 7-14 outage lost captures server-side)">♻ RESET DEVICE MEMORY</button>
+<button id="btn-reset" title="Forgets which songs THIS DEVICE already played, so they can be offered again. Deletes NOTHING — every chart and verification lives on the server and is untouched by this button.">♻ FORGET PLAY HISTORY (deletes nothing)</button>
 <div id="stats">
   <span><b id="s-done">0</b>songs captured</span>
   <span><b id="s-queued">0</b>sent to detector</span>
@@ -273,10 +273,17 @@ $('btn-stop').onclick = () => { run = false; log('Stopping after the current son
 $('btn-reset').onclick = () => {
   if (run) { log('⚠ Stop the marathon first, then reset.'); return; }
   const n = doneSet().size;
+  if (!n) { log('♻ Play history is already empty — nothing to forget.'); return; }
+  // this only clears THIS BROWSER's memory of what it played; charts/verifications live on the
+  // server and cannot be touched from here. Worst case after pressing: this device re-plays songs
+  // the server still wants (the set list is server-curated), costing time, never data.
+  if (!confirm('Forget this device\'s play history (' + n + ' songs)?\n\nNo charts are deleted — everything lives on the server. This only lets this device offer those songs again.')) {
+    log('♻ Reset cancelled.'); return;
+  }
   localStorage.removeItem('marathonDone'); localStorage.removeItem('marathonStats');
   done = queued = skipped = 0; stats();
-  log('♻ Device memory cleared (' + n + ' songs forgotten) — the next START pulls the full fresh list. '
-      + 'Songs the server already verified stay off the list automatically.');
+  log('♻ Play history forgotten (' + n + ' songs) — nothing was deleted; the server keeps every chart. '
+      + 'The next START pulls a fresh server-curated list (already-verified songs stay off it automatically).');
 };
 $('btn-skip').onclick = () => { skipReq = true; log('⏭ skipping this song…'); };
 </script>
