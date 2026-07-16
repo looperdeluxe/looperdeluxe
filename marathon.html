@@ -102,8 +102,16 @@ async function searchVideo(artist, title) {
     + '&artist=' + encodeURIComponent(artist) + '&title=' + encodeURIComponent(title) + '&n=4', {}, 15000);
   if (!r.ok) throw new Error('search ' + r.status);
   const d = await r.json();
-  const cands = (d.results || []).filter(h => h && h.id && !h.bad_sync && !h.dur_mismatch).slice(0, 3);
-  if (!cands.length) throw new Error('no usable video (all candidates failed sync or wrong length)');
+  // ARTIST GATE (2026-07-16, the "Lucy Thomas Official Fan Club" incident): when good candidates
+  // fail to embed (VEVO often does), the fallback walked into obvious covers. An auto-picked
+  // candidate must mention the artist in its title/channel (proven-sync 'cached' hits are exempt).
+  // The align gate already protects charts from covers — this stops us WASTING a song-length on one.
+  const aw = (artist || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 2);
+  const cands = (d.results || []).filter(h => h && h.id && !h.bad_sync && !h.dur_mismatch)
+    .filter(h => h.cached || !aw.length ||
+                 aw.some(w => ((h.title || '') + ' ' + (h.channel || '')).toLowerCase().includes(w)))
+    .slice(0, 3);
+  if (!cands.length) throw new Error('no usable video (none embed, match the artist, and fit the song length)');
   return cands;
 }
 
