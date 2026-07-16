@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>MOCKUP D — The Middle Ground</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0b12;--panel:#131320;--border:#2c2c44;--cyan:#22d3ee;--purple:#a855f7;--pink:#f0abfc;--dim:#8b8ba3;--green:#4ade80}
+*{box-sizing:border-box}
+body{background:var(--bg);color:#e4e4e7;font-family:'JetBrains Mono',monospace;margin:0;padding:14px;
+     background-image:radial-gradient(circle at 15% 20%, rgba(124,58,237,.09), transparent 40%),radial-gradient(circle at 85% 70%, rgba(34,211,238,.07), transparent 45%)}
+.banner{background:#78350f;color:#fde68a;font-size:.7rem;padding:6px 12px;border-radius:8px;margin-bottom:12px;text-align:center}
+/* FULL glowing wordmark — the personality stays (Brooks: A felt stale) */
+h1{font-family:Orbitron;font-weight:900;font-size:1.6rem;letter-spacing:4px;margin:0;color:#fff;
+   text-shadow:0 0 18px rgba(168,85,247,.8),0 0 40px rgba(168,85,247,.35)}
+h1 b{background:linear-gradient(90deg,#a855f7,#22d3ee);-webkit-background-clip:text;background-clip:text;color:transparent}
+.bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:rgba(19,19,32,.92);backdrop-filter:blur(6px);
+     border:1px solid var(--border);border-radius:14px;padding:10px 14px;margin-bottom:12px;position:sticky;top:8px;z-index:5;
+     box-shadow:0 4px 24px rgba(0,0,0,.5)}
+.bar input{width:220px;background:#0a0a14;border:1px solid var(--border);border-radius:8px;color:#fff;padding:8px 11px;font-family:inherit;font-size:.74rem;transition:border-color .2s}
+.bar input:focus{border-color:var(--cyan);outline:none;box-shadow:0 0 12px rgba(34,211,238,.25)}
+.btn{font-family:Orbitron;font-size:.6rem;padding:8px 13px;border-radius:8px;border:1px solid var(--border);background:#191927;color:#e4e4e7;cursor:pointer;white-space:nowrap;transition:all .15s}
+.btn:hover{border-color:var(--purple);box-shadow:0 0 14px rgba(168,85,247,.35);transform:translateY(-1px)}
+.btn.primary{background:linear-gradient(135deg,#7c3aed,#5b21b6);border-color:var(--purple);color:#fff}
+.btn.chords{background:linear-gradient(135deg,#065f46,#064e3b);border-color:var(--green);color:var(--green)}
+.kchip{font-family:Orbitron;font-size:.62rem;padding:6px 11px;border-radius:8px;white-space:nowrap;
+       background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.5);color:var(--cyan);text-shadow:0 0 8px rgba(34,211,238,.5)}
+.kchip.capo{background:rgba(240,171,252,.08);border-color:rgba(240,171,252,.45);color:var(--pink);text-shadow:0 0 8px rgba(240,171,252,.4)}
+.grid{display:grid;grid-template-columns:1.35fr 1fr;gap:12px}
+@media(max-width:860px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px}
+.ptitle{font-family:Orbitron;font-size:.58rem;letter-spacing:2px;color:#c4b5fd;margin-bottom:8px}
+.video{background:#000;border-radius:10px;height:215px;display:flex;align-items:center;justify-content:center;color:#333;font-family:Orbitron;margin-bottom:10px;border:1px solid #1c1c2e}
+.ribbon{background:#0a0a14;border:1px solid var(--border);border-radius:8px;height:54px;position:relative;margin-bottom:6px;overflow:hidden}
+.chip{position:absolute;top:10px;height:26px;background:rgba(124,58,237,.35);border-radius:5px;color:#d8b4fe;font-size:.85rem;font-weight:700;padding:3px 9px}
+.chip.cur{background:rgba(34,211,238,.32);color:var(--cyan);animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 6px rgba(34,211,238,.5)}50%{box-shadow:0 0 20px rgba(34,211,238,.95)}}
+.playhead{position:absolute;top:0;bottom:0;left:34%;width:2px;background:#fff;box-shadow:0 0 12px var(--cyan);animation:drift 7s linear infinite}
+@keyframes drift{from{left:30%}to{left:44%}}
+.map{height:30px;background:#0a0a14;border:1px solid var(--border);border-radius:6px;position:relative;cursor:pointer;margin-bottom:8px}
+.map i{position:absolute;bottom:3px;width:2.2%;background:linear-gradient(to top,rgba(124,58,237,.7),rgba(168,85,247,.3));border-radius:1px}
+.map .ph{position:absolute;top:0;bottom:0;left:34%;width:2px;background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+.looprow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.sl{display:flex;align-items:center;gap:5px;font-size:.6rem;color:var(--dim)}.sl input[type=range]{width:84px;accent-color:#a855f7}
+.tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.tab{font-family:Orbitron;font-size:.56rem;padding:6px 11px;border-radius:8px;border:1px solid var(--border);color:var(--dim);cursor:pointer;transition:all .15s}
+.tab:hover{color:#fff;border-color:var(--purple)}
+.tab.on{border-color:var(--cyan);color:var(--cyan);background:rgba(34,211,238,.08);box-shadow:0 0 12px rgba(34,211,238,.15)}
+/* STAGE — the keeper: chords over lyrics, live-scrolling (Brooks: must stay) */
+.stage{font-size:.8rem;line-height:1.5}
+.stage .line{padding:7px 9px;border-radius:8px;color:var(--dim);display:flex;gap:10px;align-items:baseline}
+.stage .ch{font-family:Orbitron;font-size:.68rem;font-weight:700;color:var(--purple);min-width:32px;text-align:right}
+.stage .now{background:linear-gradient(90deg,rgba(124,58,237,.3),rgba(34,211,238,.12));color:#fff;box-shadow:0 0 14px rgba(124,58,237,.25)}
+.stage .now .ch{color:var(--cyan);text-shadow:0 0 8px rgba(34,211,238,.6)}
+.next{margin-top:10px;padding:8px 10px;border:1px dashed var(--border);border-radius:8px;font-size:.62rem;color:var(--dim)}
+.next b{font-family:Orbitron;color:var(--pink);font-size:.9rem;text-shadow:0 0 10px rgba(240,171,252,.5)}
+details.extras{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:10px 14px;margin-top:12px}
+details.extras summary{font-family:Orbitron;font-size:.6rem;letter-spacing:2px;color:var(--dim);cursor:pointer}
+details.extras summary:hover{color:#c4b5fd}
+.exgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-top:10px}
+.excard{background:#0f0f1c;border:1px solid var(--border);border-radius:8px;padding:9px;font-size:.62rem;color:var(--dim);transition:all .15s}
+.excard:hover{border-color:var(--purple);transform:translateY(-2px)}
+.excard b{display:block;font-family:Orbitron;font-size:.54rem;color:#c4b5fd;margin-bottom:4px}
+.note{font-size:.6rem;color:var(--dim);margin-top:6px}
+</style></head><body>
+<div class="banner">⚠ MOCKUP D — "THE MIDDLE GROUND" · B's structure + full glowing wordmark + real STAGE + more juice · current chord pulses &amp; playhead drifts to show the feel · not functional</div>
+
+<div class="bar">
+  <h1>LOOPER <b>DELUXE</b></h1>
+  <input placeholder="Search any song…">
+  <button class="btn primary">▶</button><button class="btn">⏸</button><button class="btn">🔁 LOOP</button>
+  <button class="btn chords">🎸 GET CHORDS</button>
+  <span class="kchip">KEY F</span><span class="kchip capo">CAPO 3</span><span class="kchip">133 BPM</span>
+  <button class="btn" style="padding:6px 9px">÷2</button><button class="btn" style="padding:6px 9px">×2</button>
+  <span style="flex:1"></span><span style="font-size:.66rem;color:var(--dim)">★ELITE · Brooks</span>
+</div>
+
+<div class="grid">
+  <div class="panel">
+    <div class="ptitle">STAGE · Turmoil &amp; Tinfoil — Billy Strings</div>
+    <div class="video">▶ VIDEO / WAVEFORM</div>
+    <div class="ribbon"><span class="chip" style="left:2%">F</span><span class="chip cur" style="left:26%">B♭</span><span class="chip" style="left:52%">F</span><span class="chip" style="left:74%">E♭</span><span class="chip" style="left:91%">Fm</span><span class="playhead"></span></div>
+    <div class="map" title="click anywhere to jump"><i style="left:3%;height:9px"></i><i style="left:7%;height:16px"></i><i style="left:11%;height:21px"></i><i style="left:15%;height:12px"></i><i style="left:19%;height:20px"></i><i style="left:23%;height:15px"></i><i style="left:27%;height:23px"></i><i style="left:31%;height:18px"></i><i style="left:35%;height:13px"></i><i style="left:39%;height:21px"></i><i style="left:43%;height:9px"></i><i style="left:47%;height:17px"></i><i style="left:51%;height:22px"></i><i style="left:55%;height:14px"></i><i style="left:59%;height:20px"></i><i style="left:63%;height:16px"></i><i style="left:67%;height:21px"></i><i style="left:71%;height:12px"></i><i style="left:75%;height:18px"></i><i style="left:79%;height:15px"></i><i style="left:83%;height:10px"></i><i style="left:87%;height:14px"></i><i style="left:91%;height:7px"></i><span class="ph"></span></div>
+    <div class="looprow">
+      <button class="btn">◀ IN</button><button class="btn">OUT ▶</button><button class="btn">✕ CLEAR</button>
+      <span style="flex:1"></span>
+      <span class="sl">SPEED <input type="range"></span>
+      <span class="sl">VOL <input type="range"></span>
+      <span class="sl">TRANSPOSE <input type="range"></span>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="tabs"><span class="tab on">🎤 STAGE VIEW</span><span class="tab">📜 LYRICS</span><span class="tab">🎚 STEMS</span><span class="tab">🎤 COACH</span><span class="tab">💾 SAVED</span><span class="tab">👥 VERSIONS</span></div>
+    <div class="stage">
+      <div class="line"><span class="ch">F</span>I recall a silver morning</div>
+      <div class="line now"><span class="ch">B♭</span>Everything was new and shining</div>
+      <div class="line"><span class="ch">F</span>Time was moving, always turning</div>
+      <div class="line"><span class="ch">E♭</span>Nothing ever stays the same</div>
+      <div class="line"><span class="ch">Fm</span>Turmoil and the tinfoil crown</div>
+      <div class="line"><span class="ch">F</span>Spinning ever faster down</div>
+    </div>
+    <div class="next">NEXT UP → <b>F</b> <span style="opacity:.6">in 2 bars · then E♭</span></div>
+    <div class="note">The stage you have today, kept — chords riding each lyric line, current line lit and scrolling live, next-chord preview below.</div>
+  </div>
+</div>
+
+<details class="extras"><summary>▸ PRACTICE TOOLS — metronome · step-up · gap delay · lyric sync · publish</summary>
+  <div class="exgrid">
+    <div class="excard"><b>METRONOME</b>133 BPM · tap-to-lock (T) · click sync</div>
+    <div class="excard"><b>STEP-UP / DELAYS</b>Step-up % · gap delay · start delay</div>
+    <div class="excard"><b>LYRIC SYNC</b>±0.0s fine alignment</div>
+    <div class="excard"><b>📤 PUBLISH</b>Share your chord version</div>
+  </div>
+</details>
+</body></html>
