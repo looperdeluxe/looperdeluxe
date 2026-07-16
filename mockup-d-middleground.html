@@ -1,114 +1,275 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>MOCKUP D — The Middle Ground</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
-:root{--bg:#0b0b12;--panel:#131320;--border:#2c2c44;--cyan:#22d3ee;--purple:#a855f7;--pink:#f0abfc;--dim:#8b8ba3;--green:#4ade80}
+:root{--bg:#0b0b12;--panel:#131320;--panel2:#0f0f1c;--border:#2c2c44;--cyan:#22d3ee;--purple:#a855f7;--pink:#f0abfc;--dim:#8b8ba3;--green:#4ade80}
 *{box-sizing:border-box}
-body{background:var(--bg);color:#e4e4e7;font-family:'JetBrains Mono',monospace;margin:0;padding:14px;
-     background-image:radial-gradient(circle at 15% 20%, rgba(124,58,237,.09), transparent 40%),radial-gradient(circle at 85% 70%, rgba(34,211,238,.07), transparent 45%)}
-.banner{background:#78350f;color:#fde68a;font-size:.7rem;padding:6px 12px;border-radius:8px;margin-bottom:12px;text-align:center}
-/* FULL glowing wordmark — the personality stays (Brooks: A felt stale) */
-h1{font-family:Orbitron;font-weight:900;font-size:1.6rem;letter-spacing:4px;margin:0;color:#fff;
-   text-shadow:0 0 18px rgba(168,85,247,.8),0 0 40px rgba(168,85,247,.35)}
+html,body{height:100%}
+body{background:var(--bg);color:#e4e4e7;font-family:'JetBrains Mono',monospace;margin:0;display:flex;flex-direction:column;
+     background-image:radial-gradient(circle at 15% 20%, rgba(124,58,237,.10), transparent 40%),radial-gradient(circle at 85% 70%, rgba(34,211,238,.08), transparent 45%)}
+.banner{background:#78350f;color:#fde68a;font-size:.66rem;padding:5px 12px;text-align:center;flex-shrink:0}
+/* ── top bar ─────────────────────────────── */
+.bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:rgba(19,19,32,.94);backdrop-filter:blur(8px);
+     border-bottom:1px solid var(--border);padding:10px 16px;position:sticky;top:0;z-index:10;flex-shrink:0}
+h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;margin:0;color:#fff;cursor:pointer;
+   text-shadow:0 0 18px rgba(168,85,247,.85),0 0 44px rgba(168,85,247,.4)}
 h1 b{background:linear-gradient(90deg,#a855f7,#22d3ee);-webkit-background-clip:text;background-clip:text;color:transparent}
-.bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:rgba(19,19,32,.92);backdrop-filter:blur(6px);
-     border:1px solid var(--border);border-radius:14px;padding:10px 14px;margin-bottom:12px;position:sticky;top:8px;z-index:5;
-     box-shadow:0 4px 24px rgba(0,0,0,.5)}
-.bar input{width:220px;background:#0a0a14;border:1px solid var(--border);border-radius:8px;color:#fff;padding:8px 11px;font-family:inherit;font-size:.74rem;transition:border-color .2s}
-.bar input:focus{border-color:var(--cyan);outline:none;box-shadow:0 0 12px rgba(34,211,238,.25)}
-.btn{font-family:Orbitron;font-size:.6rem;padding:8px 13px;border-radius:8px;border:1px solid var(--border);background:#191927;color:#e4e4e7;cursor:pointer;white-space:nowrap;transition:all .15s}
-.btn:hover{border-color:var(--purple);box-shadow:0 0 14px rgba(168,85,247,.35);transform:translateY(-1px)}
+.bar input{width:200px;background:#0a0a14;border:1px solid var(--border);border-radius:8px;color:#fff;padding:8px 11px;font-family:inherit;font-size:.72rem;transition:.2s}
+.bar input:focus{border-color:var(--cyan);outline:none;box-shadow:0 0 12px rgba(34,211,238,.3)}
+.btn{font-family:Orbitron;font-size:.58rem;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:#191927;color:#e4e4e7;cursor:pointer;white-space:nowrap;transition:.15s}
+.btn:hover{border-color:var(--purple);box-shadow:0 0 14px rgba(168,85,247,.4);transform:translateY(-1px)}
+.btn:active{transform:translateY(1px)}
 .btn.primary{background:linear-gradient(135deg,#7c3aed,#5b21b6);border-color:var(--purple);color:#fff}
 .btn.chords{background:linear-gradient(135deg,#065f46,#064e3b);border-color:var(--green);color:var(--green)}
-.kchip{font-family:Orbitron;font-size:.62rem;padding:6px 11px;border-radius:8px;white-space:nowrap;
+.kchip{font-family:Orbitron;font-size:.6rem;padding:6px 10px;border-radius:8px;white-space:nowrap;
        background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.5);color:var(--cyan);text-shadow:0 0 8px rgba(34,211,238,.5)}
-.kchip.capo{background:rgba(240,171,252,.08);border-color:rgba(240,171,252,.45);color:var(--pink);text-shadow:0 0 8px rgba(240,171,252,.4)}
+.kchip.capo{background:rgba(240,171,252,.08);border-color:rgba(240,171,252,.45);color:var(--pink)}
+/* ── shell: sidebar + main ────────────────── */
+.shell{display:flex;flex:1;min-height:0}
+.side{width:170px;flex-shrink:0;background:var(--panel2);border-right:1px solid var(--border);padding:14px 10px;display:flex;flex-direction:column;gap:6px}
+.nav{font-family:Orbitron;font-size:.62rem;letter-spacing:1px;padding:11px 12px;border-radius:10px;color:var(--dim);cursor:pointer;border:1px solid transparent;transition:.15s;display:flex;gap:9px;align-items:center}
+.nav:hover{color:#fff;border-color:var(--border);transform:translateX(3px)}
+.nav.on{color:#fff;background:linear-gradient(90deg,rgba(124,58,237,.3),rgba(124,58,237,.06));border-color:var(--purple);box-shadow:0 0 16px rgba(124,58,237,.2)}
+.side .foot{margin-top:auto;font-size:.58rem;color:var(--dim);padding:8px 10px}
+.main{flex:1;overflow-y:auto;padding:14px}
+.view{display:none}.view.on{display:block;animation:fadein .25s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media(max-width:760px){.side{width:58px}.nav span.lbl{display:none}.side .foot{display:none}}
+/* ── PLAY view ───────────────────────────── */
 .grid{display:grid;grid-template-columns:1.35fr 1fr;gap:12px}
-@media(max-width:860px){.grid{grid-template-columns:1fr}}
-.panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px}
-.ptitle{font-family:Orbitron;font-size:.58rem;letter-spacing:2px;color:#c4b5fd;margin-bottom:8px}
-.video{background:#000;border-radius:10px;height:215px;display:flex;align-items:center;justify-content:center;color:#333;font-family:Orbitron;margin-bottom:10px;border:1px solid #1c1c2e}
+@media(max-width:1000px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px;margin-bottom:12px}
+.ptitle{font-family:Orbitron;font-size:.56rem;letter-spacing:2px;color:#c4b5fd;margin-bottom:8px}
+.video{background:#000;border-radius:10px;height:210px;display:flex;align-items:center;justify-content:center;color:#2c2c44;font-family:Orbitron;margin-bottom:10px;border:1px solid #1c1c2e;font-size:.8rem}
 .ribbon{background:#0a0a14;border:1px solid var(--border);border-radius:8px;height:54px;position:relative;margin-bottom:6px;overflow:hidden}
-.chip{position:absolute;top:10px;height:26px;background:rgba(124,58,237,.35);border-radius:5px;color:#d8b4fe;font-size:.85rem;font-weight:700;padding:3px 9px}
-.chip.cur{background:rgba(34,211,238,.32);color:var(--cyan);animation:pulse 1.4s ease-in-out infinite}
-@keyframes pulse{0%,100%{box-shadow:0 0 6px rgba(34,211,238,.5)}50%{box-shadow:0 0 20px rgba(34,211,238,.95)}}
-.playhead{position:absolute;top:0;bottom:0;left:34%;width:2px;background:#fff;box-shadow:0 0 12px var(--cyan);animation:drift 7s linear infinite}
-@keyframes drift{from{left:30%}to{left:44%}}
-.map{height:30px;background:#0a0a14;border:1px solid var(--border);border-radius:6px;position:relative;cursor:pointer;margin-bottom:8px}
-.map i{position:absolute;bottom:3px;width:2.2%;background:linear-gradient(to top,rgba(124,58,237,.7),rgba(168,85,247,.3));border-radius:1px}
-.map .ph{position:absolute;top:0;bottom:0;left:34%;width:2px;background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+.chip{position:absolute;top:10px;height:26px;background:rgba(124,58,237,.35);border-radius:5px;color:#d8b4fe;font-size:.85rem;font-weight:700;padding:3px 9px;transition:.3s}
+.chip.cur{background:rgba(34,211,238,.32);color:var(--cyan);animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 6px rgba(34,211,238,.5)}50%{box-shadow:0 0 22px rgba(34,211,238,1)}}
+.playhead{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 12px var(--cyan);left:2%}
+.map{height:32px;background:#0a0a14;border:1px solid var(--border);border-radius:6px;position:relative;cursor:pointer;margin-bottom:8px}
+.map i{position:absolute;bottom:3px;width:2.1%;background:linear-gradient(to top,rgba(124,58,237,.75),rgba(168,85,247,.3));border-radius:1px}
+.map .ph{position:absolute;top:0;bottom:0;width:2px;background:var(--cyan);box-shadow:0 0 10px var(--cyan);left:2%}
 .looprow{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
-.sl{display:flex;align-items:center;gap:5px;font-size:.6rem;color:var(--dim)}.sl input[type=range]{width:84px;accent-color:#a855f7}
+.sl{display:flex;align-items:center;gap:5px;font-size:.58rem;color:var(--dim)}.sl input[type=range]{width:80px;accent-color:#a855f7}
 .tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
-.tab{font-family:Orbitron;font-size:.56rem;padding:6px 11px;border-radius:8px;border:1px solid var(--border);color:var(--dim);cursor:pointer;transition:all .15s}
+.tab{font-family:Orbitron;font-size:.54rem;padding:6px 10px;border-radius:8px;border:1px solid var(--border);color:var(--dim);cursor:pointer;transition:.15s}
 .tab:hover{color:#fff;border-color:var(--purple)}
 .tab.on{border-color:var(--cyan);color:var(--cyan);background:rgba(34,211,238,.08);box-shadow:0 0 12px rgba(34,211,238,.15)}
-/* STAGE — the keeper: chords over lyrics, live-scrolling (Brooks: must stay) */
-.stage{font-size:.8rem;line-height:1.5}
-.stage .line{padding:7px 9px;border-radius:8px;color:var(--dim);display:flex;gap:10px;align-items:baseline}
-.stage .ch{font-family:Orbitron;font-size:.68rem;font-weight:700;color:var(--purple);min-width:32px;text-align:right}
-.stage .now{background:linear-gradient(90deg,rgba(124,58,237,.3),rgba(34,211,238,.12));color:#fff;box-shadow:0 0 14px rgba(124,58,237,.25)}
-.stage .now .ch{color:var(--cyan);text-shadow:0 0 8px rgba(34,211,238,.6)}
-.next{margin-top:10px;padding:8px 10px;border:1px dashed var(--border);border-radius:8px;font-size:.62rem;color:var(--dim)}
-.next b{font-family:Orbitron;color:var(--pink);font-size:.9rem;text-shadow:0 0 10px rgba(240,171,252,.5)}
-details.extras{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:10px 14px;margin-top:12px}
-details.extras summary{font-family:Orbitron;font-size:.6rem;letter-spacing:2px;color:var(--dim);cursor:pointer}
-details.extras summary:hover{color:#c4b5fd}
-.exgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;margin-top:10px}
-.excard{background:#0f0f1c;border:1px solid var(--border);border-radius:8px;padding:9px;font-size:.62rem;color:var(--dim);transition:all .15s}
-.excard:hover{border-color:var(--purple);transform:translateY(-2px)}
-.excard b{display:block;font-family:Orbitron;font-size:.54rem;color:#c4b5fd;margin-bottom:4px}
-.note{font-size:.6rem;color:var(--dim);margin-top:6px}
+.pane{display:none}.pane.on{display:block;animation:fadein .2s ease}
+.stage{font-size:.78rem;line-height:1.45}
+.stage .line{padding:7px 9px;border-radius:8px;color:var(--dim);display:flex;gap:10px;align-items:baseline;transition:.3s}
+.stage .ch{font-family:Orbitron;font-size:.66rem;font-weight:700;color:var(--purple);min-width:32px;text-align:right}
+.stage .now{background:linear-gradient(90deg,rgba(124,58,237,.32),rgba(34,211,238,.12));color:#fff;box-shadow:0 0 14px rgba(124,58,237,.3)}
+.stage .now .ch{color:var(--cyan);text-shadow:0 0 8px rgba(34,211,238,.7)}
+.next{margin-top:10px;padding:8px 10px;border:1px dashed var(--border);border-radius:8px;font-size:.6rem;color:var(--dim)}
+.next b{font-family:Orbitron;color:var(--pink);font-size:.88rem;text-shadow:0 0 10px rgba(240,171,252,.5)}
+/* misc content bits */
+.card{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px;font-size:.66rem;color:var(--dim);transition:.15s}
+.card:hover{border-color:var(--purple);transform:translateY(-2px)}
+.card b{display:block;font-family:Orbitron;font-size:.56rem;color:#c4b5fd;margin-bottom:5px}
+.cardgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.meter{height:10px;border-radius:6px;background:#0a0a14;border:1px solid var(--border);overflow:hidden;margin:6px 0}
+.meter i{display:block;height:100%;width:72%;background:linear-gradient(90deg,#7c3aed,#22d3ee);animation:meter 2.2s ease-in-out infinite alternate}
+@keyframes meter{from{width:52%}to{width:88%}}
+.bubble{border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:.68rem;margin-bottom:8px;max-width:88%}
+.bubble.ai{background:rgba(34,211,238,.06);border-color:rgba(34,211,238,.3)}
+.bubble.me{background:rgba(124,58,237,.12);margin-left:auto}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1c1c2e;border:1px solid var(--purple);color:#e9d5ff;font-size:.66rem;padding:8px 16px;border-radius:20px;opacity:0;transition:.3s;pointer-events:none;z-index:50}
+.toast.show{opacity:1}
+.fret{font-size:.6rem;color:var(--dim);letter-spacing:2px;line-height:1.9;background:#0a0a14;border:1px solid var(--border);border-radius:8px;padding:10px;overflow-x:auto}
 </style></head><body>
-<div class="banner">⚠ MOCKUP D — "THE MIDDLE GROUND" · B's structure + full glowing wordmark + real STAGE + more juice · current chord pulses &amp; playhead drifts to show the feel · not functional</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE — nothing real loads, but everything navigates: click the sidebar, tabs, play, the song map. This is the redesign proposal, feel it out.</div>
 
 <div class="bar">
-  <h1>LOOPER <b>DELUXE</b></h1>
-  <input placeholder="Search any song…">
-  <button class="btn primary">▶</button><button class="btn">⏸</button><button class="btn">🔁 LOOP</button>
-  <button class="btn chords">🎸 GET CHORDS</button>
-  <span class="kchip">KEY F</span><span class="kchip capo">CAPO 3</span><span class="kchip">133 BPM</span>
-  <button class="btn" style="padding:6px 9px">÷2</button><button class="btn" style="padding:6px 9px">×2</button>
-  <span style="flex:1"></span><span style="font-size:.66rem;color:var(--dim)">★ELITE · Brooks</span>
+  <h1 onclick="nav('play')">LOOPER <b>DELUXE</b></h1>
+  <input placeholder="Search any song…" onkeydown="if(event.key==='Enter')toast('mock: would search + auto-load chords')">
+  <button class="btn primary" id="btnPlay" onclick="togglePlay()">▶ PLAY</button>
+  <button class="btn" onclick="toast('mock: loop set to current section')">🔁 LOOP</button>
+  <button class="btn chords" onclick="toast('mock: chords re-fetched from library')">🎸 GET CHORDS</button>
+  <span class="kchip">KEY F</span><span class="kchip capo">CAPO 3</span><span class="kchip" id="bpmChip">133 BPM</span>
+  <button class="btn" style="padding:6px 9px" onclick="bpm(0.5)">÷2</button>
+  <button class="btn" style="padding:6px 9px" onclick="bpm(2)">×2</button>
+  <span style="flex:1"></span><span style="font-size:.64rem;color:var(--dim)">★ELITE · Brooks</span>
 </div>
 
-<div class="grid">
-  <div class="panel">
-    <div class="ptitle">STAGE · Turmoil &amp; Tinfoil — Billy Strings</div>
-    <div class="video">▶ VIDEO / WAVEFORM</div>
-    <div class="ribbon"><span class="chip" style="left:2%">F</span><span class="chip cur" style="left:26%">B♭</span><span class="chip" style="left:52%">F</span><span class="chip" style="left:74%">E♭</span><span class="chip" style="left:91%">Fm</span><span class="playhead"></span></div>
-    <div class="map" title="click anywhere to jump"><i style="left:3%;height:9px"></i><i style="left:7%;height:16px"></i><i style="left:11%;height:21px"></i><i style="left:15%;height:12px"></i><i style="left:19%;height:20px"></i><i style="left:23%;height:15px"></i><i style="left:27%;height:23px"></i><i style="left:31%;height:18px"></i><i style="left:35%;height:13px"></i><i style="left:39%;height:21px"></i><i style="left:43%;height:9px"></i><i style="left:47%;height:17px"></i><i style="left:51%;height:22px"></i><i style="left:55%;height:14px"></i><i style="left:59%;height:20px"></i><i style="left:63%;height:16px"></i><i style="left:67%;height:21px"></i><i style="left:71%;height:12px"></i><i style="left:75%;height:18px"></i><i style="left:79%;height:15px"></i><i style="left:83%;height:10px"></i><i style="left:87%;height:14px"></i><i style="left:91%;height:7px"></i><span class="ph"></span></div>
-    <div class="looprow">
-      <button class="btn">◀ IN</button><button class="btn">OUT ▶</button><button class="btn">✕ CLEAR</button>
-      <span style="flex:1"></span>
-      <span class="sl">SPEED <input type="range"></span>
-      <span class="sl">VOL <input type="range"></span>
-      <span class="sl">TRANSPOSE <input type="range"></span>
-    </div>
+<div class="shell">
+  <div class="side">
+    <div class="nav on" id="nav-play" onclick="nav('play')">🎸 <span class="lbl">PLAY</span></div>
+    <div class="nav" id="nav-learn" onclick="nav('learn')">🎼 <span class="lbl">LEARN</span></div>
+    <div class="nav" id="nav-coach" onclick="nav('coach')">🤖 <span class="lbl">COACH</span></div>
+    <div class="nav" id="nav-stuff" onclick="nav('stuff')">📁 <span class="lbl">MY STUFF</span></div>
+    <div class="nav" id="nav-settings" onclick="nav('settings')">⚙ <span class="lbl">SETTINGS</span></div>
+    <div class="foot">Every current feature keeps a home — nothing is cut, it's all one hop away.</div>
   </div>
 
-  <div class="panel">
-    <div class="tabs"><span class="tab on">🎤 STAGE VIEW</span><span class="tab">📜 LYRICS</span><span class="tab">🎚 STEMS</span><span class="tab">🎤 COACH</span><span class="tab">💾 SAVED</span><span class="tab">👥 VERSIONS</span></div>
-    <div class="stage">
-      <div class="line"><span class="ch">F</span>I recall a silver morning</div>
-      <div class="line now"><span class="ch">B♭</span>Everything was new and shining</div>
-      <div class="line"><span class="ch">F</span>Time was moving, always turning</div>
-      <div class="line"><span class="ch">E♭</span>Nothing ever stays the same</div>
-      <div class="line"><span class="ch">Fm</span>Turmoil and the tinfoil crown</div>
-      <div class="line"><span class="ch">F</span>Spinning ever faster down</div>
+  <div class="main">
+    <!-- ════ PLAY ════ -->
+    <div class="view on" id="view-play">
+      <div class="grid">
+        <div>
+          <div class="panel">
+            <div class="ptitle">NOW PLAYING · Turmoil &amp; Tinfoil — Billy Strings · <span style="color:var(--green)">✅ LIBRARY · FULL SONG</span></div>
+            <div class="video">▶ VIDEO / WAVEFORM AREA</div>
+            <div class="ribbon" id="ribbon">
+              <span class="chip" style="left:2%">F</span><span class="chip" style="left:26%">B♭</span>
+              <span class="chip" style="left:52%">F</span><span class="chip" style="left:74%">E♭</span>
+              <span class="chip" style="left:91%">Fm</span><span class="playhead" id="rph"></span>
+            </div>
+            <div class="map" id="map" title="click to jump">
+              <span class="ph" id="mph"></span>
+            </div>
+            <div class="looprow">
+              <button class="btn" onclick="toast('mock: loop IN set')">◀ IN</button>
+              <button class="btn" onclick="toast('mock: loop OUT set')">OUT ▶</button>
+              <button class="btn" onclick="toast('mock: loop cleared')">✕ CLEAR</button>
+              <span style="flex:1"></span>
+              <span class="sl">SPEED <input type="range"></span>
+              <span class="sl">VOL <input type="range"></span>
+              <span class="sl">TRANSPOSE <input type="range"></span>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="tabs">
+            <span class="tab on" data-pane="stage" onclick="pane(this)">🎤 STAGE</span>
+            <span class="tab" data-pane="stems" onclick="pane(this)">🎚 STEMS</span>
+            <span class="tab" data-pane="ccoach" onclick="pane(this)">🎤 CHORD COACH</span>
+            <span class="tab" data-pane="versions" onclick="pane(this)">👥 VERSIONS</span>
+          </div>
+          <div class="pane on" id="pane-stage">
+            <div class="stage" id="stage">
+              <div class="line"><span class="ch">F</span>I recall a silver morning</div>
+              <div class="line"><span class="ch">B♭</span>Everything was new and shining</div>
+              <div class="line"><span class="ch">F</span>Time was moving, always turning</div>
+              <div class="line"><span class="ch">E♭</span>Nothing ever stays the same</div>
+              <div class="line"><span class="ch">Fm</span>Turmoil and the tinfoil crown</div>
+              <div class="line"><span class="ch">F</span>Spinning ever faster down</div>
+              <div class="line"><span class="ch">B♭</span>All the wires hum and glisten</div>
+              <div class="line"><span class="ch">F</span>No one's left who wants to listen</div>
+            </div>
+            <div class="next">NEXT UP → <b id="nextCh">B♭</b> <span style="opacity:.6">in 2 bars</span></div>
+          </div>
+          <div class="pane" id="pane-stems">
+            <div class="card"><b>🎚 STEM ISOLATOR · PREMIUM</b>Pick your instrument, mute it, play along with the rest.
+              <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn" onclick="toast('mock: guitar muted — backing track mode')">MUTE GUITAR</button>
+                <button class="btn" onclick="toast('mock: vocals isolated')">VOCALS ONLY</button>
+              </div></div>
+          </div>
+          <div class="pane" id="pane-ccoach">
+            <div class="card"><b>🎤 CHORD COACH · listens through your mic</b>
+              Hit rate this session:
+              <div class="meter"><i></i></div>
+              <span style="color:var(--green)">B♭ ✓ &nbsp;F ✓ &nbsp;E♭ ✗ (heard D♯m)</span>
+              <div style="margin-top:8px"><button class="btn primary" onclick="toast('mock: coach listening…')">▶ START LISTENING</button></div></div>
+          </div>
+          <div class="pane" id="pane-versions">
+            <div class="card"><b>👥 COMMUNITY VERSIONS</b>
+              ⭐ 4.9 · "Capo 3, D-shapes" — bluegrass_bob<br>⭐ 4.2 · "No capo, barre" — sarah_plays
+              <div style="margin-top:8px;display:flex;gap:6px"><button class="btn" onclick="toast('mock: version loaded')">LOAD</button><button class="btn" onclick="toast('mock: publish flow')">📤 PUBLISH MINE</button></div></div>
+          </div>
+        </div>
+      </div>
     </div>
-    <div class="next">NEXT UP → <b>F</b> <span style="opacity:.6">in 2 bars · then E♭</span></div>
-    <div class="note">The stage you have today, kept — chords riding each lyric line, current line lit and scrolling live, next-chord preview below.</div>
+
+    <!-- ════ LEARN ════ -->
+    <div class="view" id="view-learn">
+      <div class="panel"><div class="ptitle">LEARN · scales &amp; shapes for the key you're in (F major · capo 3 = D shapes)</div>
+        <div class="cardgrid">
+          <div class="card"><b>SCALE EXPLORER</b><div class="fret">e|--1--3--5--·--<br>B|--1--3--·--6--<br>G|--2--3--5--·--<br>D|--3--·--5--7--</div></div>
+          <div class="card"><b>CHORD SHAPES</b>D-position: D · G · A7 · Bm — tap any chord on the stage to see its shape here.</div>
+          <div class="card"><b>STRUM PATTERN</b>↓ · ↓↑ · ↑↓↑ — auto-suggested from the song's feel (133 BPM, driving).</div>
+        </div></div>
+    </div>
+
+    <!-- ════ COACH ════ -->
+    <div class="view" id="view-coach">
+      <div class="panel"><div class="ptitle">🤖 AI COACH · ask anything about the song you're playing</div>
+        <div class="bubble me">What key is this and why does the Fm feel so dark?</div>
+        <div class="bubble ai">You're in F major, but that Fm is a <b>borrowed iv chord</b> — taking the minor four from F minor. It's the classic "sunshine turns to shadow" move. Try letting it ring longer than written.</div>
+        <div class="bubble me">Give me an easier voicing for E♭ at capo 3.</div>
+        <div class="bubble ai">With capo 3, E♭ = a <b>C shape</b>. Use C-add9 (x32033) — two fingers move from your G shape, much smoother in this progression.</div>
+        <div style="display:flex;gap:8px;margin-top:10px"><input style="flex:1;background:#0a0a14;border:1px solid var(--border);border-radius:8px;color:#fff;padding:9px 11px;font-family:inherit;font-size:.72rem" placeholder="Ask the coach…" onkeydown="if(event.key==='Enter')toast('mock: coach would answer')"><button class="btn primary" onclick="toast('mock: coach would answer')">ASK</button></div>
+      </div>
+    </div>
+
+    <!-- ════ MY STUFF ════ -->
+    <div class="view" id="view-stuff">
+      <div class="panel"><div class="ptitle">📁 MY STUFF · loops, saved songs, setlists</div>
+        <div class="cardgrid">
+          <div class="card"><b>💾 SAVED LOOPS</b>Turmoil solo (2:41–3:05) · NHF bridge (3:10–3:44) · CYS intro ×3<div style="margin-top:6px"><button class="btn" onclick="toast('mock: loop loaded + playing')">▶ PLAY LOOP</button></div></div>
+          <div class="card"><b>★ SAVED SONGS</b>Turmoil &amp; Tinfoil · No Hard Feelings · Can't You See · Mercy</div>
+          <div class="card"><b>🎵 SETLIST</b>Open-mic Thursday: 4 songs · auto-advance on</div>
+        </div></div>
+    </div>
+
+    <!-- ════ SETTINGS ════ -->
+    <div class="view" id="view-settings">
+      <div class="panel"><div class="ptitle">⚙ SETTINGS · the fine-tuning that used to crowd the main page</div>
+        <div class="cardgrid">
+          <div class="card"><b>METRONOME</b>133 BPM · tap-to-lock (T) · click sync · offset 0.00s</div>
+          <div class="card"><b>TIMING</b>Step-up % · gap delay · start delay · latency cal ±0ms</div>
+          <div class="card"><b>LYRIC SYNC</b>±0.0s fine alignment slider</div>
+          <div class="card"><b>ACCOUNT</b>★ELITE · Spotify ✓ connected · Terms · Privacy</div>
+        </div></div>
+    </div>
   </div>
 </div>
+<div class="toast" id="toast"></div>
 
-<details class="extras"><summary>▸ PRACTICE TOOLS — metronome · step-up · gap delay · lyric sync · publish</summary>
-  <div class="exgrid">
-    <div class="excard"><b>METRONOME</b>133 BPM · tap-to-lock (T) · click sync</div>
-    <div class="excard"><b>STEP-UP / DELAYS</b>Step-up % · gap delay · start delay</div>
-    <div class="excard"><b>LYRIC SYNC</b>±0.0s fine alignment</div>
-    <div class="excard"><b>📤 PUBLISH</b>Share your chord version</div>
-  </div>
-</details>
+<script>
+// ── prototype interactivity: nothing real, everything navigable ──
+function nav(k){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.querySelectorAll('.nav').forEach(n=>n.classList.remove('on'));
+  document.getElementById('view-'+k).classList.add('on');
+  document.getElementById('nav-'+k).classList.add('on');
+}
+function pane(el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('.pane').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('pane-'+el.dataset.pane).classList.add('on');
+}
+let _t=null;
+function toast(m){
+  const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show');
+  clearTimeout(_t); _t=setTimeout(()=>t.classList.remove('show'),1800);
+}
+// simulated playback: playhead drifts, chords + stage lines light up in sequence
+let playing=false, pos=2, tick=null, li=0, ci=0;
+const chips=[...document.querySelectorAll('#ribbon .chip')];
+const chipPos=[2,26,52,74,91];
+function togglePlay(){
+  playing=!playing;
+  document.getElementById('btnPlay').textContent = playing?'⏸ PAUSE':'▶ PLAY';
+  if(playing){ tick=setInterval(step,300); toast('simulated playback — watch the stage + chords'); }
+  else clearInterval(tick);
+}
+function step(){
+  pos=(pos+0.55)%100;
+  document.getElementById('rph').style.left=pos+'%';
+  document.getElementById('mph').style.left=pos+'%';
+  let cur=0; chipPos.forEach((p,i)=>{ if(pos>=p) cur=i; });
+  if(cur!==ci){ ci=cur; chips.forEach((c,i)=>c.classList.toggle('cur',i===ci));
+    document.getElementById('nextCh').textContent=chips[(ci+1)%chips.length].textContent; }
+  if(Math.random()<0.13){ const lines=[...document.querySelectorAll('#stage .line')];
+    lines.forEach(l=>l.classList.remove('now')); li=(li+1)%lines.length; lines[li].classList.add('now');
+    lines[li].scrollIntoView({block:'nearest',behavior:'smooth'}); }
+}
+document.getElementById('map').addEventListener('click',e=>{
+  pos=(e.offsetX/e.currentTarget.clientWidth)*100;
+  document.getElementById('rph').style.left=pos+'%';
+  document.getElementById('mph').style.left=pos+'%';
+  toast('jumped to '+Math.round(pos)+'% of the song');
+});
+// paint the loudness map bars
+(function(){ const m=document.getElementById('map');
+  for(let i=0;i<44;i++){ const b=document.createElement('i');
+    b.style.left=(2+i*2.15)+'%'; b.style.height=(6+Math.abs(Math.sin(i*.7))*18)+'px'; m.appendChild(b); } })();
+// start with a lit stage line + current chord
+document.querySelectorAll('#stage .line')[1].classList.add('now');
+chips[1].classList.add('cur');
+</script>
 </body></html>
