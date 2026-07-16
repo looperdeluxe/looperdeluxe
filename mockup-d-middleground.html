@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v10 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v11 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -75,8 +75,11 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 .stage .w{transition:color .2s}
 .stage .now{background:linear-gradient(90deg,rgba(124,58,237,.28),rgba(34,211,238,.1));color:#e8e8f0;box-shadow:0 0 14px rgba(124,58,237,.3)}
 .stage .now .w.sung{color:var(--cyan);text-shadow:0 0 8px rgba(34,211,238,.45)}
-.stage .now .ich.hit{background:rgba(34,211,238,.3);border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 12px rgba(34,211,238,.7)}
-.stage .now .ich.soon{animation:none;color:var(--pink);border-color:var(--pink);background:rgba(240,171,252,.22);box-shadow:0 0 12px rgba(240,171,252,.55)}  /* ONE steady build-up glow — no baiting flashes */
+.stage .now .ich.hit{background:rgba(34,211,238,.3);border-color:var(--cyan);color:var(--cyan);animation:pop .22s ease-out}  /* the big-bang pop on the change */
+@keyframes buildup{from{background:rgba(124,58,237,.14);box-shadow:0 0 0 rgba(240,171,252,0);color:#c084fc}
+                   to{background:rgba(240,171,252,.3);box-shadow:0 0 18px rgba(240,171,252,.85);color:var(--pink)}}
+.stage .now .ich.soon{animation:buildup .5s linear forwards;border-color:var(--pink)}  /* fixed 0.5s gradient build — you SEE it coming */
+@keyframes pop{0%{transform:scale(1.35);box-shadow:0 0 28px rgba(34,211,238,1)}100%{transform:scale(1);box-shadow:0 0 12px rgba(34,211,238,.7)}}
 .next{margin-top:8px;padding:8px 10px;border:1px dashed var(--border);border-radius:8px;font-size:.6rem;color:var(--dim);flex-shrink:0}
 .next b{font-family:Orbitron;color:var(--pink);font-size:.88rem;text-shadow:0 0 10px rgba(240,171,252,.5)}
 .panel.max{position:fixed;inset:0;z-index:40;border-radius:0;padding:16px;align-items:center}
@@ -167,9 +170,12 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
                 border:1px solid rgba(34,211,238,.4);border-radius:6px;padding:1px 7px;margin-bottom:3px}
 #loopLyric .spacer{height:1.4em}
 #loopLyric .w.sung{color:var(--cyan)}
+#loopLyric .line{transition:all .4s ease}
+#loopLyric .line.up1{opacity:.55;font-size:.82em}
+#loopLyric .line.up2{opacity:.3;font-size:.7em}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v10 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v11 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -179,8 +185,32 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
   <span class="kchip">KEY F</span><span class="kchip capo">CAPO 3</span><span class="kchip">133 BPM</span>
   <button class="btn" style="padding:6px 9px" onclick="toast('mock: BPM halved')">÷2</button>
   <button class="btn" style="padding:6px 9px" onclick="toast('mock: BPM doubled')">×2</button>
-  <span style="flex:1"></span><span style="font-size:.64rem;color:var(--dim)">★ELITE · Brooks</span>
+  <span style="flex:1"></span>
+  <button class="btn" title="quick tour of everything" onclick="document.getElementById('helpOv').classList.add('on')" style="border-color:var(--cyan);color:var(--cyan)">? HELP</button>
+  <span style="font-size:.64rem;color:var(--dim)">★ELITE · Brooks</span>
 </div>
+
+<div id="helpOv" onclick="this.classList.remove('on')" style="display:none;position:fixed;inset:0;z-index:58;background:rgba(8,8,15,.93);backdrop-filter:blur(4px);overflow-y:auto;padding:26px;cursor:pointer">
+  <div style="max-width:860px;margin:0 auto">
+    <div style="font-family:Orbitron;font-size:1rem;letter-spacing:3px;color:#d8b4fe;margin-bottom:4px">EVERYTHING IN 60 SECONDS</div>
+    <div style="font-size:.66rem;color:var(--dim);margin-bottom:14px">tap anywhere to close · this lives behind the ? forever, so the app never has to explain itself on your screen</div>
+    <div class="cardgrid">
+      <div class="card"><b>🔍 SEARCH → PLAY</b>Type any song. Chords, key, capo and lyrics load themselves — no buttons.</div>
+      <div class="card"><b>🎤 STAGE</b>Lyrics with the chords above the exact word they change on. Pink build-up = change coming, pop = now.</div>
+      <div class="card"><b>🔁 LOOP</b>IN and OUT mark a section on the waveform. It repeats until you own it. 💾 saves it forever.</div>
+      <div class="card"><b>◉ LOOP MODE</b>Fullscreen ring for hands-free practice — chord in the middle, lyrics below, phone on the music stand.</div>
+      <div class="card"><b>🎯 PRACTICE</b>Step-up speeds each pass up +4%. Gap gives you a breather. Start delay counts you in.</div>
+      <div class="card"><b>🎵 STRUM</b>Auto-detected pattern for the song's feel — or scroll ‹ › to pick your own.</div>
+      <div class="card"><b>🎼 LEARN</b>Any key × any scale on a live neck. Flip it vertical. Ask in plain English: "D minor but darker."</div>
+      <div class="card"><b>🎚 STEMS</b>Mute your instrument, play with the rest of the band.</div>
+      <div class="card"><b>🎤 CHORD COACH</b>Listens through the mic and tells you which chords you're actually hitting.</div>
+      <div class="card"><b>🤖 AI COACH</b>Ask anything about the song you're playing — theory, voicings, why it sounds the way it does.</div>
+      <div class="card"><b>👥 VERSIONS &amp; TABS</b>Community charts, or upload your own tab — it becomes playable, synced to the song.</div>
+      <div class="card"><b>⛶ EXPAND</b>The stage, fullscreen. Current line pinned to the top. Built for the phone on your stand.</div>
+    </div>
+  </div>
+</div>
+<style>#helpOv.on{display:block;animation:fadein .25s ease}</style>
 
 <div class="shell">
   <div class="side">
@@ -213,6 +243,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
             <button class="btn" onclick="setOut()">OUT ▶</button>
             <button class="btn" onclick="clearLoop()">✕ CLEAR</button>
             <span class="lbl" id="loopStamp" style="color:#fff;letter-spacing:1px">IN –:–– · OUT –:––</span>
+            <button class="btn" onclick="saveLoop()">💾 SAVE LOOP</button>
             <button class="btn primary" onclick="openLoop()">◉ LOOP MODE</button>
             <span style="flex:1"></span>
             <span class="sl">SPEED <input type="range" id="spd" min="25" max="150" value="100" oninput="setSpeed(this.value)"> <b id="spdVal" style="color:var(--cyan);font-size:.64rem">100%</b></span>
@@ -368,6 +399,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 
 <!-- LOOP MODE -->
 <div id="loopMode" onclick="closeLoop()">
+  <div class="hint" style="position:absolute;top:14px;left:50%;transform:translateX(-50%)">LOOP MODE · tap anywhere to exit</div>
   <div class="ringwrap">
     <svg viewBox="0 0 200 200">
       <defs><linearGradient id="lgrad" x1="0" y1="0" x2="1" y2="1">
@@ -379,7 +411,6 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
     <div class="bigchord"><b id="loopChord">B♭</b><small>NEXT → <span id="loopNext">F</span></small><span class="cnt">loop ×<span id="loopCnt">1</span></span></div>
   </div>
   <div id="loopLyric"></div>
-  <div class="hint">LOOP MODE · chords over lyrics, hands-free · tap anywhere to exit</div>
 </div>
 <div class="toast" id="toast"></div>
 
@@ -508,10 +539,16 @@ function frame(ts){
       document.getElementById('loopRing').style.strokeDashoffset=565-(565*prog/100);
       document.getElementById('loopChord').textContent=cur;
       document.getElementById('loopNext').textContent=nxt[1];
-      const line=stageEl.children[curLine>=0?curLine:0];
-      const html=line?line.innerHTML:'';
+      const ci2=curLine>=0?curLine:0;
+      const l0=stageEl.children[ci2], l1=stageEl.children[(ci2+1)%LINES.length], l2=stageEl.children[(ci2+2)%LINES.length];
+      const html=(l0?l0.innerHTML:'');
       const ll=document.getElementById('loopLyric');
-      if(ll.__last!==html){ ll.innerHTML='<div class="line">'+html+'</div>'; ll.__last=html; }
+      if(ll.__last!==html){
+        ll.innerHTML='<div class="line">'+html+'</div>'
+          +'<div class="line up1">'+(l1?l1.innerHTML:'')+'</div>'
+          +'<div class="line up2">'+(l2?l2.innerHTML:'')+'</div>';
+        ll.__last=html;
+      }
     }
   }
   syncStage();
@@ -555,6 +592,10 @@ function region(){
 function setIn(){ loopA=pos; if(loopB!=null&&loopB<=loopA) loopB=null; region(); stamp(); toast('loop IN set at '+fmtT(pos)); }
 function setOut(){ if(loopA==null) loopA=Math.max(0,pos-10); loopB=pos; region(); stamp(); toast('loop OUT at '+fmtT(pos)+' — playback wraps inside the cyan region'); }
 function clearLoop(){ loopA=loopB=null; region(); stamp(); toast('loop cleared'); }
+function saveLoop(){
+  if(loopA==null||loopB==null){ toast('set IN and OUT first, then save'); return; }
+  toast('💾 saved: Turmoil loop '+fmtT(loopA)+'–'+fmtT(loopB)+' → find it in MY STUFF');
+}
 function openLoop(){
   loopOn=true; document.getElementById('loopMode').classList.add('on');
   if(loopA==null||loopB==null){ loopA=Math.max(0,pos-6); loopB=Math.min(100,pos+8); region(); stamp(); }
