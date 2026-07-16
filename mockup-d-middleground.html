@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v9 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v10 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -65,7 +65,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 .tab:hover{color:#fff;border-color:var(--purple)}
 .tab.on{border-color:var(--cyan);color:var(--cyan);background:rgba(34,211,238,.08);box-shadow:0 0 12px rgba(34,211,238,.15)}
 .pane{display:none;flex:1;min-height:0}.pane.on{display:flex;flex-direction:column;animation:fadein .2s ease}
-.stage{font-size:.84rem;flex:1;overflow-y:auto;padding-right:4px;min-height:260px}
+.stage{font-size:.84rem;flex:1;overflow-y:auto;padding-right:4px;min-height:260px;position:relative}
 .stage .line{padding:4px 10px 7px;border-radius:8px;color:var(--dim);transition:.3s;display:flex;flex-wrap:wrap;align-items:flex-end;gap:0 6px}
 .seg{display:inline-flex;flex-direction:column;align-items:flex-start}
 .seg .ich{font-family:Orbitron;font-size:.58rem;font-weight:700;color:var(--purple);background:rgba(124,58,237,.14);
@@ -76,7 +76,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 .stage .now{background:linear-gradient(90deg,rgba(124,58,237,.28),rgba(34,211,238,.1));color:#e8e8f0;box-shadow:0 0 14px rgba(124,58,237,.3)}
 .stage .now .w.sung{color:var(--cyan);text-shadow:0 0 8px rgba(34,211,238,.45)}
 .stage .now .ich.hit{background:rgba(34,211,238,.3);border-color:var(--cyan);color:var(--cyan);box-shadow:0 0 12px rgba(34,211,238,.7)}
-.stage .now .ich.soon{animation:pulse .8s ease-in-out infinite;color:var(--pink);border-color:var(--pink)}
+.stage .now .ich.soon{animation:none;color:var(--pink);border-color:var(--pink);background:rgba(240,171,252,.22);box-shadow:0 0 12px rgba(240,171,252,.55)}  /* ONE steady build-up glow — no baiting flashes */
 .next{margin-top:8px;padding:8px 10px;border:1px dashed var(--border);border-radius:8px;font-size:.6rem;color:var(--dim);flex-shrink:0}
 .next b{font-family:Orbitron;color:var(--pink);font-size:.88rem;text-shadow:0 0 10px rgba(240,171,252,.5)}
 .panel.max{position:fixed;inset:0;z-index:40;border-radius:0;padding:16px;align-items:center}
@@ -105,9 +105,9 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 .hfb tr td:first-child{border-right:5px solid #8b8ba3;min-width:26px;border-top:none}
 .hfb .sn{font-size:.56rem;color:var(--dim);text-align:right;padding-right:5px;font-family:Orbitron}
 .ndot{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);min-width:19px;height:19px;border-radius:10px;padding:0 3px;
-      background:radial-gradient(circle at 35% 30%,#c084fc,#7c3aed);color:#fff;font-size:.5rem;font-weight:700;
-      display:flex;align-items:center;justify-content:center;box-shadow:0 0 9px rgba(168,85,247,.6)}
-.ndot.root{background:radial-gradient(circle at 35% 30%,#60a5fa,#1e40af);box-shadow:0 0 9px rgba(59,130,246,.55)}
+      background:radial-gradient(circle at 35% 30%,#9d6ff0,#6d28d9);color:rgba(240,238,255,.78);font-size:.5rem;font-weight:600;
+      display:flex;align-items:center;justify-content:center;box-shadow:0 0 4px rgba(168,85,247,.3)}
+.ndot.root{background:radial-gradient(circle at 35% 30%,#3b82f6,#1e3a8a);color:#c7d9f7;box-shadow:0 0 5px rgba(59,130,246,.35)}
 .hfb .fnums td{border:none;height:14px}
 .hfb .fnums span{font-size:.5rem;color:var(--dim);font-family:Orbitron}
 /* vertical fullscreen board */
@@ -131,7 +131,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 .vfb td:first-child{border-left:1px solid #23233a}
 .dot{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:13px;height:13px;border-radius:50%;
      background:radial-gradient(circle at 35% 30%,#c084fc,#7c3aed);box-shadow:0 0 8px rgba(168,85,237,.6)}
-.dot.root{background:radial-gradient(circle at 35% 30%,#60a5fa,#1e40af);box-shadow:0 0 9px rgba(59,130,246,.55)}
+.dot.root{background:radial-gradient(circle at 35% 30%,#3b82f6,#1e3a8a);box-shadow:0 0 5px rgba(59,130,246,.35)}
 .vfb .cap2{font-size:.48rem;color:var(--dim);margin-top:4px;font-family:Orbitron}
 .card{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px;font-size:.66rem;color:var(--dim);transition:.15s}
 .card:hover{border-color:var(--purple);transform:translateY(-2px)}
@@ -160,10 +160,16 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
             text-shadow:0 0 30px rgba(34,211,238,.8),0 0 70px rgba(124,58,237,.5);line-height:1}
 .bigchord small{font-family:Orbitron;font-size:.6rem;color:var(--pink);letter-spacing:2px;margin-top:6px}
 .bigchord .cnt{font-size:.6rem;color:var(--dim);margin-top:4px}
-#loopLyric{font-size:clamp(.95rem,4vw,1.25rem);color:#e8e8f0;text-align:center;max-width:86vw;line-height:2.4}
+#loopLyric{font-size:clamp(.95rem,4vw,1.25rem);color:#e8e8f0;max-width:88vw}
+#loopLyric .line{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:0 8px;padding:4px}
+#loopLyric .seg{display:inline-flex;flex-direction:column;align-items:center}
+#loopLyric .ich{font-family:Orbitron;font-size:.62em;font-weight:700;color:var(--cyan);background:rgba(34,211,238,.12);
+                border:1px solid rgba(34,211,238,.4);border-radius:6px;padding:1px 7px;margin-bottom:3px}
+#loopLyric .spacer{height:1.4em}
+#loopLyric .w.sung{color:var(--cyan)}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v9 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v10 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -206,10 +212,22 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
             <button class="btn" onclick="setIn()">◀ IN</button>
             <button class="btn" onclick="setOut()">OUT ▶</button>
             <button class="btn" onclick="clearLoop()">✕ CLEAR</button>
+            <span class="lbl" id="loopStamp" style="color:#fff;letter-spacing:1px">IN –:–– · OUT –:––</span>
             <button class="btn primary" onclick="openLoop()">◉ LOOP MODE</button>
             <span style="flex:1"></span>
             <span class="sl">SPEED <input type="range" id="spd" min="25" max="150" value="100" oninput="setSpeed(this.value)"> <b id="spdVal" style="color:var(--cyan);font-size:.64rem">100%</b></span>
-            <span class="sl">TRANSPOSE <input type="range"></span>
+            <span class="sl" style="flex:0 0 auto;min-width:0">TRANSPOSE
+              <button class="btn" style="padding:4px 9px" onclick="trAdj(-1)">−</button>
+              <b id="trVal" style="color:var(--cyan);font-size:.66rem;min-width:38px;text-align:center">0 st</b>
+              <button class="btn" style="padding:4px 9px" onclick="trAdj(1)">+</button></span>
+          </div>
+          <div class="looprow" style="border-color:rgba(74,222,128,.3)">
+            <span class="lbl" style="color:var(--green)">🎵 STRUM</span>
+            <span class="kc on" id="strumAuto" onclick="setStrum(0)">AUTO · SMART</span>
+            <span class="kc" style="padding:3px 8px" onclick="cycleStrum(-1)">‹</span>
+            <b id="strumPat" style="font-size:1rem;color:#e4e4e7;letter-spacing:3px">↓ · ↓↑ · ↑↓↑ ·</b>
+            <span class="kc" style="padding:3px 8px" onclick="cycleStrum(1)">›</span>
+            <span id="strumName" style="font-size:.6rem;color:var(--dim)">detected from the song's feel (133 BPM, driving)</span>
           </div>
           <div class="looprow" style="border-color:rgba(240,171,252,.3)">
             <span class="lbl" style="color:var(--pink)">🎯 PRACTICE</span>
@@ -451,8 +469,9 @@ function syncStage(){
     [...stageEl.children].forEach(l=>l.classList.remove('now'));
     line.classList.add('now');
     [...line.querySelectorAll('.ich')].forEach(c=>c.classList.remove('hit','soon'));
-    // expand: current line pins to the TOP so what's coming is always below it
-    line.scrollIntoView({block:maxed?'start':'nearest',behavior:'smooth'});
+    // ALWAYS scroll the stage box so the current line sits at the top — expanded or not —
+    // and the upcoming lines are visible below it (scrolls the BOX, never the page)
+    stageEl.scrollTo({top:Math.max(0,line.offsetTop-stageEl.offsetTop-6),behavior:'smooth'});
   }
   const words=[...line.querySelectorAll('.w')];
   const frac=(pos-ln*LINE_SPAN)/LINE_SPAN;
@@ -492,7 +511,7 @@ function frame(ts){
       const line=stageEl.children[curLine>=0?curLine:0];
       const html=line?line.innerHTML:'';
       const ll=document.getElementById('loopLyric');
-      if(ll.__last!==html){ ll.innerHTML=html; ll.__last=html; }
+      if(ll.__last!==html){ ll.innerHTML='<div class="line">'+html+'</div>'; ll.__last=html; }
     }
   }
   syncStage();
@@ -503,17 +522,42 @@ function togglePlay(){
   document.getElementById('btnPlay').textContent=playing?'⏸ PAUSE':'▶ PLAY';
   if(playing){ lastTs=null; raf=requestAnimationFrame(frame); }
 }
+const SONG_DISPLAY_S=230;  // shown as a ~3:50 song
+function fmtT(p){ const s=Math.round(p/100*SONG_DISPLAY_S); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+function stamp(){
+  document.getElementById('loopStamp').textContent=
+    'IN '+(loopA!=null?fmtT(loopA):'–:––')+' · OUT '+(loopB!=null?fmtT(loopB):'–:––');
+}
+let tr=0;
+function trAdj(d){ tr+=d; document.getElementById('trVal').textContent=(tr>0?'+':'')+tr+' st';
+  toast('mock: every chord shifts '+(tr>0?'+':'')+tr+' semitone'+(Math.abs(tr)===1?'':'s')); }
+const STRUMS=[
+  ['AUTO · SMART','↓ · ↓↑ · ↑↓↑ ·','detected from the song\'s feel (133 BPM, driving)'],
+  ['FOLK','↓ ↓↑ ·↑ ↓↑','the campfire standard'],
+  ['COUNTRY','↓ · ↓ ↑ ↓ ·','boom-chick feel'],
+  ['ROCK 8THS','↓↑ ↓↑ ↓↑ ↓↑','straight drive'],
+  ['REGGAE','· ↑ · ↑','upstroke skank']];
+let strumIdx=0;
+function applyStrum(){
+  const [nm,pat,sub]=STRUMS[strumIdx];
+  document.getElementById('strumPat').textContent=pat;
+  document.getElementById('strumName').textContent=(strumIdx===0?sub:nm+' — '+sub);
+  document.getElementById('strumAuto').classList.toggle('on',strumIdx===0);
+}
+function setStrum(i){ strumIdx=i; applyStrum(); toast('smart strum re-detected for this song'); }
+function cycleStrum(d){ strumIdx=(strumIdx+d+STRUMS.length)%STRUMS.length; applyStrum();
+  toast(strumIdx===0?'back to AUTO smart strum':'strum: '+STRUMS[strumIdx][0]); }
 function region(){
   const r=document.getElementById('region');
   if(loopA!=null&&loopB!=null){ r.style.display='block'; r.style.left=loopA+'%'; r.style.width=(loopB-loopA)+'%'; }
   else r.style.display='none';
 }
-function setIn(){ loopA=pos; if(loopB!=null&&loopB<=loopA) loopB=null; region(); toast('loop IN set at '+Math.round(pos)+'%'); }
-function setOut(){ if(loopA==null) loopA=Math.max(0,pos-10); loopB=pos; region(); toast('loop OUT set — playback wraps inside the cyan region'); }
-function clearLoop(){ loopA=loopB=null; region(); toast('loop cleared'); }
+function setIn(){ loopA=pos; if(loopB!=null&&loopB<=loopA) loopB=null; region(); stamp(); toast('loop IN set at '+fmtT(pos)); }
+function setOut(){ if(loopA==null) loopA=Math.max(0,pos-10); loopB=pos; region(); stamp(); toast('loop OUT at '+fmtT(pos)+' — playback wraps inside the cyan region'); }
+function clearLoop(){ loopA=loopB=null; region(); stamp(); toast('loop cleared'); }
 function openLoop(){
   loopOn=true; document.getElementById('loopMode').classList.add('on');
-  if(loopA==null||loopB==null){ loopA=Math.max(0,pos-6); loopB=Math.min(100,pos+8); region(); }
+  if(loopA==null||loopB==null){ loopA=Math.max(0,pos-6); loopB=Math.min(100,pos+8); region(); stamp(); }
   if(!playing) togglePlay();
 }
 function closeLoop(){ loopOn=false; document.getElementById('loopMode').classList.remove('on'); }
