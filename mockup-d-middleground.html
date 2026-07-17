@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v26 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v27 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -84,7 +84,9 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
           border:1px solid rgba(124,58,237,.4);border-radius:5px;padding:1px 6px;margin-bottom:2px;transition:.25s}
 .seg .spacer{height:1.35em}
 .seg .wds{line-height:1.5}
-.stage .w{transition:color .2s}
+body.karaoke .stage .ich,body.karaoke .stage .seg .spacer,body.karaoke #loopLyric .ich,body.karaoke #loopLyric .spacer{display:none}
+.stage .w{transition:color .2s;cursor:pointer}
+.stage .w:hover{color:#fff}
 .stage .now{background:linear-gradient(90deg,rgba(124,58,237,.28),rgba(34,211,238,.1));color:#e8e8f0;box-shadow:0 0 14px rgba(124,58,237,.3)}
 .stage .now .w.sung{color:var(--cyan);text-shadow:0 0 8px rgba(34,211,238,.45)}
 body.calm .stage .now .w.sung{color:#b7c9e8;text-shadow:none}
@@ -205,7 +207,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 #loopLyric .line.up1 .ich,#loopLyric .line.up2 .ich{color:var(--purple);background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4);animation:none}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v26 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v27 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -335,6 +337,11 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
             <div class="chart" id="chartSheet"></div>
           </div>
           <div class="pane" id="pane-stage">
+            <div style="display:flex;justify-content:flex-end;margin-bottom:4px">
+              <label style="display:inline-flex;align-items:center;gap:7px;font-family:Orbitron;font-size:.56rem;letter-spacing:1px;color:var(--dim);border:1px solid var(--border);border-radius:16px;padding:5px 12px;cursor:pointer" title="hides the chord chips — pure karaoke lyric scroll">
+                <input type="checkbox" style="accent-color:#a855f7" onchange="document.body.classList.toggle('karaoke',this.checked);toast(this.checked?'🎤 karaoke mode — just the lyrics':'chords back on')">
+                🎤 HIDE CHORDS · KARAOKE</label>
+            </div>
             <div id="maxRing"><b id="maxChord">B♭</b></div>
             <div class="stage" id="stage"></div>
             <div class="next">NEXT CHANGE → <b id="nextCh">B♭</b> <span style="opacity:.6">watch it pulse pink above the word it lands on</span></div>
@@ -657,12 +664,29 @@ function drawChartChords(){
         s.appendChild(wd); d.appendChild(s);
       });
     });
-    d.onclick=()=>{ pos=li*LINE_SPAN+0.1; document.getElementById('mph').style.left=pos+'%';
+    d.onclick=(e)=>{
+      const w=e.target.closest('.wds');
+      if(w){ const ws=[...d.querySelectorAll('.wds')];
+        pos=li*LINE_SPAN+(Math.max(0,ws.indexOf(w))/Math.max(1,ws.length))*LINE_SPAN; }
+      else pos=li*LINE_SPAN+0.1;
+      document.getElementById('mph').style.left=pos+'%';
       renderRibbon(); syncStage(); const st=document.querySelector('.tab[data-pane="stage"]'); if(st) pane(st);
-      if(!playing) togglePlay(); toast('jumped to that line — live stage running'); };
+      if(!playing) togglePlay(); toast('jumped to that word — live stage running'); };
     sheet.appendChild(d);
   });
 })();
+// tap ANY word (stage or chart) → seek to that exact word's moment
+document.getElementById('stage').addEventListener('click',e=>{
+  const w=e.target.closest('.w'); if(!w) return;
+  const line=e.target.closest('.line'); if(!line) return;
+  const li2=[...stageEl.children].indexOf(line); if(li2<0) return;
+  const ws=[...line.querySelectorAll('.w')];
+  pos=li2*LINE_SPAN+(Math.max(0,ws.indexOf(w))/Math.max(1,ws.length))*LINE_SPAN;
+  document.getElementById('mph').style.left=pos+'%';
+  renderRibbon(); syncStage();
+  if(!playing) togglePlay();
+  toast('jumped to that word');
+});
 let playing=false,pos=2,lastTs=null,raf=null,curLine=-1;
 let loopA=null,loopB=null,loopN=1,loopOn=false;
 const lane=document.getElementById('lane');
