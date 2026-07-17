@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v34 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v35 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -212,7 +212,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 #loopLyric .line.up1 .ich,#loopLyric .line.up2 .ich{color:var(--purple);background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4);animation:none}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v34 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v35 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -497,17 +497,19 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
             <button class="btn primary" onclick="toast('mock: tick… tick… tick…')">▶ START</button>
           </div>
           <div class="card" style="grid-column:1/-1"><b>🎼 BACKING TRACKS · any key, three vibes each, scroll with ‹ ›</b>
-            <div style="display:flex;gap:8px;margin:8px 0">
-              <input style="flex:1;background:#0a0a14;border:1px solid var(--border);border-radius:8px;color:#fff;padding:8px 11px;font-family:inherit;font-size:.7rem" placeholder="🔍 search… e.g. 'a minor'" onkeydown="if(event.key==='Enter'){btSearch(this.value);}">
-            </div>
+            <div class="cap" style="margin-top:6px">TAP A KEY + MAJOR/MINOR + ▶ — that's the whole flow</div>
             <div class="keychips" id="btKeys"></div>
             <div style="display:flex;gap:6px;margin:4px 0 8px">
               <span class="kc" id="btMaj" onclick="btMode='MAJOR';renderBT()">MAJOR</span>
               <span class="kc on" id="btMin" onclick="btMode='MINOR';renderBT()">MINOR</span>
             </div>
             <div id="btList"></div>
-            <div class="cap" style="margin-top:10px">THE SCALE YOU'RE JAMMING · follows your track · deep dive lives in 🎼 LEARN</div>
-            <div class="hfb" id="btNeck"></div>
+            <div style="display:flex;gap:8px;margin:6px 0;align-items:center">
+              <span style="font-size:.56rem;color:var(--dim)">or type it:</span>
+              <input style="width:180px;background:#0a0a14;border:1px solid var(--border);border-radius:8px;color:#fff;padding:5px 9px;font-family:inherit;font-size:.62rem" placeholder="🔍 a minor" onkeydown="if(event.key==='Enter'){btSearch(this.value);}">
+            </div>
+            <div class="cap" style="margin-top:10px">THE SCALE YOU'RE JAMMING · <b style="color:var(--cyan)">tap the neck → the big board in LEARN</b> · your track keeps playing</div>
+            <div class="hfb" id="btNeck" onclick="goScale()" title="opens this scale on LEARN's fullscreen board — the jam keeps going" style="cursor:pointer"></div>
           </div>
           <div class="card" style="grid-column:1/-1"><b>🤖 COACH · knows what you're jamming</b>
             <div style="display:flex;gap:8px;margin:8px 0">
@@ -1092,7 +1094,7 @@ function renderBT(){
     +'<div style="flex:1;text-align:center"><div style="font-family:Orbitron;font-size:.85rem;color:#fff">'+btKey+' '+btMode+' · '+nm+'</div>'
     +'<div style="font-size:.6rem;color:var(--dim)">'+bpm+' BPM · option '+(btIdx+1)+'/3 · the LEARN neck shows this scale</div></div>'
     +'<span class="kc" style="padding:4px 10px" onclick="btIdx=(btIdx+1)%3;renderBT()">›</span>'
-    +'<button class="btn primary" onclick="toast(\'mock: ▶ '+btKey+' '+btMode.toLowerCase()+' — '+nm+'\')">▶ PLAY</button></div>';
+    +'<button class="btn primary" onclick="toast(\'▶ '+btKey+' '+btMode.toLowerCase()+' — '+nm+' at '+bpm+' BPM · metronome locked in, playing together\')">▶ PLAY</button></div>';
 }
 function goSong(name){
   nav('play');
@@ -1153,6 +1155,12 @@ function playLick(){
     const d=document.getElementById('lick'+i); if(d){ d.classList.remove('dimmed'); d.classList.add('lit'); }
     i++;
   },420);
+}
+function goScale(){
+  selKey=btKey; selScale=(btMode==='MINOR')?'MINOR':'MAJOR';
+  lpane('scales'); buildChips(); drawHfb();
+  nav('learn'); openVBoard();
+  toast(btKey+' '+btMode.toLowerCase()+' on the big board — your track & metronome are STILL playing');
 }
 function btSearch(q){
   const m=(q||'').trim().toUpperCase().match(/^([A-G][♯#♭B]?)\s*(MINOR|MAJOR|MIN|MAJ|M)?/);
