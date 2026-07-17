@@ -99,18 +99,22 @@ async function searchVideo(artist, title) {
   // (hit.cached), demote videos that failed alignment (bad_sync), and sink
   // wrong-length versions (dur_mismatch — album rips, 21-min live cuts)
   const r = await fetchT(ENGINE + '/search?q=' + encodeURIComponent(artist + ' ' + title)
-    + '&artist=' + encodeURIComponent(artist) + '&title=' + encodeURIComponent(title) + '&n=4', {}, 15000);
+    + '&artist=' + encodeURIComponent(artist) + '&title=' + encodeURIComponent(title) + '&n=8', {}, 15000);
   if (!r.ok) throw new Error('search ' + r.status);
   const d = await r.json();
-  // ARTIST GATE (2026-07-16, the "Lucy Thomas Official Fan Club" incident): when good candidates
-  // fail to embed (VEVO often does), the fallback walked into obvious covers. An auto-picked
-  // candidate must mention the artist in its title/channel (proven-sync 'cached' hits are exempt).
-  // The align gate already protects charts from covers — this stops us WASTING a song-length on one.
+  // PICK ORDER (Brooks 2026-07-17): proven-sync first, then the artist's OFFICIAL AUDIO
+  // ("- Topic" = the exact studio master, or "official audio" from the artist's channel),
+  // then any artist-matching upload. Covers never — skipping beats a bad capture.
   const aw = (artist || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(w => w.length > 2);
-  const cands = (d.results || []).filter(h => h && h.id && !h.bad_sync && !h.dur_mismatch)
-    .filter(h => h.cached || !aw.length ||
-                 aw.some(w => ((h.title || '') + ' ' + (h.channel || '')).toLowerCase().includes(w)))
-    .slice(0, 3);
+  const artistMatch = h => !aw.length || aw.some(w => ((h.title||'')+' '+(h.channel||'')).toLowerCase().includes(w));
+  const isAudio = h => (h.channel||'').toLowerCase().endsWith(' - topic')
+                    || /official audio|\(audio\)|\[audio\]/i.test(h.title||'');
+  const pool = (d.results || []).filter(h => h && h.id && !h.bad_sync && !h.dur_mismatch && (h.cached || artistMatch(h)));
+  const cands = [
+    ...pool.filter(h => h.cached),
+    ...pool.filter(h => !h.cached && isAudio(h)),
+    ...pool.filter(h => !h.cached && !isAudio(h))
+  ].slice(0, 4);
   if (!cands.length) throw new Error('no usable video (none embed, match the artist, and fit the song length)');
   return cands;
 }
