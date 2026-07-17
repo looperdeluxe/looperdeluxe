@@ -1,0 +1,1238 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>Looper Deluxe BETA — play along with any song</title>
+<!-- build step 9: the v40 design (frozen spec) becomes the real app's shell.
+     The inline prototype logic below is placeholder UI that steps 10+ replace
+     view-by-view with the certified modules imported here. Bump BUILD on every
+     deploy — it cache-busts the whole module graph (GH Pages caches 10 min). -->
+<link rel="modulepreload" href="js/clock.js?v=b1">
+<link rel="modulepreload" href="js/engine-api.js?v=b1">
+<link rel="modulepreload" href="js/chart-model.js?v=b1">
+<link rel="modulepreload" href="js/store.js?v=b1">
+<script type="module">
+const BUILD = 'b1';
+const mod = (p) => import(`${p}?v=${BUILD}`);
+(async () => {
+  try {
+    const [clock, api, chart, lyrics, storeMod] = await Promise.all([
+      mod('./js/clock.js'), mod('./js/engine-api.js'), mod('./js/chart-model.js'),
+      mod('./js/lyrics.js'), mod('./js/store.js'),
+    ]);
+    storeMod.syncFromClassic(); // adopt + merge classic-site data on every load
+    // the app namespace steps 10+ build against
+    window.LD = { BUILD, clock: clock.createClock(), engine: api.engine,
+                  chart, lyrics, store: storeMod.store, sync: storeMod.syncFromClassic };
+    console.log('[LD] beta shell booted', BUILD);
+  } catch (e) {
+    console.error('[LD] module boot failed', e);
+  }
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#0b0b12;--panel:#131320;--panel2:#0f0f1c;--border:#2c2c44;--cyan:#22d3ee;--purple:#a855f7;--pink:#f0abfc;--dim:#8b8ba3;--green:#4ade80}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{background:var(--bg);color:#e4e4e7;font-family:'JetBrains Mono',monospace;margin:0;display:flex;flex-direction:column;
+     background-image:radial-gradient(circle at 15% 20%, rgba(124,58,237,.10), transparent 40%),radial-gradient(circle at 85% 70%, rgba(34,211,238,.08), transparent 45%)}
+.banner{background:#78350f;color:#fde68a;font-size:.62rem;padding:5px 12px;text-align:center;flex-shrink:0}
+.bar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:rgba(19,19,32,.94);backdrop-filter:blur(8px);
+     border-bottom:1px solid var(--border);padding:10px 16px;position:sticky;top:0;z-index:10;flex-shrink:0}
+/* ONE clean dark→light gradient, evenly spaced (v7) */
+h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;margin:0;cursor:pointer;
+   background:linear-gradient(100deg,#6d28d9 0%,#a855f7 33%,#22d3ee 66%,#a5f3fc 100%);
+   -webkit-background-clip:text;background-clip:text;color:transparent;
+   filter:drop-shadow(0 0 14px rgba(168,85,247,.7)) drop-shadow(0 0 30px rgba(34,211,238,.25))}
+.bar input{flex:1 1 150px;min-width:130px;max-width:260px;background:#0a0a14;border:1px solid var(--border);border-radius:8px;color:#fff;padding:8px 11px;font-family:inherit;font-size:.72rem;transition:.2s}
+.bar input:focus{border-color:var(--cyan);outline:none;box-shadow:0 0 12px rgba(34,211,238,.3)}
+.btn{font-family:Orbitron;font-size:.58rem;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:#191927;color:#e4e4e7;cursor:pointer;white-space:nowrap;transition:.15s}
+.btn:hover{border-color:var(--purple);box-shadow:0 0 14px rgba(168,85,247,.4);transform:translateY(-1px)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:linear-gradient(135deg,#7c3aed,#5b21b6);border-color:var(--purple);color:#fff}
+.btn.chords{background:linear-gradient(135deg,#065f46,#064e3b);border-color:var(--green);color:var(--green)}
+.kchip{font-family:Orbitron;font-size:.6rem;padding:6px 10px;border-radius:8px;white-space:nowrap;
+       background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.5);color:var(--cyan);text-shadow:0 0 8px rgba(34,211,238,.5)}
+.kchip.capo{background:rgba(240,171,252,.08);border-color:rgba(240,171,252,.45);color:var(--pink)}
+.shell{display:flex;flex:1;min-height:0}
+.side{width:168px;flex-shrink:0;background:var(--panel2);border-right:1px solid var(--border);padding:14px 10px;display:flex;flex-direction:column;gap:6px}
+.nav{font-family:Orbitron;font-size:.62rem;letter-spacing:1px;padding:11px 12px;border-radius:10px;color:var(--dim);cursor:pointer;border:1px solid transparent;transition:.15s;display:flex;gap:9px;align-items:center}
+.nav:hover{color:#fff;border-color:var(--border);transform:translateX(3px)}
+.nav.on{color:#fff;background:linear-gradient(90deg,rgba(124,58,237,.3),rgba(124,58,237,.06));border-color:var(--purple);box-shadow:0 0 16px rgba(124,58,237,.2)}
+.side .foot{margin-top:auto;font-size:.56rem;color:var(--dim);padding:8px 10px}
+.main{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column}
+.view{display:none;flex:1}.view.on{display:flex;flex-direction:column;animation:fadein .25s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+@media(max-width:760px){.side{width:56px}.nav span.lbl{display:none}.side .foot{display:none}}
+@media(max-width:900px){#btnPlay{font-size:.78rem;padding:11px 20px;box-shadow:0 0 16px rgba(124,58,237,.5)}}  /* phone: play is unmissable up top */
+.grid{display:grid;grid-template-columns:1.3fr 1fr;gap:12px;flex:1;min-height:0}
+@media(max-width:900px){.grid{grid-template-columns:1fr}
+  .grid>.panel:first-child{order:2}.grid>#stagePanel{order:1}}  /* phones: the SONG comes first, controls below */
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px;display:flex;flex-direction:column;position:relative}
+.ptitle{font-family:Orbitron;font-size:.56rem;letter-spacing:2px;color:#c4b5fd;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cap{font-family:Orbitron;font-size:.5rem;letter-spacing:2px;color:var(--dim);margin:10px 0 4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.mediarow{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+#bigPlay{width:128px;height:72px;background:linear-gradient(135deg,#2e1065,#5b21b6);border:1px solid var(--purple);border-radius:12px;
+         display:flex;align-items:center;justify-content:center;color:#fff;font-size:2.2rem;cursor:pointer;transition:.2s;flex-shrink:0;
+         box-shadow:0 0 18px rgba(124,58,237,.35)}
+#bigPlay:hover{box-shadow:0 0 28px rgba(168,85,247,.6);transform:translateY(-1px)}
+#bigPlay:active{transform:translateY(1px)}
+#gapCount{display:none;position:absolute;inset:0;z-index:3;background:rgba(8,8,15,.55);border-radius:8px;
+          align-items:center;justify-content:center;font-family:Orbitron;font-weight:900;font-size:2rem;color:var(--pink);
+          text-shadow:0 0 18px rgba(240,171,252,.8);letter-spacing:2px}
+.ribbon{background:#0a0a14;border:1px solid var(--border);border-radius:10px;height:96px;position:relative;overflow:hidden}
+.chip{position:absolute;top:20px;height:38px;background:rgba(124,58,237,.32);border-radius:7px;color:#d8b4fe;font-size:1.15rem;font-weight:700;padding:6px 13px;will-change:left}
+.chip.cur{background:rgba(34,211,238,.32);color:var(--cyan);animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 6px rgba(34,211,238,.5)}50%{box-shadow:0 0 22px rgba(34,211,238,1)}}
+.ribbon .now-line{position:absolute;top:0;bottom:0;left:12%;width:2px;background:#fff;box-shadow:0 0 14px var(--cyan)}
+.ribbon .now-tag{position:absolute;top:3px;left:12%;transform:translateX(-50%);font-family:Orbitron;font-size:.46rem;color:var(--cyan);letter-spacing:1px}
+.map{height:92px;background:#0a0a14;border:1px solid var(--border);border-radius:8px;position:relative;cursor:pointer}
+.map i{position:absolute;bottom:4px;width:2.05%;background:linear-gradient(to top,rgba(124,58,237,.8),rgba(168,85,247,.25));border-radius:2px;pointer-events:none}
+.map .ph{position:absolute;top:0;bottom:0;width:2px;background:var(--cyan);box-shadow:0 0 12px var(--cyan);left:2%;pointer-events:none;will-change:left}
+.map .region{position:absolute;top:0;bottom:0;background:rgba(34,211,238,.13);border-left:2px solid var(--cyan);border-right:2px solid var(--cyan);display:none;pointer-events:none}
+.looprow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;padding:9px;border:1px dashed rgba(34,211,238,.35);border-radius:10px}
+.looprow .lbl{font-family:Orbitron;font-size:.52rem;letter-spacing:2px;color:var(--cyan)}
+.sl{display:flex;align-items:center;gap:5px;font-size:.6rem;color:var(--dim);flex:1 1 auto;min-width:150px}
+.sl input[type=range]{flex:1;min-width:70px;max-width:220px;accent-color:#a855f7}
+.sl input[type=range]:focus{outline:none;filter:drop-shadow(0 0 6px rgba(168,85,247,.7))}
+.tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+.tab{font-family:Orbitron;font-size:.54rem;padding:6px 10px;border-radius:8px;border:1px solid var(--border);color:var(--dim);cursor:pointer;transition:.15s}
+.tab:hover{color:#fff;border-color:var(--purple)}
+.tab.on{border-color:var(--cyan);color:var(--cyan);background:rgba(34,211,238,.08);box-shadow:0 0 12px rgba(34,211,238,.15)}
+.pane{display:none;flex:1;min-height:0}.pane.on{display:flex;flex-direction:column;animation:fadein .2s ease}
+.stage{font-size:.84rem;flex:1;overflow-y:auto;padding-right:4px;min-height:260px;position:relative}
+.chart{font-size:.8rem;flex:1;overflow-y:auto;padding-right:4px;min-height:220px}
+.chart .line{padding:3px 10px 6px;border-radius:8px;color:#c9c9d6;display:flex;flex-wrap:wrap;align-items:flex-end;gap:0 6px;cursor:pointer;transition:.15s}
+.chart .line:hover{background:rgba(124,58,237,.12)}
+.chart .ich{font-family:Orbitron;font-size:.56rem;font-weight:700;color:#c084fc;background:rgba(124,58,237,.14);
+            border:1px solid rgba(124,58,237,.4);border-radius:5px;padding:1px 6px;margin-bottom:2px}
+.stage .line{padding:4px 10px 7px;border-radius:8px;color:var(--dim);transition:.3s;display:flex;flex-wrap:wrap;align-items:flex-end;gap:0 6px}
+.seg{display:inline-flex;flex-direction:column;align-items:flex-start}
+.seg .ich{font-family:Orbitron;font-size:.58rem;font-weight:700;color:var(--purple);background:rgba(124,58,237,.14);
+          border:1px solid rgba(124,58,237,.4);border-radius:5px;padding:1px 6px;margin-bottom:2px;transition:.25s}
+.seg .spacer{height:1.35em}
+.seg .wds{line-height:1.5}
+body.karaoke .stage .ich,body.karaoke .stage .seg .spacer,body.karaoke #loopLyric .ich,body.karaoke #loopLyric .spacer{display:none}
+.stage .w{transition:color .2s;cursor:pointer}
+.stage .w:hover{color:#fff}
+.stage .now{background:linear-gradient(90deg,rgba(124,58,237,.28),rgba(34,211,238,.1));color:#e8e8f0;box-shadow:0 0 14px rgba(124,58,237,.3)}
+.stage .now .w.sung{color:var(--cyan);text-shadow:0 0 8px rgba(34,211,238,.45)}
+body.calm .stage .now .w.sung{color:#b7c9e8;text-shadow:none}
+body.calm .stage .now{box-shadow:none}
+body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
+.stage .now .ich.hit{background:rgba(34,211,238,.3);border-color:var(--cyan);color:var(--cyan);animation:pop .22s ease-out}  /* the big-bang pop on the change */
+@keyframes buildup{from{background:rgba(124,58,237,.14);box-shadow:0 0 0 rgba(240,171,252,0);color:#c084fc}
+                   to{background:rgba(240,171,252,.3);box-shadow:0 0 18px rgba(240,171,252,.85);color:var(--pink)}}
+.stage .now .ich.soon{animation:buildup .4s linear forwards;border-color:var(--pink)}  /* fixed 0.4s build ALWAYS — keep this timing in the real engine too */
+@keyframes pop{0%{transform:scale(1.35);box-shadow:0 0 28px rgba(34,211,238,1)}100%{transform:scale(1);box-shadow:0 0 12px rgba(34,211,238,.7)}}
+.next{margin-top:8px;padding:8px 10px;border:1px dashed var(--border);border-radius:8px;font-size:.6rem;color:var(--dim);flex-shrink:0}
+.next b{font-family:Orbitron;color:var(--pink);font-size:.88rem;text-shadow:0 0 10px rgba(240,171,252,.5)}
+.panel.max{position:fixed;inset:0;z-index:40;border-radius:0;padding:16px;align-items:center}
+.panel.max .tabs{width:100%;max-width:900px}
+.panel.max .pane.on{width:100%;max-width:900px;align-items:center}
+.panel.max .stage{font-size:clamp(1.15rem,3.2vw,1.7rem);text-align:center;width:100%}
+.panel.max .stage .line{justify-content:center;padding:10px 8px}
+.panel.max .seg .ich{font-size:.78rem;padding:2px 9px}
+.panel.max .next{width:100%;max-width:640px;text-align:center;font-size:.72rem}
+#maxRing{display:none;width:86px;height:86px;border-radius:50%;margin:2px auto 10px;flex-shrink:0;
+         background:conic-gradient(#a855f7 var(--p,40%), #1e1e33 0);align-items:center;justify-content:center;
+         box-shadow:0 0 20px rgba(168,85,247,.55);position:relative}
+#maxRing::before{content:"";position:absolute;inset:7px;border-radius:50%;background:var(--panel)}
+#maxRing b{position:relative;font-family:Orbitron;font-size:1.3rem;color:#fff;text-shadow:0 0 12px rgba(34,211,238,.8)}
+/* ── LEARN v7: real theory — horizontal live fretboard + key/scale pickers ── */
+.keychips,.scalechips{display:flex;flex-wrap:wrap;gap:5px;margin:4px 0 8px}
+.kc{font-family:Orbitron;font-size:.58rem;padding:5px 9px;border-radius:7px;border:1px solid var(--border);color:var(--dim);cursor:pointer;transition:.15s}
+.kc:hover{color:#fff;border-color:var(--purple)}
+.kc.on{border-color:var(--cyan);color:var(--cyan);background:rgba(34,211,238,.1);box-shadow:0 0 10px rgba(34,211,238,.25)}
+.sug{display:inline-block;font-family:Orbitron;font-size:.6rem;color:var(--pink);border:1px solid rgba(240,171,252,.5);
+     border-radius:8px;padding:4px 10px;margin:3px 4px 0 0;cursor:pointer;transition:.15s}
+.sug:hover{background:rgba(240,171,252,.12);box-shadow:0 0 12px rgba(240,171,252,.35)}
+.hfb{background:#0a0a14;border:1px solid var(--border);border-radius:10px;padding:10px;overflow-x:auto}
+.hfb table{border-collapse:collapse;min-width:640px;width:100%}
+.hfb td{border-top:1px solid #34345a;height:24px;position:relative;min-width:44px;border-right:1px solid #23233a}
+.hfb tr td:first-child{border-right:none;min-width:26px;border-top:none}
+.hfb td.open{min-width:34px;border-right:5px solid #8b8ba3;border-top:1px solid #34345a}  /* the NUT — opens live BEFORE it */
+.hfb .sn{font-size:.56rem;color:var(--dim);text-align:right;padding-right:5px;font-family:Orbitron}
+.ndot{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);min-width:19px;height:19px;border-radius:10px;padding:0 3px;
+      background:radial-gradient(circle at 35% 30%,#9d6ff0,#6d28d9);color:rgba(240,238,255,.78);font-size:.5rem;font-weight:600;
+      display:flex;align-items:center;justify-content:center;box-shadow:0 0 4px rgba(168,85,247,.3)}
+.ndot.root{background:radial-gradient(circle at 35% 30%,#3b82f6,#1e3a8a);color:#c7d9f7;box-shadow:0 0 5px rgba(59,130,246,.35)}
+.ndot.dimmed{opacity:.28;transition:all .25s}
+.ndot.lit{opacity:1;background:radial-gradient(circle at 35% 30%,#67e8f9,#0891b2);color:#032b33;box-shadow:0 0 16px rgba(34,211,238,.95);transform:translate(-50%,-50%) scale(1.25)}
+.hfb .fnums td{border:none;height:14px}
+.hfb .fnums span{font-size:.5rem;color:var(--dim);font-family:Orbitron}
+/* vertical fullscreen board */
+#vBoard{display:none;position:fixed;inset:0;z-index:55;background:radial-gradient(circle at 50% 30%, #151526, #08080f 75%);
+        flex-direction:column;align-items:center;padding:18px;overflow-y:auto;cursor:pointer}
+@keyframes fadeonly{from{opacity:0}to{opacity:1}}
+#vBoard.on{display:flex;animation:fadeonly .2s ease}
+#vBoard h3{font-family:Orbitron;color:#d8b4fe;letter-spacing:2px;font-size:.85rem;margin:4px 0 12px}
+#vBoard table{border-collapse:collapse}
+#vBoard td{border-left:1px solid #34345a;border-bottom:1px solid #23233a;width:min(44px,11vw);height:calc((100vh - 210px)/14);min-height:24px;position:relative}
+#vBoard td.fn{border-left:none;border-bottom:none;width:30px;font-family:Orbitron;font-size:.54rem;color:var(--dim);text-align:right;padding-right:6px}
+#vBoard tr.oprow td{border-left:none;border-bottom:6px solid #8b8ba3}  /* the NUT — full width, opens above it */
+#vBoard .ndot{min-width:22px;height:22px;font-size:.56rem}
+#vBoard .hint{font-size:.6rem;color:var(--dim);margin-top:10px}
+.vfb-sn{font-family:Orbitron;font-size:.56rem;color:var(--dim);text-align:center;padding-bottom:4px}
+.fbrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(108px,1fr));gap:10px}
+.vfb{background:#0a0a14;border:1px solid var(--border);border-radius:10px;padding:8px 6px;text-align:center;transition:.2s}
+.vfb .nm{font-family:Orbitron;font-size:.64rem;color:#d8b4fe;margin-bottom:6px}
+.vfb table{border-collapse:collapse;margin:0 auto}
+.vfb td{border-bottom:2px solid #3a3a55;border-right:1px solid #23233a;width:17px;height:22px;position:relative}
+.vfb tr:first-child td{border-top:4px solid #8b8ba3}
+.vfb td:first-child{border-left:1px solid #23233a}
+.dot{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:13px;height:13px;border-radius:50%;
+     background:radial-gradient(circle at 35% 30%,#c084fc,#7c3aed);box-shadow:0 0 8px rgba(168,85,237,.6)}
+.dot.root{background:radial-gradient(circle at 35% 30%,#3b82f6,#1e3a8a);box-shadow:0 0 5px rgba(59,130,246,.35)}
+.vfb .cap2{font-size:.48rem;color:var(--dim);margin-top:4px;font-family:Orbitron}
+.card{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px;font-size:.66rem;color:var(--dim);transition:.15s}
+.card:hover{border-color:var(--purple);transform:translateY(-2px)}
+.card b{display:block;font-family:Orbitron;font-size:.56rem;color:#c4b5fd;margin-bottom:5px}
+.scrolllist{max-height:132px;overflow-y:auto;padding-right:4px}  /* ~5 rows, then scroll */
+.srow{cursor:pointer;padding:4px 6px;border-radius:6px;transition:.15s;font-size:.68rem;color:#d4d4d8}
+.srow:hover{background:rgba(124,58,237,.18);color:#fff}
+.cardgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.meter{height:10px;border-radius:6px;background:#0a0a14;border:1px solid var(--border);overflow:hidden;margin:6px 0}
+.meter i{display:block;height:100%;width:72%;background:linear-gradient(90deg,#7c3aed,#22d3ee);animation:meter 2.2s ease-in-out infinite alternate}
+@keyframes meter{from{width:52%}to{width:88%}}
+.bubble{border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:.68rem;margin-bottom:8px;max-width:88%}
+.bubble.ai{background:rgba(34,211,238,.06);border-color:rgba(34,211,238,.3)}
+.bubble.me{background:rgba(124,58,237,.12);margin-left:auto}
+.bubble.ex{opacity:.62;position:relative}
+.bubble.ex::before{content:"EXAMPLE";position:absolute;top:-7px;right:8px;font-family:Orbitron;font-size:.44rem;
+  letter-spacing:1px;color:var(--dim);background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:1px 6px}
+.chatdivider{display:flex;align-items:center;gap:10px;margin:12px 0 8px;font-family:Orbitron;font-size:.54rem;letter-spacing:1px;color:var(--cyan)}
+.chatdivider::before,.chatdivider::after{content:"";flex:1;border-top:1px dashed rgba(34,211,238,.35)}
+#tourBtn{position:fixed;bottom:16px;right:16px;z-index:45;font-family:Orbitron;font-size:.6rem;letter-spacing:1px;
+  background:linear-gradient(135deg,#7c3aed,#0e7490);border:1px solid var(--purple);color:#fff;border-radius:20px;
+  padding:10px 16px;cursor:pointer;box-shadow:0 0 16px rgba(124,58,237,.5);transition:.2s;
+  animation:tourbeckon 9s ease-in-out infinite}
+@keyframes tourbeckon{0%,88%,100%{transform:none;box-shadow:0 0 16px rgba(124,58,237,.5)}
+  92%{transform:translateY(-4px) rotate(-1.5deg);box-shadow:0 0 26px rgba(34,211,238,.7)}
+  96%{transform:translateY(0) rotate(1deg);box-shadow:0 0 22px rgba(168,85,247,.7)}}
+#tourBtn:hover{transform:translateY(-2px);box-shadow:0 0 26px rgba(168,85,247,.8);animation:none}
+#tourBtn .tx{position:absolute;top:-8px;right:-8px;width:19px;height:19px;border-radius:50%;background:#1a1a2c;
+  border:1px solid var(--border);color:var(--dim);font-size:.6rem;line-height:17px;text-align:center;cursor:pointer}
+#tourBtn .tx:hover{color:#fff;border-color:var(--purple);background:#26263c}
+body.offhome #tourBtn,body.karaoke #tourBtn,#tourBtn.gone,
+body:has(#loopMode.on) #tourBtn,body:has(#vBoard.on) #tourBtn,
+body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
+#tourDim{display:none;position:fixed;inset:0;z-index:46;background:rgba(8,8,15,.6)}
+#tourDim.on{display:block}
+#tourTip{display:none;position:fixed;z-index:48;max-width:290px;background:#1a1a2c;border:1px solid var(--purple);
+  border-radius:12px;padding:12px 14px;font-size:.72rem;line-height:1.6;color:#e4e4e7;box-shadow:0 8px 30px rgba(0,0,0,.6)}
+#tourTip.on{display:block;animation:fadein .25s ease}
+.spot{position:relative;z-index:47 !important}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:#1c1c2e;border:1px solid var(--purple);color:#e9d5ff;font-size:.66rem;padding:8px 16px;border-radius:20px;opacity:0;transition:.3s;pointer-events:none;z-index:60}
+.toast.show{opacity:1}
+#loopMode{display:none;position:fixed;inset:0;z-index:50;background:radial-gradient(circle at 50% 42%, #17172a, #08080f 70%);
+          flex-direction:column;align-items:center;justify-content:center;gap:18px;cursor:pointer}
+#loopMode.on{display:flex;animation:fadein .3s ease}
+.ringwrap{position:relative;width:min(64vw,300px);height:min(64vw,300px)}
+.ringwrap svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ringbg{fill:none;stroke:#1e1e33;stroke-width:9}
+.ring{fill:none;stroke:url(#lgrad);stroke-width:9;stroke-linecap:round;stroke-dasharray:565;stroke-dashoffset:420;
+      filter:drop-shadow(0 0 10px rgba(168,85,247,.8));will-change:stroke-dashoffset}
+.ringspin{position:absolute;inset:-14px;border-radius:50%;border:1px dashed rgba(168,85,247,.25);animation:spin 9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.bigchord{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.bigchord b{font-family:Orbitron;font-weight:900;font-size:clamp(3.4rem,17vw,5.5rem);color:#fff;
+            text-shadow:0 0 30px rgba(34,211,238,.8),0 0 70px rgba(124,58,237,.5);line-height:1}
+.bigchord small{font-family:Orbitron;font-size:.6rem;color:var(--pink);letter-spacing:2px;margin-top:6px}
+.bigchord .cnt{font-size:.6rem;color:var(--dim);margin-top:4px}
+#loopLyric{font-size:clamp(.95rem,4vw,1.25rem);color:#e8e8f0;max-width:88vw}
+#loopLyric .line{display:flex;flex-wrap:wrap;justify-content:center;align-items:flex-end;gap:0 8px;padding:4px}
+#loopLyric .seg{display:inline-flex;flex-direction:column;align-items:center}
+#loopLyric .ich{font-family:Orbitron;font-size:.62em;font-weight:700;color:var(--cyan);background:rgba(34,211,238,.12);
+                border:1px solid rgba(34,211,238,.4);border-radius:6px;padding:1px 7px;margin-bottom:3px}
+#loopLyric .spacer{height:1.4em}
+#loopLyric .line:first-child .w.sung{color:var(--cyan);text-shadow:0 0 8px rgba(34,211,238,.45)}
+#loopLyric .line:first-child .ich.soon{animation:buildup .4s linear forwards;border-color:var(--pink)}
+#loopLyric .line:first-child .ich.hit{background:rgba(34,211,238,.3);border-color:var(--cyan);color:var(--cyan);animation:pop .22s ease-out}
+#loopLyric .line{transition:all .4s ease}
+#loopLyric .line.up1{opacity:.6;font-size:.82em}
+#loopLyric .line.up2{opacity:.35;font-size:.7em}
+#loopLyric .line.up1 .w,#loopLyric .line.up2 .w{color:#e8e8f0}
+#loopLyric .line.up1 .ich,#loopLyric .line.up2 .ich{color:var(--purple);background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4);animation:none}
+#loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
+</style></head><body>
+<div class="banner">🚧 LOOPER DELUXE BETA — the new design, wiring up feature by feature. Your loops, songs and setlists carry over automatically. The classic site is untouched at <a href="/" style="color:#a5f3fc">looperdeluxe.com</a>.</div>
+
+<div class="bar">
+  <h1 onclick="nav('play')">LOOPER DELUXE</h1>
+  <input placeholder="🔍 Search a song…" onkeydown="if(event.key==='Enter')toast('mock: would search + auto-load chords')">
+  <button class="btn primary" id="btnPlay" onclick="togglePlay()">▶ PLAY</button>
+  <button class="btn chords" onclick="toast('mock: chords re-fetched from library')">🎸 GET CHORDS</button>
+  <span class="kchip">KEY F</span><span class="kchip capo">CAPO 3</span><span class="kchip">133 BPM</span>
+  <button class="btn" style="padding:6px 9px" onclick="toast('mock: BPM halved')">÷2</button>
+  <button class="btn" style="padding:6px 9px" onclick="toast('mock: BPM doubled')">×2</button>
+  <span style="flex:1"></span>
+  <span style="font-size:.64rem;color:var(--dim)">★ELITE · Brooks</span>
+</div>
+
+<div id="helpOv" onclick="this.classList.remove('on')" style="position:fixed;inset:0;z-index:58;background:rgba(8,8,15,.93);backdrop-filter:blur(4px);overflow-y:auto;padding:26px;cursor:pointer">
+  <div style="max-width:860px;margin:0 auto">
+    <div style="font-family:Orbitron;font-weight:900;font-size:1.25rem;letter-spacing:3px;margin-bottom:4px;background:linear-gradient(100deg,#6d28d9 0%,#a855f7 33%,#22d3ee 66%,#a5f3fc 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 12px rgba(168,85,247,.5))">⭐ EVERYTHING LOOPER CAN DO</div>
+    <div style="font-size:.68rem;color:#a1a1aa;margin-bottom:16px">tap any card to <b style="color:var(--cyan)">try it live</b> — it takes you there and lights it up · tap anywhere else to close</div>
+    <div class="cardgrid">
+      <div class="card" onclick="event.stopPropagation();helpGo('play',null,'.bar input')"><b>🔍 SEARCH → PLAY</b>Type any song. Chords, key, capo and lyrics load themselves — no buttons.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('play','stage','#stagePanel')"><b>🎤 STAGE</b>Lyrics with the chords above the exact word they change on. Pink build-up = change coming, pop = now.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('play',null,'#loopRowMain')"><b>🔁 LOOP</b>IN and OUT mark a section on the waveform. It repeats until you own it. 💾 saves it forever.</div>
+      <div class="card" onclick="event.stopPropagation();document.getElementById('helpOv').classList.remove('on');nav('play');openLoop()"><b>◉ LOOP MODE</b>Fullscreen ring for hands-free practice — chord in the middle, lyrics below, phone on the music stand.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('play',null,'#practiceRow')"><b>🚀 SPEED-UP</b>Step-up speeds each pass +4% and caps at 100%. Gap counts you back in with a live decimal countdown. Start delay counts you in.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('play',null,'#strumRow')"><b>🎵 STRUM</b>Auto-detected pattern for the song's feel — or scroll ‹ › to pick your own.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('learn',null,'#hfb')"><b>🎼 LEARN</b>Any key × any scale on a live neck. Flip it vertical. Ask in plain English: "D minor but darker."</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('play','stems','#pane-stems .card')"><b>🎚 STEMS</b>Mute your instrument, play with the rest of the band.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('play','ccoach','#pane-ccoach .card')"><b>🎤 CHORD COACH</b>Listens through the mic and tells you which chords you're actually hitting.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('coach',null,'#view-coach .panel')"><b>🤖 AI COACH</b>Ask anything about the song you're playing — theory, voicings, why it sounds the way it does.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('play','versions','#pane-versions .card')"><b>👥 VERSIONS &amp; TABS</b>Community charts, or upload your own tab — it becomes playable, synced to the song.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('play','stage','#stagePanel .tabs .tab:last-child')"><b>⛶ EXPAND</b>The stage, fullscreen. Current line pinned to the top. Built for the phone on your stand.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('metro',null,'#view-metro .panel')"><b>⏱ PRACTICE → TAP TO TRY</b>Metronome (lock-to-song or free), backing tracks in any key, and a coach that builds licks from whatever you're jamming.</div>
+    </div>
+  </div>
+</div>
+<style>
+.spot{outline:2px solid var(--pink) !important;box-shadow:0 0 30px rgba(240,171,252,.75) !important;border-radius:10px;transition:box-shadow .4s, outline-color .4s}
+#helpOv{display:none}
+#helpOv .cardgrid{grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:14px}
+#helpOv .card{font-size:.8rem;padding:16px;line-height:1.6;min-height:96px;cursor:pointer}
+#helpOv .card b{font-size:.7rem;margin-bottom:8px}
+#helpOv.on{display:block;animation:fadein .25s ease}
+/* features slide in one after another — the tour should feel alive */
+@keyframes slidein{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+#helpOv.on .card{animation:slidein .4s ease backwards}
+#helpOv.on .card:nth-child(1){animation-delay:.03s}#helpOv.on .card:nth-child(2){animation-delay:.08s}
+#helpOv.on .card:nth-child(3){animation-delay:.13s}#helpOv.on .card:nth-child(4){animation-delay:.18s}
+#helpOv.on .card:nth-child(5){animation-delay:.23s}#helpOv.on .card:nth-child(6){animation-delay:.28s}
+#helpOv.on .card:nth-child(7){animation-delay:.33s}#helpOv.on .card:nth-child(8){animation-delay:.38s}
+#helpOv.on .card:nth-child(9){animation-delay:.43s}#helpOv.on .card:nth-child(10){animation-delay:.48s}
+#helpOv.on .card:nth-child(11){animation-delay:.53s}#helpOv.on .card:nth-child(12){animation-delay:.58s}
+</style>
+
+<div class="shell">
+  <div class="side">
+    <div class="nav on" id="nav-play" onclick="nav('play')">🎸 <span class="lbl">PLAY</span></div>
+    <div class="nav" id="nav-metro" onclick="nav('metro')">⏱ <span class="lbl">PRACTICE</span></div>
+    <div class="nav" id="nav-learn" onclick="nav('learn')">🎼 <span class="lbl">LEARN</span></div>
+    <div class="nav" id="nav-coach" onclick="nav('coach')">🤖 <span class="lbl">COACH</span></div>
+    <div class="nav" id="nav-stuff" onclick="nav('stuff')">📁 <span class="lbl">MY STUFF</span></div>
+    <div class="nav" onclick="document.getElementById('helpOv').classList.add('on')">⭐ <span class="lbl">FEATURES</span></div>
+    <div class="nav" id="nav-settings" onclick="nav('settings')">⚙ <span class="lbl">SETTINGS</span></div>
+    <div class="foot">Every feature keeps a home — one hop away.</div>
+  </div>
+
+  <div class="main">
+    <!-- ════ PLAY ════ -->
+    <div class="view on" id="view-play">
+      <div class="grid">
+        <div class="panel">
+          <div class="mediarow" id="mediarow">
+            <div id="bigPlay" onclick="togglePlay()" title="the obvious button">▶</div>
+            <div style="flex:1;display:flex;flex-direction:column;gap:5px;justify-content:center">
+              <div class="ptitle" style="margin:0">NOW PLAYING</div>
+              <div style="font-size:.95rem;color:#fff;font-weight:700">Turmoil &amp; Tinfoil <span style="color:var(--dim);font-weight:400">— Billy Strings</span></div>
+              <div style="font-size:.62rem;color:var(--green)">✅ FULL SONG · verified from a real play-through · 🎬 video in VIDEO STUDIO</div>
+            </div>
+          </div>
+          <div class="ribbon"><div class="lane" id="lane"></div><div class="now-line"></div></div>
+          <div class="cap">WAVEFORM · the whole song · CLICK TO JUMP · loop region in cyan</div>
+          <div class="map" id="map"><span class="region" id="region"></span><span class="ph" id="mph"></span><div id="gapCount">1.5</div></div>
+          <div class="looprow" id="loopRowMain">
+            <span class="lbl">🔁 LOOP</span>
+            <button class="btn" onclick="setIn()">◀ IN</button>
+            <button class="btn" onclick="setOut()">OUT ▶</button>
+            <button class="btn" onclick="clearLoop()">✕ CLEAR</button>
+            <span class="lbl" id="loopStamp" style="color:#fff;letter-spacing:1px">IN –:–– · OUT –:––</span>
+            <button class="btn" onclick="saveLoop()">💾 SAVE LOOP</button>
+            <button class="btn primary" onclick="openLoop()">◉ LOOP MODE</button>
+            <span style="flex:1"></span>
+            <span class="sl">SPEED <input type="range" id="spd" min="25" max="100" step="1" value="100" oninput="setSpeed(this.value)" title="click it once, then ← → arrows nudge 1% at a time"> <b id="spdVal" style="color:var(--cyan);font-size:.64rem">100%</b></span>
+            <span class="sl" style="flex:0 0 auto;min-width:0">TRANSPOSE
+              <button class="btn" style="padding:4px 9px" onclick="trAdj(-1)">−</button>
+              <b id="trVal" style="color:var(--cyan);font-size:.66rem;min-width:38px;text-align:center">0 st</b>
+              <button class="btn" style="padding:4px 9px" onclick="trAdj(1)">+</button></span>
+          </div>
+          <div class="looprow" id="strumRow" style="border-color:rgba(74,222,128,.3)">
+            <span class="lbl" style="color:var(--green)">🎵 STRUM</span>
+            <span class="kc on" id="strumAuto" onclick="setStrum(0)">AUTO · SMART</span>
+            <span class="kc" style="padding:3px 8px" onclick="cycleStrum(-1)">‹</span>
+            <b id="strumPat" style="font-size:1rem;color:#e4e4e7;letter-spacing:3px">↓ · ↓↑ · ↑↓↑ ·</b>
+            <span class="kc" style="padding:3px 8px" onclick="cycleStrum(1)">›</span>
+            <span id="strumName" style="font-size:.6rem;color:var(--dim)">detected from the song's feel (133 BPM, driving)</span>
+          </div>
+          <div class="looprow" id="practiceRow" style="border-color:rgba(240,171,252,.3)">
+            <span class="lbl" style="color:var(--pink)">🚀 SPEED-UP</span>
+            <span class="sl"><input type="checkbox" id="suChk" checked style="accent-color:#f0abfc" onchange="toast('step-up '+(this.checked?'ON — each pass +4% until it hits 100%, never past':'off'))"> STEP-UP <input type="range" value="4"> <b style="color:var(--pink);font-size:.62rem">+4%/pass · caps at 100%</b></span>
+            <span class="sl"><input type="checkbox" id="gapChk" checked style="accent-color:#f0abfc" onchange="toast('gap delay '+(this.checked?'ON — decimal countdown between passes':'off'))"> GAP <input type="range" id="gapSl" min="5" max="40" value="15" oninput="gapS=this.value/10;document.getElementById('gapVal').textContent=gapS.toFixed(1)+'s'"> <b id="gapVal" style="color:var(--pink);font-size:.62rem">1.5s</b></span>
+            <span class="sl"><input type="checkbox" style="accent-color:#f0abfc" onchange="toast('mock: start delay '+(this.checked?'ON — count-in before each pass':'off'))"> START DELAY <b style="color:var(--pink);font-size:.62rem">2.0s</b></span>
+          </div>
+        </div>
+        <div class="panel" id="stagePanel">
+          <div class="tabs">
+            <span class="tab on" data-pane="chart" onclick="pane(this)">📄 FULL CHART</span>
+            <span class="tab" data-pane="stage" onclick="pane(this)">🎤 STAGE</span>
+            <span class="tab" data-pane="stems" onclick="pane(this)">🎚 STEMS</span>
+            <span class="tab" data-pane="ccoach" onclick="pane(this)">🎤 CHORD COACH</span>
+            <span class="tab" data-pane="versions" onclick="pane(this)">👥 VERSIONS</span>
+            <span style="flex:1"></span>
+            <span class="tab" id="karaokeTab" title="hide the chord chips — pure karaoke lyric scroll" onclick="const on=document.body.classList.toggle('karaoke');this.classList.toggle('on',on);toast(on?'🎤 karaoke — just the lyrics':'chords back on')">🎤 KARAOKE</span>
+            <span class="tab" onclick="document.getElementById('stagePanel').classList.toggle('max');toast('phone view — current line pins to the top · ring appears while looping')">⛶ EXPAND</span>
+          </div>
+          <div class="pane on" id="pane-chart">
+            <div style="display:flex;align-items:center;gap:10px;background:rgba(34,211,238,.07);border:1px dashed rgba(34,211,238,.4);border-radius:10px;padding:8px 12px;margin-bottom:8px">
+              <span style="font-size:.66rem;color:var(--dim);flex:1">📄 This is the <b style="color:#fff">study sheet</b> — it doesn't move. Press ▶ (or tap any line) and it goes live:</span>
+              <button class="btn primary" onclick="const st=document.querySelector('.tab[data-pane=\'stage\']'); if(st) pane(st); if(!playing) togglePlay();">🎤 GO LIVE → STAGE</button>
+            </div>
+            <div class="cap" style="margin-top:0">THE CHORDS YOU'LL PLAY · ‹ › changes the shape · starts on the OPEN shape</div>
+            <div class="fbrow" id="chartChords" style="grid-template-columns:repeat(auto-fit,minmax(96px,1fr))"></div>
+            <div class="cap">THE WHOLE SONG · tap any line to jump there</div>
+            <div class="chart" id="chartSheet"></div>
+          </div>
+          <div class="pane" id="pane-stage">
+            <div id="maxRing"><b id="maxChord">B♭</b></div>
+            <div class="stage" id="stage"></div>
+            <div class="next">NEXT CHANGE → <b id="nextCh">B♭</b> <span style="opacity:.6">watch it pulse pink above the word it lands on</span></div>
+          </div>
+          <div class="pane" id="pane-stems">
+            <div class="card"><b>🎚 STEM ISOLATOR · PREMIUM</b>Pick your instrument, mute it, play with the rest.
+              <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn" onclick="toast('mock: guitar muted — backing track mode')">MUTE GUITAR</button>
+                <button class="btn" onclick="toast('mock: vocals isolated')">VOCALS ONLY</button>
+              </div></div>
+          </div>
+          <div class="pane" id="pane-ccoach">
+            <div class="card"><b>🎤 CHORD COACH · listens through your mic</b>
+              <div style="color:var(--dim);font-size:.62rem;margin:3px 0 4px">🎧 follows the song on stage — ask "does this C sound good here?" and it hears your take</div>
+              Hit rate this session:
+              <div class="meter"><i></i></div>
+              <span style="color:var(--green)">B♭ ✓ &nbsp;F ✓ &nbsp;E♭ ✗ (heard D♯m)</span>
+              <div style="margin-top:8px"><button class="btn primary" onclick="toast('mock: coach listening…')">▶ START LISTENING</button></div></div>
+          </div>
+          <div class="pane" id="pane-versions">
+            <div class="card"><b>👥 COMMUNITY VERSIONS</b>
+              ⭐ 4.9 · "Capo 3, D-shapes" — bluegrass_bob<br>⭐ 4.2 · "No capo, barre" — sarah_plays
+              <div style="margin-top:8px;display:flex;gap:6px"><button class="btn" onclick="toast('mock: version loaded')">LOAD</button><button class="btn" onclick="toast('mock: publish flow')">📤 PUBLISH MINE</button></div></div>
+            <div class="card" style="margin-top:8px"><b>📄 UPLOAD A TAB — where UG lives, now here</b>
+              Paste or upload a full tab / chord sheet. Looper syncs it to the song's timeline
+              automatically so it scrolls on the STAGE like everything else — a static tab becomes a playable one.
+              <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+                <button class="btn primary" onclick="toast('mock: paste-a-tab editor opens')">📋 PASTE TAB</button>
+                <button class="btn" onclick="toast('mock: file picker — .txt/.pdf tab upload')">📤 UPLOAD FILE</button>
+                <button class="btn" onclick="toast('mock: your uploads — 2 tabs, 14 loads by others')">MY UPLOADS</button>
+              </div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ LEARN v7 ════ -->
+    <div class="view" id="view-learn">
+      <div class="panel" style="flex:1">
+        <div class="ptitle">LEARN · auto-adapts to the song: F major · capo 3 → D-position shapes</div>
+        <div class="tabs">
+          <span class="tab on" id="ltab-scales" onclick="lpane('scales')">🎼 SCALES</span>
+          <span class="tab" id="ltab-chords" onclick="lpane('chords')">🎸 SONG CHORDS</span>
+        </div>
+
+        <div class="pane on" id="lpane-scales">
+          <div class="cap">PICK A KEY</div>
+          <div class="keychips" id="keychips"></div>
+          <div class="cap">PICK A SCALE</div>
+          <div class="scalechips" id="scalechips"></div>
+          <div class="cap"><span id="hfbTitle">D MINOR PENTATONIC · full neck · blue = root</span>
+            <span style="flex:1"></span>
+            <span class="tab" onclick="openVBoard()">⛶ VERTICAL</span>
+          </div>
+          <div class="hfb" id="hfb"></div>
+          <div class="cap" style="margin-top:12px">TALK TO THE EXPLORER · answers come back as tappable scales</div>
+          <div class="bubble me ex">What if I want a D minor scale but with a dark feel?</div>
+          <div class="bubble ai ex">Dark over D minor → two flavors, tap one:<br>
+            <span class="sug" onclick="askScale('D','HARMONIC MINOR')">D HARMONIC MINOR</span> <span style="opacity:.7">raised 7th — tension, flamenco edge</span><br>
+            <span class="sug" onclick="askScale('D','PHRYGIAN')">D PHRYGIAN</span> <span style="opacity:.7">flat 2 — pure menace, lean on the E♭</span></div>
+          <div style="display:flex;gap:8px;margin-top:6px">
+            <input style="flex:1;background:#0a0a14;border:1px solid var(--border);border-radius:8px;color:#fff;padding:9px 11px;font-family:inherit;font-size:.72rem" placeholder="Ask for any scale, mood, or shape…" onkeydown="if(event.key==='Enter')toast('mock: explorer answers with tappable scales')">
+            <button class="btn primary" onclick="toast('mock: explorer answers with tappable scales')">ASK</button>
+          </div>
+        </div>
+
+        <div class="pane" id="lpane-chords">
+          <div class="cap">HOW DO YOU WANT TO PLAY THEM?</div>
+          <div class="scalechips">
+            <span class="kc on" onclick="setVmode(this,'OPEN')">OPEN / CAPO SHAPES</span>
+            <span class="kc" onclick="setVmode(this,'BARRE')">BARRE</span>
+            <span class="kc" onclick="setVmode(this,'CAGED')">CAGED POSITIONS</span>
+          </div>
+          <div class="cap">EVERY CHORD IN THIS SONG · ‹ › cycles voicings, like the shape stepper today</div>
+          <div class="fbrow" id="fbrow"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ COACH ════ -->
+    <div class="view" id="view-coach">
+      <div class="panel" style="flex:1">
+        <div class="ptitle">🎤 CHORD COACH · your mic, your accuracy</div>
+        <div class="card" style="margin-bottom:12px"><b>LIVE HIT RATE</b>
+          <div style="color:var(--dim);font-size:.62rem;margin:3px 0 6px">🎧 following <b style="color:#a5f3fc">FORTUNATE SON — CCR</b> · switches automatically when you load a different song</div>
+          <div class="meter"><i></i></div>
+          <span style="color:var(--green)">B♭ ✓ &nbsp;F ✓ &nbsp;E♭ ✗ (heard D♯m)</span>
+          <div style="margin-top:8px"><button class="btn primary" onclick="toast('mock: coach listening…')">▶ START LISTENING</button></div></div>
+        <div class="ptitle">🤖 AI COACH · ask anything about the song you're playing</div>
+        <div class="bubble me ex">What key is this and why does the Fm feel so dark?</div>
+        <div class="bubble ai ex">You're in F major, but that Fm is a <b>borrowed iv chord</b> — taking the minor four from F minor. It's the classic "sunshine turns to shadow" move. Try letting it ring longer than written.</div>
+        <div class="bubble me ex">Give me an easier voicing for E♭ at capo 3.</div>
+        <div class="bubble ai ex">With capo 3, E♭ = a <b>C shape</b>. Use C-add9 (x32033) — two fingers move from your G shape, much smoother in this progression.</div>
+        <div class="bubble me ex">Does this C sound good here? <i style="color:var(--dim)">🎤 plays the chord…</i></div>
+        <div class="bubble ai ex">Heard it — that C fits, it's the <b>V of your key</b>. But your high E string barely rang (finger 1 is brushing it). Arch the ring finger more and hit it again — or try Cadd9 to match this song's color.</div>
+        <div class="chatdivider">YOUR CONVERSATION STARTS FRESH BELOW — the chats above are just examples</div>
+        <div style="display:flex;gap:8px;margin-top:10px"><input style="flex:1;background:#0a0a14;border:1px solid var(--border);border-radius:8px;color:#fff;padding:9px 11px;font-family:inherit;font-size:.72rem" placeholder="Ask the coach…" onkeydown="if(event.key==='Enter')toast('mock: coach would answer')"><button class="btn primary" onclick="toast('mock: coach would answer')">ASK</button></div>
+      </div>
+    </div>
+
+    <!-- ════ MY STUFF ════ -->
+    <div class="view" id="view-stuff">
+      <div class="panel" style="flex:1"><div class="ptitle">📁 MY STUFF · loops, songs, setlists · your practice room</div>
+        <div class="cardgrid">
+          <div class="card"><b>💾 SAVED LOOPS · tap one to load it</b>
+            <div class="scrolllist"><span id="savedLoops"></span>
+              <div class="srow" onclick="goLoop(60,70,'Turmoil solo')">▶ Turmoil solo (2:41–3:05)</div>
+              <div class="srow" onclick="goLoop(72,85,'NHF bridge')">▶ NHF bridge (3:10–3:44)</div>
+              <div class="srow" onclick="goLoop(4,14,'CYS intro')">▶ CYS intro ×3</div>
+            </div></div>
+          <div class="card"><b>★ SAVED SONGS · tap to play · ✕ removes</b>
+            <div class="scrolllist">
+              <div class="srow" onclick="goSong('Turmoil & Tinfoil')">🎸 Turmoil &amp; Tinfoil <b style="cursor:pointer;color:#f87171;float:right" onclick="event.stopPropagation();this.parentElement.remove();toast('removed from saved songs')">✕</b></div>
+              <div class="srow" onclick="goSong('No Hard Feelings')">🎸 No Hard Feelings <b style="cursor:pointer;color:#f87171;float:right" onclick="event.stopPropagation();this.parentElement.remove();toast('removed from saved songs')">✕</b></div>
+              <div class="srow" onclick="goSong('Can\'t You See')">🎸 Can't You See <b style="cursor:pointer;color:#f87171;float:right" onclick="event.stopPropagation();this.parentElement.remove();toast('removed from saved songs')">✕</b></div>
+              <div class="srow" onclick="goSong('Mercy')">🎸 Mercy <b style="cursor:pointer;color:#f87171;float:right" onclick="event.stopPropagation();this.parentElement.remove();toast('removed from saved songs')">✕</b></div>
+            </div></div>
+          <div class="card"><b>🎵 SETLIST · tap to start</b>
+            <div class="scrolllist">
+              <div class="srow" onclick="goSong('Turmoil & Tinfoil');toast('setlist started — auto-advance on')">📋 Open-mic Thursday · 4 songs · auto-advance</div>
+            </div></div>
+        </div></div>
+    </div>
+
+    <!-- ════ METRONOME ════ -->
+    <div class="view" id="view-metro">
+      <div class="panel" style="flex:1"><div class="ptitle">⏱ PRACTICE · metronome, backing tracks &amp; your jam coach</div>
+        <div class="cardgrid">
+          <div class="card"><b>⏱ METRONOME</b>
+            <div style="display:flex;align-items:center;gap:6px;margin:4px 0">
+              <input id="metroNum" type="number" min="40" max="220" value="133"
+                style="width:86px;background:#0a0a14;border:1px solid rgba(34,211,238,.5);border-radius:8px;color:var(--cyan);font-family:Orbitron;font-size:1.3rem;text-align:center;padding:3px;outline:none;text-shadow:0 0 10px rgba(34,211,238,.5)"
+                oninput="metroSet(this.value)">
+              <span style="font-family:Orbitron;font-size:.8rem;color:var(--cyan)">BPM</span>
+              <span style="display:flex;flex-direction:column;gap:2px">
+                <button class="btn" style="padding:0 6px;font-size:.5rem;line-height:1.3" onclick="metroSet(parseInt(document.getElementById('metroNum').value||133)+1)">▲</button>
+                <button class="btn" style="padding:0 6px;font-size:.5rem;line-height:1.3" onclick="metroSet(parseInt(document.getElementById('metroNum').value||133)-1)">▼</button>
+              </span>
+            </div>
+            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:6px">
+              <input type="checkbox" id="metroLock" checked style="accent-color:#22d3ee"
+                onchange="document.getElementById('metroFree').style.display=this.checked?'none':'flex';
+                          document.getElementById('metroNum').value=this.checked?133:document.getElementById('metroSl').value;
+                          toast(this.checked?'⏱ locked to the song — ticks with playback':'free mode — your tempo')">
+              🔗 LOCK TO SONG</label>
+            <div id="metroFree" style="display:none;align-items:center;gap:8px;margin-bottom:6px">
+              <input type="range" id="metroSl" min="40" max="220" value="90" style="flex:1;accent-color:#22d3ee"
+                oninput="document.getElementById('metroNum').value=this.value">
+            </div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
+              <span class="kc on" onclick="toast('tone: click')">CLICK</span>
+              <span class="kc" onclick="toast('tone: woodblock')">WOOD</span>
+              <span class="kc" onclick="toast('tone: soft beep')">BEEP</span>
+            </div>
+            <button class="btn primary" onclick="toast('mock: tick… tick… tick…')">▶ START</button>
+          </div>
+          <div class="card" style="grid-column:1/-1"><b>🎼 BACKING TRACKS · any key, three vibes each, scroll with ‹ ›</b>
+            <div class="cap" style="margin-top:6px">TAP A KEY + MAJOR/MINOR + ▶ — that's the whole flow</div>
+            <div class="keychips" id="btKeys"></div>
+            <div style="display:flex;gap:6px;margin:4px 0 8px">
+              <span class="kc" id="btMaj" onclick="btMode='MAJOR';renderBT()">MAJOR</span>
+              <span class="kc on" id="btMin" onclick="btMode='MINOR';renderBT()">MINOR</span>
+            </div>
+            <div id="btList"></div>
+            <div style="display:flex;gap:8px;margin:6px 0;align-items:center">
+              <span style="font-size:.56rem;color:var(--dim)">or type it:</span>
+              <input style="width:180px;background:#0a0a14;border:1px solid var(--border);border-radius:8px;color:#fff;padding:5px 9px;font-family:inherit;font-size:.62rem" placeholder="🔍 a minor" onkeydown="if(event.key==='Enter'){btSearch(this.value);}">
+            </div>
+            <div class="cap" style="margin-top:10px">THE SCALE YOU'RE JAMMING · <b style="color:var(--cyan)">tap the neck → the big board in LEARN</b> · your track keeps playing</div>
+            <div class="hfb" id="btNeck" onclick="goScale()" title="opens this scale on LEARN's fullscreen board — the jam keeps going" style="cursor:pointer"></div>
+          </div>
+          <div class="card" style="grid-column:1/-1"><b>🤖 COACH · knows what you're jamming</b>
+            <div style="display:flex;gap:8px;margin:8px 0">
+              <input id="coachAsk" style="flex:1;background:#0a0a14;border:1px solid var(--border);border-radius:8px;color:#fff;padding:9px 11px;font-family:inherit;font-size:.7rem"
+                placeholder="e.g. give me a lick in A minor on the high strings…"
+                onkeydown="if(event.key==='Enter')coachLick(this.value)">
+              <button class="btn primary" onclick="coachLick(document.getElementById('coachAsk').value)">ASK</button>
+            </div>
+            <div id="lickOut" style="display:none">
+              <div style="font-size:.68rem;color:#e4e4e7;margin-bottom:6px" id="lickSay"></div>
+              <div class="hfb" id="lickBoard"></div>
+              <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+                <button class="btn" onclick="playLick()">↻ REPLAY</button>
+                <span style="font-size:.58rem;color:var(--dim)">watch it — one note at a time, in your key</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ════ SETTINGS ════ -->
+    <div class="view" id="view-settings">
+      <div class="panel" style="flex:1"><div class="ptitle">⚙ SETTINGS · true set-and-forget only</div>
+        <div class="cardgrid">
+          <div class="card"><b>TIMING</b>Latency calibration ±0ms (step-up / gap / start delay live on the PLAY page)</div>
+          <div class="card"><b>LYRIC SYNC</b>±0.0s fine alignment slider</div>
+          <div class="card"><b>🎓 THE TOUR</b>Lost? 12 quick stops through everything — takes about a minute, arrows or space to move.<br>
+            <button class="btn primary" style="margin-top:8px" onclick="startTour()">🎸 START THE 60-SECOND TOUR</button></div>
+          <div class="card"><b>😌 CALM MODE</b>Keeps the chord pops, quiets the word-sweep glow — easier on the eyes for long sessions.<br>
+            <label style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer">
+            <input type="checkbox" style="accent-color:#a855f7" onchange="document.body.classList.toggle('calm',this.checked);toast(this.checked?'calm mode on — glow quieted':'full glow back on')"> ENABLE</label></div>
+          <div class="card"><b>ACCOUNT</b>★ELITE · Spotify ✓ connected · Terms · Privacy</div>
+        </div></div>
+    </div>
+  </div>
+</div>
+
+<!-- vertical fullscreen fretboard -->
+<div id="vBoard" onclick="this.classList.remove('on')">
+  <h3 id="vTitle">D MINOR PENTATONIC</h3>
+  <div id="vTbl"></div>
+  <div class="hint">held like your guitar — nut at the top, low E on the left · tap anywhere to close</div>
+</div>
+
+<!-- LOOP MODE -->
+<div id="loopMode" onclick="closeLoop()">
+  <div class="hint" style="position:absolute;top:14px;left:50%;transform:translateX(-50%)">LOOP MODE · tap anywhere to exit</div>
+  <div class="ringwrap">
+    <svg viewBox="0 0 200 200">
+      <defs><linearGradient id="lgrad" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#a855f7"/><stop offset="1" stop-color="#22d3ee"/></linearGradient></defs>
+      <circle class="ringbg" cx="100" cy="100" r="90"/>
+      <circle class="ring" id="loopRing" cx="100" cy="100" r="90"/>
+    </svg>
+    <div class="ringspin"></div>
+    <div class="bigchord"><b id="loopChord">B♭</b><small>NEXT → <span id="loopNext">F</span></small><span class="cnt">loop ×<span id="loopCnt">1</span></span></div>
+  </div>
+  <div id="loopLyric"></div>
+</div>
+<div id="tourBtn" onclick="startTour()" title="12 quick stops — arrows or space to move">🎸 NEW HERE? <b style="color:#a5f3fc">60-SECOND TOUR</b><span class="tx" title="hide this — the tour lives on in ⚙ SETTINGS" onclick="event.stopPropagation();tourDismiss()">✕</span></div>
+<div id="tourDim" onclick="endTour()"></div>
+<div id="tourTip"><div id="tourText"></div>
+  <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end;align-items:center">
+    <span style="font-size:.56rem;color:var(--dim);flex:1">→ / space next · ← back · esc close</span>
+    <button class="btn" onclick="event.stopPropagation();endTour()">SKIP</button>
+    <button class="btn primary" onclick="event.stopPropagation();tourNext()">NEXT →</button>
+  </div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ── first-time tour: one feature at a time, spotlit, NEXT to advance ──
+const TOUR=[
+  ['#bigPlay','Press ▶ and the song plays — chords, lyrics, waveform, all synced to the music.','play'],
+  ['.bar .btn.chords','🎸 GET CHORDS — if a song ever loads without its chords, this one button fetches them from the library.','play'],
+  ['.ribbon','Chords flow toward the white line. When one crosses it — that\'s your change, right now.','play'],
+  ['#map','The whole song\'s loud and quiet. Click anywhere to jump. Your loop paints here in cyan.','play'],
+  ['#loopRowMain','Hard part? ◀ IN, OUT ▶ — it repeats until you own it. 💾 SAVE keeps it forever.','play'],
+  ['#practiceRow','🚀 SPEED-UP: start slow — every pass adds +4% until you\'re back at 100%. GAP pauses between passes with a countdown: 1.5… 0.0.','play'],
+  ['#stagePanel','FULL CHART = study the whole song. STAGE = it comes alive, chords popping on their words. 🎤 KARAOKE hides chords. ⛶ EXPAND = phone view.','play'],
+  ['#view-metro .panel','⏱ PRACTICE: a metronome that locks to the song (or runs free), backing tracks in any key, and a coach that writes you licks — with the scale right there while you jam.','metro'],
+  ['#view-learn .panel','🎼 LEARN: any key × any scale on a live neck, flip it fullscreen-vertical, plus every chord shape in the song — open, barre, or CAGED.','learn'],
+  ['#view-coach .panel','🤖 COACH: ask anything about the song you\'re playing — theory, easier voicings, why that chord feels dark.','coach'],
+  ['#view-stuff .panel','📁 MY STUFF: your saved loops, songs and setlists — tap any one and you\'re back in it instantly.','stuff'],
+  ['#tourBtn','That\'s the lay of the land. ⭐ FEATURES in the sidebar lists everything, tappable. Now go play something.','play']];
+let tourI=-1;
+function startTour(){ nav('play'); tourI=-1; document.getElementById('tourDim').classList.add('on'); tourNext(); }
+function tourNext(){
+  document.querySelectorAll('.spot').forEach(e=>e.classList.remove('spot'));
+  tourI++;
+  if(tourI>=TOUR.length){ endTour(); tourDismiss('you’re toured up 🎸 — replay anytime in ⚙ SETTINGS'); return; }
+  const [sel,txt,view]=TOUR[tourI];
+  if(view) nav(view);
+  const el=document.querySelector(sel);
+  if(!el){ tourNext(); return; }
+  el.classList.add('spot');
+  el.scrollIntoView({block:'center',behavior:'smooth'});
+  const tip=document.getElementById('tourTip');
+  document.getElementById('tourText').textContent=(tourI+1)+'/'+TOUR.length+' · '+txt;
+  tip.classList.add('on');
+  setTimeout(()=>{
+    const r=el.getBoundingClientRect();
+    const below=r.bottom+12+150<window.innerHeight;
+    tip.style.top=(below?r.bottom+10:Math.max(8,r.top-tip.offsetHeight-10))+'px';
+    tip.style.left=Math.max(8,Math.min(window.innerWidth-tip.offsetWidth-8,r.left))+'px';
+  },320);
+}
+function tourPrev(){ if(tourI>0){ tourI-=2; tourNext(); } }
+document.addEventListener('keydown',e=>{
+  if(tourI<0) return;
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='Enter'){ e.preventDefault(); tourNext(); }
+  else if(e.key==='ArrowLeft'){ e.preventDefault(); tourPrev(); }
+  else if(e.key==='Escape'){ endTour(); }
+});
+function endTour(){
+  tourI=-1;
+  document.querySelectorAll('.spot').forEach(e=>e.classList.remove('spot'));
+  document.getElementById('tourDim').classList.remove('on');
+  document.getElementById('tourTip').classList.remove('on');
+}
+function tourDismiss(msg){
+  try{localStorage.setItem('ld_tourdone','1')}catch(e){}
+  document.getElementById('tourBtn').classList.add('gone');
+  toast(msg||'tour tucked away — find it anytime in ⚙ SETTINGS');
+}
+try{if(localStorage.getItem('ld_tourdone'))document.getElementById('tourBtn').classList.add('gone')}catch(e){}
+function helpGo(view, tabPane, sel){
+  document.getElementById('helpOv').classList.remove('on');
+  nav(view);
+  if(tabPane){ const tb=document.querySelector('.tab[data-pane="'+tabPane+'"]'); if(tb) pane(tb); }
+  setTimeout(()=>{
+    const el=document.querySelector(sel);
+    if(!el) return;
+    el.classList.add('spot');
+    el.scrollIntoView({block:'center',behavior:'smooth'});
+    setTimeout(()=>el.classList.remove('spot'),2600);   // the highlight lets go on its own
+  },240);
+}
+function nav(k){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.querySelectorAll('.nav').forEach(n=>n.classList.remove('on'));
+  document.getElementById('view-'+k).classList.add('on');
+  document.getElementById('nav-'+k).classList.add('on');
+  document.body.classList.toggle('offhome',k!=='play');
+}
+function pane(el){
+  if(!el.dataset.pane) return;
+  document.querySelectorAll('.tab[data-pane]').forEach(t=>t.classList.remove('on'));
+  document.querySelectorAll('#stagePanel .pane').forEach(p=>p.classList.remove('on'));
+  el.classList.add('on');
+  document.getElementById('pane-'+el.dataset.pane).classList.add('on');
+}
+function lpane(k){
+  document.getElementById('ltab-scales').classList.toggle('on',k==='scales');
+  document.getElementById('ltab-chords').classList.toggle('on',k==='chords');
+  document.getElementById('lpane-scales').classList.toggle('on',k==='scales');
+  document.getElementById('lpane-chords').classList.toggle('on',k==='chords');
+}
+let _t=null;
+function toast(m){
+  const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show');
+  clearTimeout(_t); _t=setTimeout(()=>t.classList.remove('show'),1900);
+}
+/* ═══ shared clock (rAF) + SPEED (default 100%) ═══ */
+const SONG_S=64;                          // base pace — 100% feels like a real song now
+let SPEED=1;
+function setSpeed(v){
+  v=parseInt(v);   // no snap — 95% is a real choice; arrows nudge by exactly 1
+  SPEED=v/100; document.getElementById('spdVal').textContent=v+'%';
+}
+let CHANGES=[];   // built from LINES below — the ribbon and the stage share ONE timeline
+const WIN=22, NOWX=12;
+const LINES=[
+  [["F","I recall a"],[null,"silver"],["B♭","morning"]],
+  [[null,"Everything was"],["F","new and shining"]],
+  [[null,"Time was moving,"],["E♭","always"],[null,"turning"]],
+  [["F","Nothing ever"],[null,"stays the same"]],
+  [["Fm","Turmoil and the"],[null,"tinfoil"],["F","crown"]],
+  [[null,"Spinning ever"],["B♭","faster"],[null,"down"]],
+  [["F","All the wires"],["E♭","hum and glisten"]],
+  [[null,"No one's left who"],["F","wants to"],["Fm","listen"]],
+  [["F","I recall a"],[null,"silver"],["B♭","morning"]],
+  [[null,"Everything was"],["F","new and shining"]]
+];
+const LINE_SPAN=100/LINES.length;
+// derive the ribbon timeline FROM the lyrics: a chord's position = its line's slice of the song
+// + its word's position in the line, offset to match the stage pop (wcut lead +0.4)
+LINES.forEach((seg,li)=>{
+  const total=seg.reduce((n,[,w])=>n+w.split(' ').length,0);
+  let w=0;
+  seg.forEach(([ch,words])=>{
+    if(ch) CHANGES.push([li*LINE_SPAN+((w+0.6)/total)*LINE_SPAN, ch]);
+    w+=words.split(' ').length;
+  });
+});
+CHANGES.sort((a,b)=>a[0]-b[0]);
+const stageEl=document.getElementById('stage');
+LINES.forEach(seg=>{
+  const d=document.createElement('div'); d.className='line';
+  seg.forEach(([ch,words])=>{
+    words.split(' ').forEach((w,i)=>{
+      const s=document.createElement('span'); s.className='seg';
+      if(ch&&i===0){ const c=document.createElement('span'); c.className='ich'; c.textContent=ch; s.appendChild(c); }
+      else { const sp=document.createElement('span'); sp.className='spacer'; s.appendChild(sp); }
+      const wd=document.createElement('span'); wd.className='w wds'; wd.textContent=w;
+      s.appendChild(wd); d.appendChild(s);
+    });
+  });
+  stageEl.appendChild(d);
+});
+// FULL CHART: the whole song, static — chords above words, mini boards of every chord up top
+const CHART_SHAPES=[
+  ['F',[['open · D shape',[[2,0],[3,1],[2,2]]],['barre @ 1st',[[0,1],[1,3],[2,3],[3,2],[4,1],[5,1]]],['CAGED · E @ 1',[[0,1],[3,2],[4,3]]]]],
+  ['B♭',[['open · G shape',[[0,2],[1,0],[5,2]]],['barre @ 6th',[[0,1],[1,3],[2,3],[3,2]]],['CAGED · A @ 1',[[1,1],[2,3],[3,3],[4,3]]]]],
+  ['E♭',[['open · C shape',[[1,1],[3,0],[4,2]]],['barre @ 6th',[[0,2],[1,1],[2,3],[3,3]]],['CAGED · G @ 3',[[0,3],[1,2],[5,3]]]]],
+  ['Fm',[['open · Dm shape',[[0,0],[2,1],[3,2]]],['barre @ 1st',[[0,1],[1,3],[2,3],[4,1],[5,1]]],['CAGED · Em @ 1',[[0,1],[3,2],[4,2]]]]]];
+let chartSel=[0,0,0,0];
+function chartCycle(i,d){ chartSel[i]=(chartSel[i]+d+3)%3; drawChartChords(); }
+function drawChartChords(){
+  const cc=document.getElementById('chartChords');
+  cc.innerHTML='';
+  CHART_SHAPES.forEach(([nm,vars],i)=>{
+    const [sub,dots]=vars[chartSel[i]];
+    const div=document.createElement('div'); div.className='vfb';
+    let rows='';
+    for(let f=0;f<4;f++){ rows+='<tr>';
+      for(let s=0;s<6;s++){ const d=dots.find(([ds,df])=>ds===s&&df===f);
+        rows+='<td>'+(d?'<span class="dot"></span>':'')+'</td>'; } rows+='</tr>'; }
+    div.innerHTML='<div class="nm" style="display:flex;align-items:center;justify-content:center;gap:7px">'
+      +'<span class="kc" style="padding:1px 7px" onclick="chartCycle('+i+',-1)">‹</span>'
+      +'<span>'+nm+'</span>'
+      +'<span class="kc" style="padding:1px 7px" onclick="chartCycle('+i+',1)">›</span></div>'
+      +'<table>'+rows+'</table><div class="cap2">'+sub+' · '+(chartSel[i]+1)+'/3</div>';
+    cc.appendChild(div);
+  });
+}
+(function(){
+  drawChartChords();
+  const sheet=document.getElementById('chartSheet');
+  LINES.forEach((seg,li)=>{
+    const d=document.createElement('div'); d.className='line';
+    seg.forEach(([ch,words])=>{
+      words.split(' ').forEach((w,i)=>{
+        const s=document.createElement('span'); s.className='seg';
+        if(ch&&i===0){ const c=document.createElement('span'); c.className='ich'; c.textContent=ch; s.appendChild(c); }
+        else { const sp=document.createElement('span'); sp.className='spacer'; s.appendChild(sp); }
+        const wd=document.createElement('span'); wd.className='wds'; wd.textContent=w;
+        s.appendChild(wd); d.appendChild(s);
+      });
+    });
+    d.onclick=(e)=>{
+      const w=e.target.closest('.wds');
+      if(w){ const ws=[...d.querySelectorAll('.wds')];
+        pos=li*LINE_SPAN+(Math.max(0,ws.indexOf(w))/Math.max(1,ws.length))*LINE_SPAN; }
+      else pos=li*LINE_SPAN+0.1;
+      document.getElementById('mph').style.left=pos+'%';
+      renderRibbon(); syncStage(); const st=document.querySelector('.tab[data-pane="stage"]'); if(st) pane(st);
+      if(!playing) togglePlay(); toast('jumped to that word — live stage running'); };
+    sheet.appendChild(d);
+  });
+})();
+// tap ANY word (stage or chart) → seek to that exact word's moment
+document.getElementById('stage').addEventListener('click',e=>{
+  const w=e.target.closest('.w'); if(!w) return;
+  const line=e.target.closest('.line'); if(!line) return;
+  const li2=[...stageEl.children].indexOf(line); if(li2<0) return;
+  const ws=[...line.querySelectorAll('.w')];
+  pos=li2*LINE_SPAN+(Math.max(0,ws.indexOf(w))/Math.max(1,ws.length))*LINE_SPAN;
+  document.getElementById('mph').style.left=pos+'%';
+  renderRibbon(); syncStage();
+  if(!playing) togglePlay();
+  toast('jumped to that word');
+});
+let playing=false,pos=2,lastTs=null,raf=null,curLine=-1;
+let loopA=null,loopB=null,loopN=1,loopOn=false;
+const lane=document.getElementById('lane');
+function curChord(){ let n='F'; CHANGES.forEach(([p,c])=>{ if(p<=pos) n=c; }); return n; }
+function nextChange(){ return CHANGES.find(([p])=>p>pos)||CHANGES[0]; }
+function renderRibbon(){
+  lane.innerHTML='';
+  const wstart=pos-(WIN*NOWX/100);
+  let lastAt=-1; CHANGES.forEach(([p])=>{ if(p<=pos) lastAt=p; });
+  CHANGES.forEach(([p,n])=>{
+    const x=(p-wstart)/WIN*100;
+    if(x<-10||x>106) return;
+    const c=document.createElement('span');
+    c.className='chip'+((p===lastAt)?' cur':'');
+    c.style.left=x+'%'; c.textContent=n;
+    lane.appendChild(c);
+  });
+}
+function syncStage(){
+  const ln=Math.min(LINES.length-1,Math.floor(pos/LINE_SPAN));
+  const line=stageEl.children[ln];
+  const maxed=document.getElementById('stagePanel').classList.contains('max');
+  if(ln!==curLine){
+    curLine=ln;
+    [...stageEl.children].forEach(l=>l.classList.remove('now'));
+    line.classList.add('now');
+    [...line.querySelectorAll('.ich')].forEach(c=>c.classList.remove('hit','soon'));
+    // ALWAYS scroll the stage box so the current line sits at the top — expanded or not —
+    // and the upcoming lines are visible below it (scrolls the BOX, never the page)
+    stageEl.scrollTo({top:Math.max(0,line.offsetTop-stageEl.offsetTop-6),behavior:'smooth'});
+  }
+  const words=[...line.querySelectorAll('.w')];
+  const frac=(pos-ln*LINE_SPAN)/LINE_SPAN;
+  const wcut=Math.floor(frac*words.length+0.4);   // slight lead: the LAST word pops before the line flips
+  words.forEach((w,i)=>w.classList.toggle('sung',i<wcut));
+  const segs=[...line.querySelectorAll('.seg')];
+  segs.forEach(s=>{
+    const c=s.querySelector('.ich'); if(!c) return;
+    const wIdx=words.indexOf(s.querySelector('.w'));
+    c.classList.toggle('hit',wIdx<wcut);
+    c.classList.toggle('soon',wIdx===wcut);
+  });
+}
+function frame(ts){
+  if(!playing){ raf=null; return; }
+  if(lastTs==null) lastTs=ts;
+  const dt=(ts-lastTs)/1000; lastTs=ts;
+  if(gapping){ runGap(ts); raf=requestAnimationFrame(frame); return; }   // countdown holds the song
+  pos+=dt*(100/SONG_S)*SPEED;
+  if(loopA!=null&&loopB!=null&&pos>loopB){
+    pos=loopA; loopN++; document.getElementById('loopCnt').textContent=loopN;
+    if(document.getElementById('gapChk').checked) startGap(ts);          // breather w/ decimal countdown
+  }
+  if(pos>=100) pos-=100;
+  document.getElementById('mph').style.left=pos+'%';
+  renderRibbon();
+  const cur=curChord(), nxt=nextChange();
+  document.getElementById('nextCh').textContent=nxt[1];
+  // ring shows ONLY while a loop is set (Brooks v7)
+  const ringOn=loopA!=null&&loopB!=null;
+  const mr=document.getElementById('maxRing');
+  mr.style.display=(ringOn&&document.getElementById('stagePanel').classList.contains('max'))?'flex':'none';
+  if(ringOn){
+    const prog=((pos-loopA)/(loopB-loopA)*100+100)%100;
+    mr.style.setProperty('--p',prog+'%');
+    document.getElementById('maxChord').textContent=cur;
+    if(loopOn){
+      document.getElementById('loopRing').style.strokeDashoffset=565-(565*prog/100);
+      document.getElementById('loopChord').textContent=cur;
+      document.getElementById('loopNext').textContent=nxt[1];
+      const ci2=curLine>=0?curLine:0;
+      const l0=stageEl.children[ci2], l1=stageEl.children[(ci2+1)%LINES.length], l2=stageEl.children[(ci2+2)%LINES.length];
+      const html=(l0?l0.innerHTML:'');
+      const ll=document.getElementById('loopLyric');
+      const clean=h=>h.replace(/\b(sung|hit|soon)\b/g,'');
+      if(ll.__last!==html){
+        ll.innerHTML='<div class="line">'+html+'</div>'
+          +'<div class="line up1">'+clean(l1?l1.innerHTML:'')+'</div>'
+          +'<div class="line up2">'+clean(l2?l2.innerHTML:'')+'</div>';
+        ll.__last=html;
+      }
+    }
+  }
+  syncStage();
+  raf=requestAnimationFrame(frame);
+}
+function togglePlay(){
+  playing=!playing;
+  document.getElementById('btnPlay').textContent=playing?'⏸ PAUSE':'▶ PLAY';
+  document.getElementById('bigPlay').textContent=playing?'⏸':'▶';
+  if(playing){
+    lastTs=null; raf=requestAnimationFrame(frame);
+    // the chart is a study sheet — playing means LIVE, so the stage takes over
+    if(document.getElementById('pane-chart').classList.contains('on')){
+      const st=document.querySelector('.tab[data-pane="stage"]'); if(st) pane(st);
+      toast('▶ live — the FULL CHART tab is always there to study');
+    }
+  }
+}
+let gapS=1.5, gapping=false, gapEnd=0;
+function startGap(ts){
+  gapping=true; gapEnd=ts+gapS*1000;
+  document.getElementById('gapCount').style.display='flex';
+}
+function runGap(ts){
+  const left=Math.max(0,(gapEnd-ts)/1000);
+  const txt=left.toFixed(1);
+  document.getElementById('gapCount').textContent=txt;
+  if(loopOn){ const lc=document.getElementById('loopChord'); lc.textContent=txt; lc.style.color='var(--pink)'; }
+  if(ts>=gapEnd){
+    gapping=false;
+    document.getElementById('gapCount').style.display='none';
+    if(loopOn) document.getElementById('loopChord').style.color='';
+    // STEP-UP: each pass +4%, hard-capped at 100%
+    if(document.getElementById('suChk').checked && SPEED<1){
+      SPEED=Math.min(1,SPEED+0.04);
+      const v=Math.round(SPEED*100);
+      document.getElementById('spd').value=v;
+      document.getElementById('spdVal').textContent=v+'%';
+    }
+  }
+}
+const SONG_DISPLAY_S=230;  // shown as a ~3:50 song
+function fmtT(p){ const s=Math.round(p/100*SONG_DISPLAY_S); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
+function stamp(){
+  document.getElementById('loopStamp').textContent=
+    'IN '+(loopA!=null?fmtT(loopA):'–:––')+' · OUT '+(loopB!=null?fmtT(loopB):'–:––');
+}
+let tr=0;
+function trAdj(d){ tr+=d; document.getElementById('trVal').textContent=(tr>0?'+':'')+tr+' st';
+  toast('mock: every chord shifts '+(tr>0?'+':'')+tr+' semitone'+(Math.abs(tr)===1?'':'s')); }
+const STRUMS=[
+  ['AUTO · SMART','↓ · ↓↑ · ↑↓↑ ·','detected from the song\'s feel (133 BPM, driving)'],
+  ['FOLK','↓ ↓↑ ·↑ ↓↑','the campfire standard'],
+  ['COUNTRY','↓ · ↓ ↑ ↓ ·','boom-chick feel'],
+  ['ROCK 8THS','↓↑ ↓↑ ↓↑ ↓↑','straight drive'],
+  ['REGGAE','· ↑ · ↑','upstroke skank']];
+let strumIdx=0;
+function applyStrum(){
+  const [nm,pat,sub]=STRUMS[strumIdx];
+  document.getElementById('strumPat').textContent=pat;
+  document.getElementById('strumName').textContent=(strumIdx===0?sub:nm+' — '+sub);
+  document.getElementById('strumAuto').classList.toggle('on',strumIdx===0);
+}
+function setStrum(i){ strumIdx=i; applyStrum(); toast('smart strum re-detected for this song'); }
+function cycleStrum(d){ strumIdx=(strumIdx+d+STRUMS.length)%STRUMS.length; applyStrum();
+  toast(strumIdx===0?'back to AUTO smart strum':'strum: '+STRUMS[strumIdx][0]); }
+function region(){
+  const r=document.getElementById('region');
+  if(loopA!=null&&loopB!=null){ r.style.display='block'; r.style.left=loopA+'%'; r.style.width=(loopB-loopA)+'%'; }
+  else r.style.display='none';
+}
+function setIn(){ loopA=pos; if(loopB!=null&&loopB<=loopA) loopB=null; region(); stamp(); toast('loop IN set at '+fmtT(pos)); }
+function setOut(){ if(loopA==null) loopA=Math.max(0,pos-10); loopB=pos; region(); stamp(); toast('loop OUT at '+fmtT(pos)+' — playback wraps inside the cyan region'); }
+function clearLoop(){ loopA=loopB=null; region(); stamp(); toast('loop cleared'); }
+function saveLoop(){
+  if(loopA==null||loopB==null){ toast('set IN and OUT first, then save'); return; }
+  const el=document.getElementById('savedLoops');
+  if(el) el.insertAdjacentHTML('afterbegin',
+    'Turmoil loop ('+fmtT(loopA)+'–'+fmtT(loopB)+') · just now<br>');
+  toast('💾 saved: Turmoil loop '+fmtT(loopA)+'–'+fmtT(loopB)+' → it\'s in MY STUFF now');
+}
+function openLoop(){
+  loopOn=true; document.getElementById('loopMode').classList.add('on');
+  if(loopA==null||loopB==null){ loopA=Math.max(0,pos-6); loopB=Math.min(100,pos+8); region(); stamp(); }
+  if(!playing) togglePlay();
+}
+function closeLoop(){ loopOn=false; document.getElementById('loopMode').classList.remove('on'); }
+document.getElementById('map').addEventListener('click',e=>{
+  const r=e.currentTarget.getBoundingClientRect();
+  pos=Math.max(0,Math.min(100,(e.clientX-r.left)/r.width*100));
+  document.getElementById('mph').style.left=pos+'%';
+  renderRibbon(); syncStage();
+  toast('jumped to '+Math.round(pos)+'% of the song');
+});
+(function(){ const m=document.getElementById('map');
+  for(let i=0;i<46;i++){ const b=document.createElement('i');
+    b.style.left=(1+i*2.12)+'%'; b.style.height=(8+Math.abs(Math.sin(i*.7))*62)+'px'; m.appendChild(b); } })();
+
+/* ═══ LEARN v7: REAL music theory — any key × any scale on a live fretboard ═══ */
+const NOTES=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];
+const SCALES={
+  'MAJOR':[0,2,4,5,7,9,11],'MINOR':[0,2,3,5,7,8,10],'DORIAN':[0,2,3,5,7,9,10],
+  'PHRYGIAN':[0,1,3,5,7,8,10],'MIXOLYDIAN':[0,2,4,5,7,9,10],
+  'PENTATONIC':[0,3,5,7,10],'BLUES':[0,3,5,6,7,10],'HARMONIC MINOR':[0,2,3,5,7,8,11]};
+const TUNING=[[4,'E'],[9,'A'],[2,'D'],[7,'G'],[11,'B'],[4,'e']];   // low → high
+let selKey='D', selScale='PENTATONIC';
+function buildChips(){
+  const kc=document.getElementById('keychips');
+  kc.innerHTML=NOTES.map(n=>'<span class="kc'+(n===selKey?' on':'')+'" onclick="setKey(\''+n+'\')">'+n+'</span>').join('');
+  const sc=document.getElementById('scalechips');
+  sc.innerHTML=Object.keys(SCALES).map(s=>'<span class="kc'+(s===selScale?' on':'')+'" onclick="setScale(\''+s+'\')">'+s+'</span>').join('');
+}
+function setKey(k){ selKey=k; buildChips(); drawHfb(); toast(selKey+' '+selScale+' on the neck'); }
+function setScale(s){ selScale=s; buildChips(); drawHfb(); toast(selKey+' '+selScale+' on the neck'); }
+function askScale(k,s){ selKey=k; selScale=s; lpane('scales'); buildChips(); drawHfb();
+  document.getElementById('hfb').scrollIntoView({block:'center',behavior:'smooth'});
+  toast(k+' '+s+' — loaded from the explorer'); }
+function scaleSet(){ const r=NOTES.indexOf(selKey); return new Set(SCALES[selScale].map(i=>(r+i)%12)); }
+function neckHTML(set, rootPc){
+  // real guitar anatomy: [string name | OPEN notes | NUT bar | fret 1 | fret 2 | …]
+  let h='<table>';
+  [...TUNING].reverse().forEach(([pc,nm])=>{
+    h+='<tr><td class="sn">'+nm+'</td>';
+    const open=pc%12;
+    h+='<td class="open">'+(set.has(open)?'<span class="ndot'+(open===rootPc?' root':'')+'">'+NOTES[open]+'</span>':'')+'</td>';
+    for(let f=1;f<=12;f++){
+      const note=(pc+f)%12;
+      h+='<td>'+(set.has(note)?'<span class="ndot'+(note===rootPc?' root':'')+'">'+NOTES[note]+'</span>':'')+'</td>';
+    }
+    h+='</tr>';
+  });
+  h+='<tr class="fnums"><td></td><td style="text-align:center"><span>open</span></td>';
+  for(let f=1;f<=12;f++) h+='<td style="text-align:center"><span>'+f+'</span></td>';
+  h+='</tr></table>';
+  return h;
+}
+function drawHfb(){
+  const set=scaleSet(), rootPc=NOTES.indexOf(selKey);
+  document.getElementById('hfbTitle').textContent=selKey+' '+selScale+' · full neck · blue = root';
+  document.getElementById('hfb').innerHTML=neckHTML(set, rootPc);
+}
+function openVBoard(){
+  const set=scaleSet(), rootPc=NOTES.indexOf(selKey);
+  document.getElementById('vTitle').textContent=selKey+' '+selScale;
+  // fill the screen: row height is set in CSS from 100vh; fret count adapts to tall screens
+  const frets=window.innerHeight>900?15:12;
+  let h='<table><tr><td class="fn" style="border:none"></td>';
+  TUNING.forEach(([,nm])=>h+='<td class="vfb-sn" style="border:none">'+nm+'</td>');
+  h+='</tr>';
+  // OPEN strings row — sits ABOVE the nut, like a real headstock side
+  h+='<tr class="oprow"><td class="fn" style="border-bottom:6px solid #8b8ba3">open</td>';
+  TUNING.forEach(([pc])=>{
+    const note=pc%12;
+    h+='<td>'+(set.has(note)?'<span class="ndot'+(note===rootPc?' root':'')+'">'+NOTES[note]+'</span>':'')+'</td>';
+  });
+  h+='</tr>';
+  for(let f=1;f<=frets;f++){
+    h+='<tr><td class="fn">'+f+'</td>';
+    TUNING.forEach(([pc])=>{
+      const note=(pc+f)%12;
+      h+='<td>'+(set.has(note)?'<span class="ndot'+(note===rootPc?' root':'')+'">'+NOTES[note]+'</span>':'')+'</td>';
+    });
+    h+='</tr>';
+  }
+  h+='</table>';
+  document.getElementById('vTbl').innerHTML=h;
+  document.getElementById('vBoard').classList.add('on');
+}
+/* song-chord boards: 3 voicings per chord (open / barre / CAGED), ‹ › cycles, mode chips jump all */
+const CHORD_VOICINGS=[
+  ['F (as D shape)',[
+    ['open · capo 3',[[2,0],[3,1],[2,2]],[1,2]],
+    ['barre @ 1st',[[0,1],[1,3],[2,3],[3,2],[4,1],[5,1]],[0,1]],
+    ['CAGED · E-shape @ 1',[[0,1],[3,2],[4,3]],[0,1]]]],
+  ['B♭ (as G shape)',[
+    ['open · capo 3',[[0,2],[1,0],[5,2]],[5,2]],
+    ['barre @ 6th',[[0,1],[1,3],[2,3],[3,2]],[0,1]],
+    ['CAGED · A-shape @ 1',[[1,1],[2,3],[3,3],[4,3]],[1,1]]]],
+  ['E♭ (as C shape)',[
+    ['open · capo 3',[[1,1],[3,0],[4,2]],[4,2]],
+    ['barre @ 6th',[[0,2],[1,1],[2,3],[3,3]],[1,1]],
+    ['CAGED · G-shape @ 3',[[0,3],[1,2],[5,3]],[0,3]]]],
+  ['Fm (as Dm shape)',[
+    ['open · capo 3',[[0,0],[2,1],[3,2]],[1,2]],
+    ['barre @ 1st',[[0,1],[1,3],[2,3],[4,1],[5,1]],[0,1]],
+    ['CAGED · Em-shape @ 1',[[0,1],[3,2],[4,2]],[0,1]]]]
+];
+const MODE_IDX={'OPEN':0,'BARRE':1,'CAGED':2};
+let vSel=[0,0,0,0];
+function setVmode(el,mode){
+  document.querySelectorAll('#lpane-chords .kc').forEach(k=>k.classList.remove('on'));
+  el.classList.add('on');
+  vSel=vSel.map(()=>MODE_IDX[mode]);
+  drawChordBoards();
+  toast(mode+' voicings for every chord in the song');
+}
+function cycleV(i,d){ vSel[i]=(vSel[i]+d+3)%3; drawChordBoards(); }
+function drawChordBoards(){
+  const fbrow=document.getElementById('fbrow');
+  fbrow.innerHTML='';
+  CHORD_VOICINGS.forEach(([nm,vars],i)=>{
+    const [sub,dots,root]=vars[vSel[i]];
+    const div=document.createElement('div'); div.className='vfb';
+    let rows='';
+    for(let f=0;f<4;f++){ rows+='<tr>';
+      for(let s=0;s<6;s++){
+        const d=dots.find(([ds,df])=>ds===s&&df===f);
+        const isRoot=root[0]===s&&root[1]===f;
+        rows+='<td>'+(d?('<span class="dot'+(isRoot?' root':'')+'"></span>'):'')+'</td>';
+      } rows+='</tr>'; }
+    div.innerHTML='<div class="nm" style="display:flex;align-items:center;justify-content:center;gap:8px">'
+      +'<span class="kc" style="padding:2px 7px" onclick="cycleV('+i+',-1)">‹</span>'
+      +'<span>'+nm+'</span>'
+      +'<span class="kc" style="padding:2px 7px" onclick="cycleV('+i+',1)">›</span></div>'
+      +'<table>'+rows+'</table><div class="cap2">'+sub+' · '+(vSel[i]+1)+'/3</div>';
+    fbrow.appendChild(div);
+  });
+}
+drawChordBoards();
+buildChips(); drawHfb();
+// ── backing tracks: 12 keys × major/minor × 3 scrollable vibes ──
+let btKey='A', btMode='MINOR', btIdx=0;
+const BT_VIBES={MINOR:[['Slow Blues',70],['Rock Jam',120],['Lofi Chill',90]],
+                MAJOR:[['Country Groove',95],['Pop Jam',115],['Acoustic Campfire',80]]};
+function btChips(){
+  const el=document.getElementById('btKeys');
+  el.innerHTML=NOTES.map(n=>'<span class="kc'+(n===btKey?' on':'')+'" onclick="btKey=\''+n+'\';btIdx=0;renderBT()">'+n+'</span>').join('');
+  document.getElementById('btMaj').classList.toggle('on',btMode==='MAJOR');
+  document.getElementById('btMin').classList.toggle('on',btMode==='MINOR');
+}
+function renderBT(){
+  btChips();
+  const ca=document.getElementById('coachAsk');
+  if(ca) ca.placeholder='e.g. give me a lick in '+btKey+' '+btMode.toLowerCase()+' on the high strings…';
+  // the embedded neck: same engine + same anatomy as LEARN (open | NUT | frets)
+  const root=NOTES.indexOf(btKey), set=new Set(SCALES[btMode].map(i=>(root+i)%12));
+  const bn=document.getElementById('btNeck'); if(bn) bn.innerHTML=neckHTML(set, root);
+  const vibes=BT_VIBES[btMode];
+  const [nm,bpm]=vibes[btIdx];
+  document.getElementById('btList').innerHTML=
+    '<div style="display:flex;align-items:center;gap:10px">'
+    +'<span class="kc" style="padding:4px 10px" onclick="btIdx=(btIdx+2)%3;renderBT()">‹</span>'
+    +'<div style="flex:1;text-align:center"><div style="font-family:Orbitron;font-size:.85rem;color:#fff">'+btKey+' '+btMode+' · '+nm+'</div>'
+    +'<div style="font-size:.6rem;color:var(--dim)">'+bpm+' BPM · option '+(btIdx+1)+'/3 · the LEARN neck shows this scale</div></div>'
+    +'<span class="kc" style="padding:4px 10px" onclick="btIdx=(btIdx+1)%3;renderBT()">›</span>'
+    +'<button class="btn primary" onclick="toast(\'▶ '+btKey+' '+btMode.toLowerCase()+' — '+nm+' at '+bpm+' BPM · metronome locked in, playing together\')">▶ PLAY</button></div>';
+}
+function goSong(name){
+  nav('play');
+  toast('mock: loading '+name+' — chords, lyrics & key swap in');
+}
+function goLoop(a,b,name){
+  nav('play'); loopA=a; loopB=b; pos=a; region(); stamp();
+  document.getElementById('mph').style.left=pos+'%'; renderRibbon(); syncStage();
+  if(!playing) togglePlay();
+  toast('▶ '+name+' — looping the saved section');
+}
+function metroSet(v){
+  v=Math.max(40,Math.min(220,parseInt(v)||133));
+  const lock=document.getElementById('metroLock');
+  if(lock.checked){ lock.checked=false; document.getElementById('metroFree').style.display='flex';
+    toast('free mode — your tempo (re-check 🔗 to lock back to the song)'); }
+  document.getElementById('metroNum').value=v;
+  document.getElementById('metroSl').value=Math.min(220,Math.max(40,v));
+}
+let _lickSeq=[], _lickTimer=null;
+function coachLick(q){
+  const root=NOTES.indexOf(btKey);
+  const iv=btMode==='MINOR'?[0,3,5,7,10]:[0,2,4,7,9];   // pentatonic pool of the CURRENT jam
+  const pool=iv.map(i=>(root+i)%12);
+  const strings=[[4,'e'],[11,'B']];                      // high strings, like the ask
+  const picks=[];
+  strings.forEach(([pc,nm],si)=>{ for(let f=3;f<=10;f++){ const n=(pc+f)%12;
+    if(pool.includes(n)) picks.push([si,f,NOTES[n],n===root]); }});
+  picks.sort((a,b)=>(a[0]!==b[0])?(b[0]-a[0]):(a[1]-b[1]));   // B string up, then e string up
+  const lick=picks.filter((_,i)=>i%2===0).slice(0,6);
+  document.getElementById('lickSay').textContent='Your '+btKey+' '+btMode.toLowerCase()+' lick on the high strings — climb it, then land on the root:';
+  let h='<table>';
+  strings.forEach(([pc,nm],si)=>{
+    h+='<tr><td class="sn">'+nm+'</td><td class="open"></td>';
+    for(let f=1;f<=12;f++){
+      const hit=lick.findIndex(([ls,lf])=>ls===si&&lf===f);
+      h+='<td>'+(hit>=0?'<span class="ndot dimmed" id="lick'+hit+'">'+lick[hit][2]+'</span>':'')+'</td>';
+    }
+    h+='</tr>';
+  });
+  h+='<tr class="fnums"><td></td><td style="text-align:center"><span>open</span></td>';
+  for(let f=1;f<=12;f++) h+='<td style="text-align:center"><span>'+f+'</span></td>';
+  h+='</tr></table>';
+  document.getElementById('lickBoard').innerHTML=h;
+  document.getElementById('lickOut').style.display='block';
+  _lickSeq=lick.map((_,i)=>i);
+  playLick();
+  toast('🤖 lick built from your '+btKey+' '+btMode.toLowerCase()+' jam');
+}
+function playLick(){
+  clearInterval(_lickTimer);
+  _lickSeq.forEach(i=>{ const d=document.getElementById('lick'+i); if(d){d.classList.remove('lit');d.classList.add('dimmed');} });
+  let i=0;
+  _lickTimer=setInterval(()=>{
+    if(i>0){ const p=document.getElementById('lick'+(i-1)); if(p) p.classList.remove('lit'); }
+    if(i>=_lickSeq.length){ clearInterval(_lickTimer);
+      _lickSeq.forEach(j=>{ const d=document.getElementById('lick'+j); if(d) d.classList.remove('dimmed'); }); return; }
+    const d=document.getElementById('lick'+i); if(d){ d.classList.remove('dimmed'); d.classList.add('lit'); }
+    i++;
+  },420);
+}
+function goScale(){
+  selKey=btKey; selScale=(btMode==='MINOR')?'MINOR':'MAJOR';
+  lpane('scales'); buildChips(); drawHfb();   // LEARN stays in sync for later
+  openVBoard();                                // overlay ON TOP of practice — close = back to practice
+  toast(btKey+' '+btMode.toLowerCase()+' on the big board — track & metronome still going · tap to return to PRACTICE');
+}
+function btSearch(q){
+  const m=(q||'').trim().toUpperCase().match(/^([A-G][♯#♭B]?)\s*(MINOR|MAJOR|MIN|MAJ|M)?/);
+  if(m){ btKey=m[1].replace('#','♯'); if(NOTES.indexOf(btKey)<0) btKey='A';
+    btMode=(m[2]&&m[2][0]==='M'&&m[2]!=='MAJOR'&&m[2]!=='MAJ')?'MINOR':(m[2]&&m[2].startsWith('MAJ'))?'MAJOR':'MINOR';
+    btIdx=0; renderBT(); toast(btKey+' '+btMode.toLowerCase()+' — 3 options'); }
+  else toast('try a key, like: a minor');
+}
+renderBT();
+renderRibbon(); syncStage();
+</script>
+</body></html>
