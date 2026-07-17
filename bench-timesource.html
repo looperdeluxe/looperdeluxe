@@ -73,13 +73,18 @@ function makeWav() {
 
 async function contractSuite(tbl, src, clock, { fineRates }) {
   clock.setSource(src); clock.start();
-  src.play(); await sleep(2500);
+  src.play();
+  // patient start: buffering IS starting — poll up to 8s (a flat 2.5s failed a
+  // healthy Mac run that was still loading the video)
+  const t0Deadline = performance.now() + 8000;
+  while (src.state() !== 'playing' && performance.now() < t0Deadline) await sleep(250);
   if (src.state() !== 'playing') {
-    row(tbl, 'T0 playback started', false, `state=${src.state()} — playback blocked (iOS gesture policy?)`);
+    row(tbl, 'T0 playback started', false, `state=${src.state()} after 8s — blocked or dead`);
     clock.stop();
     return;
   }
   row(tbl, 'T0 playback started', true, 'state=playing');
+  await sleep(1200);
 
   // T1 monotonic + T2 smooth (stair-step detector — proves interpolation)
   const samples = [];
