@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v35 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v36 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -212,7 +212,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 #loopLyric .line.up1 .ich,#loopLyric .line.up2 .ich{color:var(--purple);background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4);animation:none}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v35 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v36 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -581,22 +581,26 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 <script>
 // ── first-time tour: one feature at a time, spotlit, NEXT to advance ──
 const TOUR=[
-  ['#bigPlay','This is the whole app in one button — press ▶ and the song plays with everything synced.'],
-  ['.ribbon','Chords flow toward the white line. When a chord crosses it, that\'s your change — right now.'],
-  ['#map','The whole song\'s loud and quiet parts. Click anywhere to jump. Your loop shows here in cyan.'],
-  ['#loopRowMain','Mark IN and OUT around a hard part — it repeats until you own it. 💾 saves it forever.'],
-  ['#practiceRow','STEP-UP: practice a hard part SLOW — say 70% speed. Every time the loop repeats, it quietly adds +4%. A few passes later you\'re playing it at full speed without noticing the climb. It stops at 100%, never past.'],
-  ['#practiceRow','GAP: without it, the loop restarts instantly and your hands never reset. Turn it on and the song PAUSES between passes with a live countdown — 1.5… 0.8… 0.0 — so you breathe, reset your fingers, and come in clean every time.'],
-  ['#strumRow','The strumming pattern, auto-picked for this song\'s feel. ‹ › to choose your own.'],
-  ['#stagePanel','FULL CHART = the whole song like a tab sheet. STAGE = it comes alive, chord popping on its word.'],
-  ['#tourBtn','That\'s the core. ⭐ FEATURES in the sidebar tours the rest — stems, coach, scales. Go play.']];
+  ['#bigPlay','Press ▶ and the song plays — chords, lyrics, waveform, all synced to the music.','play'],
+  ['.bar .btn.chords','🎸 GET CHORDS — if a song ever loads without its chords, this one button fetches them from the library.','play'],
+  ['.ribbon','Chords flow toward the white line. When one crosses it — that\'s your change, right now.','play'],
+  ['#map','The whole song\'s loud and quiet. Click anywhere to jump. Your loop paints here in cyan.','play'],
+  ['#loopRowMain','Hard part? ◀ IN, OUT ▶ — it repeats until you own it. 💾 SAVE keeps it forever.','play'],
+  ['#practiceRow','🚀 SPEED-UP: start slow — every pass adds +4% until you\'re back at 100%. GAP pauses between passes with a countdown: 1.5… 0.0.','play'],
+  ['#stagePanel','FULL CHART = study the whole song. STAGE = it comes alive, chords popping on their words. 🎤 KARAOKE hides chords. ⛶ EXPAND = phone view.','play'],
+  ['#view-metro .panel','⏱ PRACTICE: a metronome that locks to the song (or runs free), backing tracks in any key, and a coach that writes you licks — with the scale right there while you jam.','metro'],
+  ['#view-learn .panel','🎼 LEARN: any key × any scale on a live neck, flip it fullscreen-vertical, plus every chord shape in the song — open, barre, or CAGED.','learn'],
+  ['#view-coach .panel','🤖 COACH: ask anything about the song you\'re playing — theory, easier voicings, why that chord feels dark.','coach'],
+  ['#view-stuff .panel','📁 MY STUFF: your saved loops, songs and setlists — tap any one and you\'re back in it instantly.','stuff'],
+  ['#tourBtn','That\'s the lay of the land. ⭐ FEATURES in the sidebar lists everything, tappable. Now go play something.','play']];
 let tourI=-1;
 function startTour(){ nav('play'); tourI=-1; document.getElementById('tourDim').classList.add('on'); tourNext(); }
 function tourNext(){
   document.querySelectorAll('.spot').forEach(e=>e.classList.remove('spot'));
   tourI++;
   if(tourI>=TOUR.length){ endTour(); return; }
-  const [sel,txt]=TOUR[tourI];
+  const [sel,txt,view]=TOUR[tourI];
+  if(view) nav(view);
   const el=document.querySelector(sel);
   if(!el){ tourNext(); return; }
   el.classList.add('spot');
