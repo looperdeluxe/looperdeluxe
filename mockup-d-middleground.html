@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v29 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v30 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -207,7 +207,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 #loopLyric .line.up1 .ich,#loopLyric .line.up2 .ich{color:var(--purple);background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4);animation:none}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v29 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v30 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -238,6 +238,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
       <div class="card" onclick="event.stopPropagation();helpGo('coach',null,'#view-coach .panel')"><b>🤖 AI COACH</b>Ask anything about the song you're playing — theory, voicings, why it sounds the way it does.</div>
       <div class="card" onclick="event.stopPropagation();helpGo('play','versions','#pane-versions .card')"><b>👥 VERSIONS &amp; TABS</b>Community charts, or upload your own tab — it becomes playable, synced to the song.</div>
       <div class="card" onclick="event.stopPropagation();helpGo('play','stage','#stagePanel .tabs .tab:last-child')"><b>⛶ EXPAND</b>The stage, fullscreen. Current line pinned to the top. Built for the phone on your stand.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('metro',null,'#view-metro .panel')"><b>⏱ METRONOME &amp; BACKING TRACKS → TAP TO TRY</b>Lock the click to the song, or free-run any tempo and tone. Pick any key — three backing-track vibes each — and jam with the LEARN scales.</div>
     </div>
   </div>
 </div>
@@ -265,6 +266,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
     <div class="nav" id="nav-learn" onclick="nav('learn')">🎼 <span class="lbl">LEARN</span></div>
     <div class="nav" id="nav-coach" onclick="nav('coach')">🤖 <span class="lbl">COACH</span></div>
     <div class="nav" id="nav-stuff" onclick="nav('stuff')">📁 <span class="lbl">MY STUFF</span></div>
+    <div class="nav" id="nav-metro" onclick="nav('metro')">⏱ <span class="lbl">METRONOME</span></div>
     <div class="nav" onclick="document.getElementById('helpOv').classList.add('on')">⭐ <span class="lbl">FEATURES</span></div>
     <div class="nav" id="nav-settings" onclick="nav('settings')">⚙ <span class="lbl">SETTINGS</span></div>
     <div class="foot">Every feature keeps a home — one hop away.</div>
@@ -437,8 +439,18 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
     <div class="view" id="view-stuff">
       <div class="panel" style="flex:1"><div class="ptitle">📁 MY STUFF · loops, songs, setlists · your practice room</div>
         <div class="cardgrid">
+          <div class="card"><b>💾 SAVED LOOPS</b><span id="savedLoops"></span>Turmoil solo (2:41–3:05) · NHF bridge (3:10–3:44) · CYS intro ×3<div style="margin-top:6px"><button class="btn" onclick="toast('mock: loop loaded + playing')">▶ PLAY LOOP</button></div></div>
+          <div class="card"><b>★ SAVED SONGS · tap ✕ to remove</b><span class="ssong">Turmoil &amp; Tinfoil <b style="cursor:pointer;color:#f87171" onclick="this.parentElement.remove();toast('removed from saved songs')">✕</b></span><br><span class="ssong">No Hard Feelings <b style="cursor:pointer;color:#f87171" onclick="this.parentElement.remove();toast('removed from saved songs')">✕</b></span><br><span class="ssong">Can't You See <b style="cursor:pointer;color:#f87171" onclick="this.parentElement.remove();toast('removed from saved songs')">✕</b></span><br><span class="ssong">Mercy <b style="cursor:pointer;color:#f87171" onclick="this.parentElement.remove();toast('removed from saved songs')">✕</b></span></div>
+          <div class="card"><b>🎵 SETLIST</b>Open-mic Thursday: 4 songs · auto-advance on</div>
+        </div></div>
+    </div>
+
+    <!-- ════ METRONOME ════ -->
+    <div class="view" id="view-metro">
+      <div class="panel" style="flex:1"><div class="ptitle">⏱ METRONOME &amp; BACKING TRACKS · the practice room</div>
+        <div class="cardgrid">
           <div class="card"><b>⏱ METRONOME</b>
-            <div style="font-family:Orbitron;font-size:1.3rem;color:var(--cyan);text-shadow:0 0 10px rgba(34,211,238,.5);margin:4px 0" id="metroBpm">133 BPM</div>
+            <div style="font-family:Orbitron;font-size:1.5rem;color:var(--cyan);text-shadow:0 0 10px rgba(34,211,238,.5);margin:4px 0" id="metroBpm">133 BPM</div>
             <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:6px">
               <input type="checkbox" id="metroLock" checked style="accent-color:#22d3ee"
                 onchange="document.getElementById('metroFree').style.display=this.checked?'none':'flex';
@@ -456,20 +468,19 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
             </div>
             <button class="btn primary" onclick="toast('mock: tick… tick… tick…')">▶ START</button>
           </div>
-          <div class="card"><b>🎼 BACKING TRACKS</b>Pick a vibe, jam over it — pairs with the metronome and the LEARN scales.
-            <div style="display:flex;gap:5px;flex-wrap:wrap;margin:8px 0">
-              <span class="kc" onclick="toast('mock: ▶ A minor backing track')">A MINOR</span>
-              <span class="kc" onclick="toast('mock: ▶ E minor backing track')">E MINOR</span>
-              <span class="kc" onclick="toast('mock: ▶ D major backing track')">D MAJOR</span>
-              <span class="kc" onclick="toast('mock: ▶ G major backing track')">G MAJOR</span>
-              <span class="kc" onclick="toast('mock: ▶ blues in A backing track')">BLUES IN A</span>
+          <div class="card" style="grid-column:1/-1"><b>🎼 BACKING TRACKS · any key, three vibes each, scroll with ‹ ›</b>
+            <div style="display:flex;gap:8px;margin:8px 0">
+              <input style="flex:1;background:#0a0a14;border:1px solid var(--border);border-radius:8px;color:#fff;padding:8px 11px;font-family:inherit;font-size:.7rem" placeholder="🔍 search… e.g. 'a minor'" onkeydown="if(event.key==='Enter'){btSearch(this.value);}">
             </div>
-            <span style="font-size:.58rem;color:var(--dim)">tap one → the LEARN neck shows its scale, the metronome keeps your time</span>
+            <div class="keychips" id="btKeys"></div>
+            <div style="display:flex;gap:6px;margin:4px 0 8px">
+              <span class="kc" id="btMaj" onclick="btMode='MAJOR';renderBT()">MAJOR</span>
+              <span class="kc on" id="btMin" onclick="btMode='MINOR';renderBT()">MINOR</span>
+            </div>
+            <div id="btList"></div>
           </div>
-          <div class="card"><b>💾 SAVED LOOPS</b><span id="savedLoops"></span>Turmoil solo (2:41–3:05) · NHF bridge (3:10–3:44) · CYS intro ×3<div style="margin-top:6px"><button class="btn" onclick="toast('mock: loop loaded + playing')">▶ PLAY LOOP</button></div></div>
-          <div class="card"><b>★ SAVED SONGS</b>Turmoil &amp; Tinfoil · No Hard Feelings · Can't You See · Mercy</div>
-          <div class="card"><b>🎵 SETLIST</b>Open-mic Thursday: 4 songs · auto-advance on</div>
-        </div></div>
+        </div>
+      </div>
     </div>
 
     <!-- ════ SETTINGS ════ -->
@@ -1000,6 +1011,36 @@ function drawChordBoards(){
 }
 drawChordBoards();
 buildChips(); drawHfb();
+// ── backing tracks: 12 keys × major/minor × 3 scrollable vibes ──
+let btKey='A', btMode='MINOR', btIdx=0;
+const BT_VIBES={MINOR:[['Slow Blues',70],['Rock Jam',120],['Lofi Chill',90]],
+                MAJOR:[['Country Groove',95],['Pop Jam',115],['Acoustic Campfire',80]]};
+function btChips(){
+  const el=document.getElementById('btKeys');
+  el.innerHTML=NOTES.map(n=>'<span class="kc'+(n===btKey?' on':'')+'" onclick="btKey=\''+n+'\';btIdx=0;renderBT()">'+n+'</span>').join('');
+  document.getElementById('btMaj').classList.toggle('on',btMode==='MAJOR');
+  document.getElementById('btMin').classList.toggle('on',btMode==='MINOR');
+}
+function renderBT(){
+  btChips();
+  const vibes=BT_VIBES[btMode];
+  const [nm,bpm]=vibes[btIdx];
+  document.getElementById('btList').innerHTML=
+    '<div style="display:flex;align-items:center;gap:10px">'
+    +'<span class="kc" style="padding:4px 10px" onclick="btIdx=(btIdx+2)%3;renderBT()">‹</span>'
+    +'<div style="flex:1;text-align:center"><div style="font-family:Orbitron;font-size:.85rem;color:#fff">'+btKey+' '+btMode+' · '+nm+'</div>'
+    +'<div style="font-size:.6rem;color:var(--dim)">'+bpm+' BPM · option '+(btIdx+1)+'/3 · the LEARN neck shows this scale</div></div>'
+    +'<span class="kc" style="padding:4px 10px" onclick="btIdx=(btIdx+1)%3;renderBT()">›</span>'
+    +'<button class="btn primary" onclick="toast(\'mock: ▶ '+btKey+' '+btMode.toLowerCase()+' — '+nm+'\')">▶ PLAY</button></div>';
+}
+function btSearch(q){
+  const m=(q||'').trim().toUpperCase().match(/^([A-G][♯#♭B]?)\s*(MINOR|MAJOR|MIN|MAJ|M)?/);
+  if(m){ btKey=m[1].replace('#','♯'); if(NOTES.indexOf(btKey)<0) btKey='A';
+    btMode=(m[2]&&m[2][0]==='M'&&m[2]!=='MAJOR'&&m[2]!=='MAJ')?'MINOR':(m[2]&&m[2].startsWith('MAJ'))?'MAJOR':'MINOR';
+    btIdx=0; renderBT(); toast(btKey+' '+btMode.toLowerCase()+' — 3 options'); }
+  else toast('try a key, like: a minor');
+}
+renderBT();
 renderRibbon(); syncStage();
 </script>
 </body></html>
