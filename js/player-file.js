@@ -36,7 +36,12 @@ export function createFileSource(container) {
       if (media && 'preservesPitch' in media) media.preservesPitch = true;
       setState('ready');
     },
-    play() { ws && ws.play(); },
+    play() {
+      if (!ws) return;
+      const r = ws.play();
+      // iOS blocks play() outside a fresh user gesture — surface it, never swallow it
+      if (r && r.catch) r.catch((e) => console.error('[file] play blocked', e));
+    },
     pause() { ws && ws.pause(); },
     seek(t) { if (ws && ws.getDuration()) ws.setTime(t); },
     async rate(r) {
