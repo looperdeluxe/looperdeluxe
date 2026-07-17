@@ -101,13 +101,15 @@ async function contractSuite(tbl, src, clock, { fineRates }) {
   const t3 = src.now();
   row(tbl, 'T3 seek(30) lands', t3 > 29 && t3 < 33.5, `now()=${t3.toFixed(2)}s`);
 
-  // T4 rate request-and-verify + measured advance (500ms settle: rate changes
-  // rebuffer briefly on both players — measure steady-state, not the hiccup)
+  // T4 rate request-and-verify + measured advance (long settle + window: rate
+  // changes rebuffer briefly; iOS run showed 0.563× ≈ 0.75² — instrument every
+  // layer's idea of the rate to catch double-application)
   const actual = await src.rate(0.75);
-  await sleep(500);
-  const a0 = src.now(), w0 = performance.now(); await sleep(2400);
+  await sleep(1500);
+  const a0 = src.now(), w0 = performance.now(); await sleep(4000);
   const ratio = (src.now() - a0) / ((performance.now() - w0) / 1000);
-  row(tbl, 'T4 rate(0.75) verified', Math.abs(ratio - actual) < 0.15, `player accepted ${actual}, measured advance ${ratio.toFixed(3)}×`);
+  const dbg = src.debugRate ? JSON.stringify(src.debugRate()) : '';
+  row(tbl, 'T4 rate(0.75) verified', Math.abs(ratio - actual) < 0.15, `accepted ${actual}, measured ${ratio.toFixed(3)}× ${dbg}`);
 
   // T5 the 100% cap
   const capped = await src.rate(1.5);

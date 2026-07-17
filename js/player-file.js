@@ -50,6 +50,11 @@ export function createFileSource(container) {
       return curRate;
     },
     now() { return ws ? ws.getCurrentTime() : 0; }, // media-element time IS smooth — no interpolation needed
+    debugRate() { // bench instrumentation: expose every layer's idea of the rate
+      const m = ws && ws.getMediaElement && ws.getMediaElement();
+      return { wsRate: curRate, mediaRate: m ? m.playbackRate : null,
+               preservesPitch: m ? m.preservesPitch : null };
+    },
     state() { return st; },
     duration() { return ws ? ws.getDuration() || 0 : 0; },
     availableRates() { return []; }, // continuous — empty list means "any value ≤ MAX_RATE"
