@@ -121,8 +121,10 @@ async function contractSuite(tbl, src, clock, { fineRates }) {
   row(tbl, 'T6 fine-rate report', null, fine.join('  ') + `  (available: ${src.availableRates().join(',') || 'continuous'})`);
   await src.rate(1);
 
-  // T7 pause freezes now()
-  src.pause(); await sleep(600);
+  // T7 pause freezes now() — after a settle: iOS media keeps trickling ~70ms
+  // after pause() before fully stopping (v5 iPhone run). The contract is
+  // "paused time freezes", not "pause is instantaneous".
+  src.pause(); await sleep(800);
   const p1 = src.now(); await sleep(600); const p2 = src.now();
   row(tbl, 'T7 pause freezes time', Math.abs(p2 - p1) < 0.05, `drift while paused: ${(p2 - p1).toFixed(3)}s`);
 
