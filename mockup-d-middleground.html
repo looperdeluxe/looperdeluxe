@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v31 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v32 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -209,7 +209,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 #loopLyric .line.up1 .ich,#loopLyric .line.up2 .ich{color:var(--purple);background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4);animation:none}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v31 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v32 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -240,7 +240,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
       <div class="card" onclick="event.stopPropagation();helpGo('coach',null,'#view-coach .panel')"><b>🤖 AI COACH</b>Ask anything about the song you're playing — theory, voicings, why it sounds the way it does.</div>
       <div class="card" onclick="event.stopPropagation();helpGo('play','versions','#pane-versions .card')"><b>👥 VERSIONS &amp; TABS</b>Community charts, or upload your own tab — it becomes playable, synced to the song.</div>
       <div class="card" onclick="event.stopPropagation();helpGo('play','stage','#stagePanel .tabs .tab:last-child')"><b>⛶ EXPAND</b>The stage, fullscreen. Current line pinned to the top. Built for the phone on your stand.</div>
-      <div class="card" onclick="event.stopPropagation();helpGo('metro',null,'#view-metro .panel')"><b>⏱ METRONOME &amp; BACKING TRACKS → TAP TO TRY</b>Lock the click to the song, or free-run any tempo and tone. Pick any key — three backing-track vibes each — and jam with the LEARN scales.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('metro',null,'#view-metro .panel')"><b>⏱ PRACTICE → TAP TO TRY</b>Metronome (lock-to-song or free), backing tracks in any key, and a coach that builds licks from whatever you're jamming.</div>
     </div>
   </div>
 </div>
@@ -268,7 +268,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
     <div class="nav" id="nav-learn" onclick="nav('learn')">🎼 <span class="lbl">LEARN</span></div>
     <div class="nav" id="nav-coach" onclick="nav('coach')">🤖 <span class="lbl">COACH</span></div>
     <div class="nav" id="nav-stuff" onclick="nav('stuff')">📁 <span class="lbl">MY STUFF</span></div>
-    <div class="nav" id="nav-metro" onclick="nav('metro')">⏱ <span class="lbl">METRONOME</span></div>
+    <div class="nav" id="nav-metro" onclick="nav('metro')">⏱ <span class="lbl">PRACTICE</span></div>
     <div class="nav" onclick="document.getElementById('helpOv').classList.add('on')">⭐ <span class="lbl">FEATURES</span></div>
     <div class="nav" id="nav-settings" onclick="nav('settings')">⚙ <span class="lbl">SETTINGS</span></div>
     <div class="foot">Every feature keeps a home — one hop away.</div>
@@ -449,7 +449,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 
     <!-- ════ METRONOME ════ -->
     <div class="view" id="view-metro">
-      <div class="panel" style="flex:1"><div class="ptitle">⏱ METRONOME &amp; BACKING TRACKS · the practice room</div>
+      <div class="panel" style="flex:1"><div class="ptitle">⏱ PRACTICE · metronome, backing tracks &amp; your jam coach</div>
         <div class="cardgrid">
           <div class="card"><b>⏱ METRONOME</b>
             <div style="font-family:Orbitron;font-size:1.5rem;color:var(--cyan);text-shadow:0 0 10px rgba(34,211,238,.5);margin:4px 0" id="metroBpm">133 BPM</div>
