@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v30 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v31 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -128,6 +128,8 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
       background:radial-gradient(circle at 35% 30%,#9d6ff0,#6d28d9);color:rgba(240,238,255,.78);font-size:.5rem;font-weight:600;
       display:flex;align-items:center;justify-content:center;box-shadow:0 0 4px rgba(168,85,247,.3)}
 .ndot.root{background:radial-gradient(circle at 35% 30%,#3b82f6,#1e3a8a);color:#c7d9f7;box-shadow:0 0 5px rgba(59,130,246,.35)}
+.ndot.dimmed{opacity:.28;transition:all .25s}
+.ndot.lit{opacity:1;background:radial-gradient(circle at 35% 30%,#67e8f9,#0891b2);color:#032b33;box-shadow:0 0 16px rgba(34,211,238,.95);transform:translate(-50%,-50%) scale(1.25)}
 .hfb .fnums td{border:none;height:14px}
 .hfb .fnums span{font-size:.5rem;color:var(--dim);font-family:Orbitron}
 /* vertical fullscreen board */
@@ -207,7 +209,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 #loopLyric .line.up1 .ich,#loopLyric .line.up2 .ich{color:var(--purple);background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4);animation:none}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v30 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v31 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -478,6 +480,22 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
               <span class="kc on" id="btMin" onclick="btMode='MINOR';renderBT()">MINOR</span>
             </div>
             <div id="btList"></div>
+          </div>
+          <div class="card" style="grid-column:1/-1"><b>🤖 COACH · knows what you're jamming</b>
+            <div style="display:flex;gap:8px;margin:8px 0">
+              <input id="coachAsk" style="flex:1;background:#0a0a14;border:1px solid var(--border);border-radius:8px;color:#fff;padding:9px 11px;font-family:inherit;font-size:.7rem"
+                placeholder="e.g. give me a lick in A minor on the high strings…"
+                onkeydown="if(event.key==='Enter')coachLick(this.value)">
+              <button class="btn primary" onclick="coachLick(document.getElementById('coachAsk').value)">ASK</button>
+            </div>
+            <div id="lickOut" style="display:none">
+              <div style="font-size:.68rem;color:#e4e4e7;margin-bottom:6px" id="lickSay"></div>
+              <div class="hfb" id="lickBoard"></div>
+              <div style="margin-top:8px;display:flex;gap:8px;align-items:center">
+                <button class="btn" onclick="playLick()">↻ REPLAY</button>
+                <span style="font-size:.58rem;color:var(--dim)">watch it — one note at a time, in your key</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1023,6 +1041,8 @@ function btChips(){
 }
 function renderBT(){
   btChips();
+  const ca=document.getElementById('coachAsk');
+  if(ca) ca.placeholder='e.g. give me a lick in '+btKey+' '+btMode.toLowerCase()+' on the high strings…';
   const vibes=BT_VIBES[btMode];
   const [nm,bpm]=vibes[btIdx];
   document.getElementById('btList').innerHTML=
@@ -1032,6 +1052,48 @@ function renderBT(){
     +'<div style="font-size:.6rem;color:var(--dim)">'+bpm+' BPM · option '+(btIdx+1)+'/3 · the LEARN neck shows this scale</div></div>'
     +'<span class="kc" style="padding:4px 10px" onclick="btIdx=(btIdx+1)%3;renderBT()">›</span>'
     +'<button class="btn primary" onclick="toast(\'mock: ▶ '+btKey+' '+btMode.toLowerCase()+' — '+nm+'\')">▶ PLAY</button></div>';
+}
+let _lickSeq=[], _lickTimer=null;
+function coachLick(q){
+  const root=NOTES.indexOf(btKey);
+  const iv=btMode==='MINOR'?[0,3,5,7,10]:[0,2,4,7,9];   // pentatonic pool of the CURRENT jam
+  const pool=iv.map(i=>(root+i)%12);
+  const strings=[[4,'e'],[11,'B']];                      // high strings, like the ask
+  const picks=[];
+  strings.forEach(([pc,nm],si)=>{ for(let f=3;f<=10;f++){ const n=(pc+f)%12;
+    if(pool.includes(n)) picks.push([si,f,NOTES[n],n===root]); }});
+  picks.sort((a,b)=>(a[0]!==b[0])?(b[0]-a[0]):(a[1]-b[1]));   // B string up, then e string up
+  const lick=picks.filter((_,i)=>i%2===0).slice(0,6);
+  document.getElementById('lickSay').textContent='Your '+btKey+' '+btMode.toLowerCase()+' lick on the high strings — climb it, then land on the root:';
+  let h='<table>';
+  strings.forEach(([pc,nm],si)=>{
+    h+='<tr><td class="sn">'+nm+'</td>';
+    for(let f=0;f<=12;f++){
+      const hit=lick.findIndex(([ls,lf])=>ls===si&&lf===f);
+      h+='<td>'+(hit>=0?'<span class="ndot dimmed" id="lick'+hit+'">'+lick[hit][2]+'</span>':'')+'</td>';
+    }
+    h+='</tr>';
+  });
+  h+='<tr class="fnums"><td></td>';
+  for(let f=0;f<=12;f++) h+='<td style="text-align:center"><span>'+(f===0?'nut':f)+'</span></td>';
+  h+='</tr></table>';
+  document.getElementById('lickBoard').innerHTML=h;
+  document.getElementById('lickOut').style.display='block';
+  _lickSeq=lick.map((_,i)=>i);
+  playLick();
+  toast('🤖 lick built from your '+btKey+' '+btMode.toLowerCase()+' jam');
+}
+function playLick(){
+  clearInterval(_lickTimer);
+  _lickSeq.forEach(i=>{ const d=document.getElementById('lick'+i); if(d){d.classList.remove('lit');d.classList.add('dimmed');} });
+  let i=0;
+  _lickTimer=setInterval(()=>{
+    if(i>0){ const p=document.getElementById('lick'+(i-1)); if(p) p.classList.remove('lit'); }
+    if(i>=_lickSeq.length){ clearInterval(_lickTimer);
+      _lickSeq.forEach(j=>{ const d=document.getElementById('lick'+j); if(d) d.classList.remove('dimmed'); }); return; }
+    const d=document.getElementById('lick'+i); if(d){ d.classList.remove('dimmed'); d.classList.add('lit'); }
+    i++;
+  },420);
 }
 function btSearch(q){
   const m=(q||'').trim().toUpperCase().match(/^([A-G][♯#♭B]?)\s*(MINOR|MAJOR|MIN|MAJ|M)?/);
