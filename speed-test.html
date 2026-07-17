@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Looper speed-rate probe — what does the YouTube embed really allow?</title>
+<style>
+body{background:#0b0b14;color:#e4e4e7;font-family:system-ui,sans-serif;max-width:760px;margin:30px auto;padding:0 16px}
+h1{font-size:1.1rem;color:#a5f3fc}
+#verdict{font-size:1.3rem;font-weight:700;padding:14px;border-radius:10px;margin:14px 0}
+#verdict.good{background:rgba(34,197,94,.12);border:1px solid #22c55e;color:#86efac}
+#verdict.bad{background:rgba(239,68,68,.12);border:1px solid #ef4444;color:#fca5a5}
+table{border-collapse:collapse;width:100%;font-size:.85rem}
+td,th{border:1px solid #2a2a3e;padding:6px 10px;text-align:left}
+.ok{color:#86efac}.no{color:#fca5a5}
+#log{font-size:.75rem;color:#9ca3af;white-space:pre-wrap;margin-top:12px}
+</style></head><body>
+<h1>🎛 Speed-rate probe — asks the real embedded player which rates stick</h1>
+<p>Tests <code>setPlaybackRate()</code> on a live embed with fine values (0.85, 0.95, 1.15…), then reads back what the player actually accepted. Video is muted; let it run ~15s.</p>
+<div id="verdict">Probing…</div>
+<table id="results"><tr><th>Requested</th><th>Player reports</th><th>Fine rate stuck?</th></tr></table>
+<div id="yt"></div>
+<div id="log"></div>
+<script>
+const TRY_RATES=[0.85,0.95,1.15,0.7,1.05,0.9];
+const rows=[];let player,idx=-1,avail=[];
+const log=m=>{document.getElementById('log').textContent+=m+'\n'};
+const tag=document.createElement('script');tag.src='https://www.youtube.com/iframe_api';
+document.head.appendChild(tag);
+window.onYouTubeIframeAPIReady=()=>{
+  player=new YT.Player('yt',{height:180,width:320,videoId:'M7lc1UVf-VE',
+    playerVars:{playsinline:1,mute:1},
+    events:{onReady:e=>{e.target.mute();e.target.playVideo();
+      avail=e.target.getAvailablePlaybackRates();
+      log('getAvailablePlaybackRates(): ['+avail.join(', ')+']');
+      setTimeout(nextRate,2500);},
+    onPlaybackRateChange:e=>log('event: rate changed to '+e.data)}});
+};
+function nextRate(){
+  idx++;
+  if(idx>=TRY_RATES.length){finish();return;}
+  const want=TRY_RATES[idx];
+  player.setPlaybackRate(want);
+  setTimeout(()=>{
+    const got=player.getPlaybackRate();
+    const stuck=Math.abs(got-want)<0.001;
+    rows.push([want,got,stuck]);
+    const tr=document.createElement('tr');
+    tr.innerHTML='<td>'+want+'</td><td>'+got+'</td><td class="'+(stuck?'ok">✓ YES':'no">✗ snapped')+'</td>';
+    document.getElementById('results').appendChild(tr);
+    nextRate();
+  },1600);
+}
+function finish(){
+  const fine=rows.filter(r=>r[2]).length;
+  const v=document.getElementById('verdict');
+  if(fine>=4){v.className='good';v.textContent='✅ FINE SPEEDS WORK — the embed accepted '+fine+'/'+rows.length+' in-between rates. Speed bar can offer 0.05 steps (with per-video feature-detect).';}
+  else if(fine>0){v.className='good';v.textContent='🟡 PARTIAL — '+fine+'/'+rows.length+' fine rates stuck. Feature-detect per video; snap the rest.';}
+  else{v.className='bad';v.textContent='❌ SNAPPED — embed only allows ['+avail.join(', ')+']. Speed bar must snap to those for YouTube songs (uploads stay continuous).';}
+  log('DONE. available='+JSON.stringify(avail)+' results='+JSON.stringify(rows));
+}
+</script></body></html>
