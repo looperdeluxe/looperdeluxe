@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v19 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v20 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -37,7 +37,8 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 @keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 @media(max-width:760px){.side{width:56px}.nav span.lbl{display:none}.side .foot{display:none}.bar input{width:120px}}
 .grid{display:grid;grid-template-columns:1.3fr 1fr;gap:12px;flex:1;min-height:0}
-@media(max-width:900px){.grid{grid-template-columns:1fr}}  /* smart detection: phones stack, everything else half-and-half */
+@media(max-width:900px){.grid{grid-template-columns:1fr}
+  .grid>.panel:first-child{order:2}.grid>#stagePanel{order:1}}  /* phones: the SONG comes first, controls below */
 .panel{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:12px;display:flex;flex-direction:column;position:relative}
 .ptitle{font-family:Orbitron;font-size:.56rem;letter-spacing:2px;color:#c4b5fd;margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .cap{font-family:Orbitron;font-size:.5rem;letter-spacing:2px;color:var(--dim);margin:10px 0 4px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -120,7 +121,8 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 /* vertical fullscreen board */
 #vBoard{display:none;position:fixed;inset:0;z-index:55;background:radial-gradient(circle at 50% 30%, #151526, #08080f 75%);
         flex-direction:column;align-items:center;padding:18px;overflow-y:auto;cursor:pointer}
-#vBoard.on{display:flex;animation:fadein .25s ease}
+@keyframes fadeonly{from{opacity:0}to{opacity:1}}
+#vBoard.on{display:flex;animation:fadeonly .2s ease}
 #vBoard h3{font-family:Orbitron;color:#d8b4fe;letter-spacing:2px;font-size:.85rem;margin:4px 0 12px}
 #vBoard table{border-collapse:collapse}
 #vBoard td{border-left:1px solid #34345a;border-bottom:1px solid #23233a;width:min(44px,11vw);height:calc((100vh - 190px)/13);min-height:26px;position:relative}
@@ -183,7 +185,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 #loopLyric .line.up1 .ich,#loopLyric .line.up2 .ich{color:var(--purple);background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4);animation:none}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v19 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v20 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -396,7 +398,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
     <div class="view" id="view-stuff">
       <div class="panel" style="flex:1"><div class="ptitle">📁 MY STUFF · loops, saved songs, setlists</div>
         <div class="cardgrid">
-          <div class="card"><b>💾 SAVED LOOPS</b>Turmoil solo (2:41–3:05) · NHF bridge (3:10–3:44) · CYS intro ×3<div style="margin-top:6px"><button class="btn" onclick="toast('mock: loop loaded + playing')">▶ PLAY LOOP</button></div></div>
+          <div class="card"><b>💾 SAVED LOOPS</b><span id="savedLoops"></span>Turmoil solo (2:41–3:05) · NHF bridge (3:10–3:44) · CYS intro ×3<div style="margin-top:6px"><button class="btn" onclick="toast('mock: loop loaded + playing')">▶ PLAY LOOP</button></div></div>
           <div class="card"><b>★ SAVED SONGS</b>Turmoil &amp; Tinfoil · No Hard Feelings · Can't You See · Mercy</div>
           <div class="card"><b>🎵 SETLIST</b>Open-mic Thursday: 4 songs · auto-advance on</div>
         </div></div>
@@ -670,7 +672,10 @@ function setOut(){ if(loopA==null) loopA=Math.max(0,pos-10); loopB=pos; region()
 function clearLoop(){ loopA=loopB=null; region(); stamp(); toast('loop cleared'); }
 function saveLoop(){
   if(loopA==null||loopB==null){ toast('set IN and OUT first, then save'); return; }
-  toast('💾 saved: Turmoil loop '+fmtT(loopA)+'–'+fmtT(loopB)+' → find it in MY STUFF');
+  const el=document.getElementById('savedLoops');
+  if(el) el.insertAdjacentHTML('afterbegin',
+    'Turmoil loop ('+fmtT(loopA)+'–'+fmtT(loopB)+') · just now<br>');
+  toast('💾 saved: Turmoil loop '+fmtT(loopA)+'–'+fmtT(loopB)+' → it\'s in MY STUFF now');
 }
 function openLoop(){
   loopOn=true; document.getElementById('loopMode').classList.add('on');
