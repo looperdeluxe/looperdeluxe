@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v37 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v38 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -160,7 +160,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 .card{background:var(--panel2);border:1px solid var(--border);border-radius:10px;padding:10px;font-size:.66rem;color:var(--dim);transition:.15s}
 .card:hover{border-color:var(--purple);transform:translateY(-2px)}
 .card b{display:block;font-family:Orbitron;font-size:.56rem;color:#c4b5fd;margin-bottom:5px}
-.scrolllist{max-height:150px;overflow-y:auto;padding-right:4px}
+.scrolllist{max-height:132px;overflow-y:auto;padding-right:4px}  /* ~5 rows, then scroll */
 .srow{cursor:pointer;padding:4px 6px;border-radius:6px;transition:.15s;font-size:.68rem;color:#d4d4d8}
 .srow:hover{background:rgba(124,58,237,.18);color:#fff}
 .cardgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
@@ -170,6 +170,11 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 .bubble{border:1px solid var(--border);border-radius:10px;padding:8px 10px;font-size:.68rem;margin-bottom:8px;max-width:88%}
 .bubble.ai{background:rgba(34,211,238,.06);border-color:rgba(34,211,238,.3)}
 .bubble.me{background:rgba(124,58,237,.12);margin-left:auto}
+.bubble.ex{opacity:.62;position:relative}
+.bubble.ex::before{content:"EXAMPLE";position:absolute;top:-7px;right:8px;font-family:Orbitron;font-size:.44rem;
+  letter-spacing:1px;color:var(--dim);background:var(--panel);border:1px solid var(--border);border-radius:6px;padding:1px 6px}
+.chatdivider{display:flex;align-items:center;gap:10px;margin:12px 0 8px;font-family:Orbitron;font-size:.54rem;letter-spacing:1px;color:var(--cyan)}
+.chatdivider::before,.chatdivider::after{content:"";flex:1;border-top:1px dashed rgba(34,211,238,.35)}
 #tourBtn{position:fixed;bottom:16px;right:16px;z-index:45;font-family:Orbitron;font-size:.6rem;letter-spacing:1px;
   background:linear-gradient(135deg,#7c3aed,#5b21b6);border:1px solid var(--purple);color:#fff;border-radius:20px;
   padding:9px 15px;cursor:pointer;box-shadow:0 0 16px rgba(124,58,237,.5);transition:.2s}
@@ -213,7 +218,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 #loopLyric .line.up1 .ich,#loopLyric .line.up2 .ich{color:var(--purple);background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4);animation:none}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v37 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v38 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -401,8 +406,8 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
           </div>
           <div class="hfb" id="hfb"></div>
           <div class="cap" style="margin-top:12px">TALK TO THE EXPLORER · answers come back as tappable scales</div>
-          <div class="bubble me">What if I want a D minor scale but with a dark feel?</div>
-          <div class="bubble ai">Dark over D minor → two flavors, tap one:<br>
+          <div class="bubble me ex">What if I want a D minor scale but with a dark feel?</div>
+          <div class="bubble ai ex">Dark over D minor → two flavors, tap one:<br>
             <span class="sug" onclick="askScale('D','HARMONIC MINOR')">D HARMONIC MINOR</span> <span style="opacity:.7">raised 7th — tension, flamenco edge</span><br>
             <span class="sug" onclick="askScale('D','PHRYGIAN')">D PHRYGIAN</span> <span style="opacity:.7">flat 2 — pure menace, lean on the E♭</span></div>
           <div style="display:flex;gap:8px;margin-top:6px">
@@ -433,10 +438,11 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
           <span style="color:var(--green)">B♭ ✓ &nbsp;F ✓ &nbsp;E♭ ✗ (heard D♯m)</span>
           <div style="margin-top:8px"><button class="btn primary" onclick="toast('mock: coach listening…')">▶ START LISTENING</button></div></div>
         <div class="ptitle">🤖 AI COACH · ask anything about the song you're playing</div>
-        <div class="bubble me">What key is this and why does the Fm feel so dark?</div>
-        <div class="bubble ai">You're in F major, but that Fm is a <b>borrowed iv chord</b> — taking the minor four from F minor. It's the classic "sunshine turns to shadow" move. Try letting it ring longer than written.</div>
-        <div class="bubble me">Give me an easier voicing for E♭ at capo 3.</div>
-        <div class="bubble ai">With capo 3, E♭ = a <b>C shape</b>. Use C-add9 (x32033) — two fingers move from your G shape, much smoother in this progression.</div>
+        <div class="bubble me ex">What key is this and why does the Fm feel so dark?</div>
+        <div class="bubble ai ex">You're in F major, but that Fm is a <b>borrowed iv chord</b> — taking the minor four from F minor. It's the classic "sunshine turns to shadow" move. Try letting it ring longer than written.</div>
+        <div class="bubble me ex">Give me an easier voicing for E♭ at capo 3.</div>
+        <div class="bubble ai ex">With capo 3, E♭ = a <b>C shape</b>. Use C-add9 (x32033) — two fingers move from your G shape, much smoother in this progression.</div>
+        <div class="chatdivider">YOUR CONVERSATION STARTS FRESH BELOW — the chats above are just examples</div>
         <div style="display:flex;gap:8px;margin-top:10px"><input style="flex:1;background:#0a0a14;border:1px solid var(--border);border-radius:8px;color:#fff;padding:9px 11px;font-family:inherit;font-size:.72rem" placeholder="Ask the coach…" onkeydown="if(event.key==='Enter')toast('mock: coach would answer')"><button class="btn primary" onclick="toast('mock: coach would answer')">ASK</button></div>
       </div>
     </div>
