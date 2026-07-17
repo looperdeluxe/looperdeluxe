@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v17 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v18 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -179,7 +179,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 #loopLyric .line.up2{opacity:.3;font-size:.7em}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v17 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v18 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -195,7 +195,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 
 <div id="helpOv" onclick="this.classList.remove('on')" style="position:fixed;inset:0;z-index:58;background:rgba(8,8,15,.93);backdrop-filter:blur(4px);overflow-y:auto;padding:26px;cursor:pointer">
   <div style="max-width:860px;margin:0 auto">
-    <div style="font-family:Orbitron;font-size:1rem;letter-spacing:3px;color:#d8b4fe;margin-bottom:4px">EVERYTHING IN 60 SECONDS</div>
+    <div style="font-family:Orbitron;font-size:1rem;letter-spacing:3px;color:#d8b4fe;margin-bottom:4px">⭐ EVERYTHING LOOPER CAN DO</div>
     <div style="font-size:.66rem;color:var(--dim);margin-bottom:14px">tap a card to TRY that feature · tap anywhere else to close</div>
     <div class="cardgrid">
       <div class="card" onclick="event.stopPropagation();helpGo('play',null,'.bar input')"><b>🔍 SEARCH → PLAY</b>Type any song. Chords, key, capo and lyrics load themselves — no buttons.</div>
@@ -237,7 +237,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
     <div class="nav" id="nav-learn" onclick="nav('learn')">🎼 <span class="lbl">LEARN</span></div>
     <div class="nav" id="nav-coach" onclick="nav('coach')">🤖 <span class="lbl">COACH</span></div>
     <div class="nav" id="nav-stuff" onclick="nav('stuff')">📁 <span class="lbl">MY STUFF</span></div>
-    <div class="nav" onclick="document.getElementById('helpOv').classList.add('on')">❓ <span class="lbl">HELP</span></div>
+    <div class="nav" onclick="document.getElementById('helpOv').classList.add('on')">⭐ <span class="lbl">FEATURES</span></div>
     <div class="nav" id="nav-settings" onclick="nav('settings')">⚙ <span class="lbl">SETTINGS</span></div>
     <div class="foot">Every feature keeps a home — one hop away.</div>
   </div>
