@@ -30,13 +30,28 @@ import { createFileSource } from './js/player-file.js';
 const log = (m) => { document.getElementById('log').textContent += m + '\n'; };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const results = { yt: [], file: [] };
+const detail = { yt: [], file: [] };
 
-function row(tbl, name, ok, detail) {
+// phone results home via the engine's existing browser-harness telemetry endpoint
+// so Claude reads them over SSH — Brooks never has to relay a screen
+async function phoneHome(ok, extra) {
+  try {
+    await fetch('https://engine.looperdeluxe.com/matcher_report', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ song: 'bench:timesource', ok,
+        found: { when: new Date().toISOString(), ua: navigator.userAgent, detail, extra: extra || null } }),
+    });
+    log('results reported ✓');
+  } catch (e) { log('report failed: ' + e.message); }
+}
+
+function row(tbl, name, ok, det) {
   results[tbl].push(ok !== false);
+  detail[tbl].push({ name, ok, det });
   const tr = document.createElement('tr');
   const cls = ok === true ? 'P' : ok === false ? 'F' : 'I';
   const txt = ok === true ? 'PASS' : ok === false ? 'FAIL' : 'INFO';
-  tr.innerHTML = `<td>${name}</td><td class="${cls}">${txt}</td><td>${detail}</td>`;
+  tr.innerHTML = `<td>${name}</td><td class="${cls}">${txt}</td><td>${det}</td>`;
   document.getElementById('t-' + tbl).appendChild(tr);
 }
 
@@ -119,10 +134,12 @@ document.getElementById('go').onclick = async () => {
     verdict.textContent = pass
       ? '✅ CONTRACT HOLDS — both players obey the same timeSource rules. Steps 1–3 are solid ground.'
       : '❌ CONTRACT VIOLATION — see FAIL rows. Do not build UI on this yet.';
+    await phoneHome(pass);
   } catch (e) {
     verdict.className = 'bad';
     verdict.textContent = '❌ BENCH CRASHED: ' + e.message;
     log('ERROR ' + (e.stack || e));
+    await phoneHome(false, { crash: String(e && e.message || e) });
   }
 };
 </script></body></html>

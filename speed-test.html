@@ -55,5 +55,10 @@ function finish(){
   else if(fine>0){v.className='good';v.textContent='🟡 PARTIAL — '+fine+'/'+rows.length+' fine rates stuck. Feature-detect per video; snap the rest.';}
   else{v.className='bad';v.textContent='❌ SNAPPED — embed only allows ['+avail.join(', ')+']. Speed bar must snap to those for YouTube songs (uploads stay continuous).';}
   log('DONE. available='+JSON.stringify(avail)+' results='+JSON.stringify(rows));
+  fetch('https://engine.looperdeluxe.com/matcher_report',{method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({song:'bench:speedtest',ok:fine>0,
+      found:{when:new Date().toISOString(),ua:navigator.userAgent,available:avail,results:rows}})})
+    .then(()=>log('results reported ✓')).catch(e=>log('report failed: '+e.message));
 }
 </script></body></html>
