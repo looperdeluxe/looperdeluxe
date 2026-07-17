@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v22 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v23 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -203,7 +203,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 #loopLyric .line.up1 .ich,#loopLyric .line.up2 .ich{color:var(--purple);background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4);animation:none}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v22 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v23 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -479,7 +479,8 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 <div id="tourBtn" onclick="startTour()" title="a one-by-one walkthrough">❔ FIRST TIME?</div>
 <div id="tourDim" onclick="endTour()"></div>
 <div id="tourTip"><div id="tourText"></div>
-  <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end">
+  <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end;align-items:center">
+    <span style="font-size:.56rem;color:var(--dim);flex:1">→ / space next · ← back · esc close</span>
     <button class="btn" onclick="event.stopPropagation();endTour()">SKIP</button>
     <button class="btn primary" onclick="event.stopPropagation();tourNext()">NEXT →</button>
   </div></div>
@@ -518,6 +519,13 @@ function tourNext(){
     tip.style.left=Math.max(8,Math.min(window.innerWidth-tip.offsetWidth-8,r.left))+'px';
   },320);
 }
+function tourPrev(){ if(tourI>0){ tourI-=2; tourNext(); } }
+document.addEventListener('keydown',e=>{
+  if(tourI<0) return;
+  if(e.key==='ArrowRight'||e.key===' '||e.key==='Enter'){ e.preventDefault(); tourNext(); }
+  else if(e.key==='ArrowLeft'){ e.preventDefault(); tourPrev(); }
+  else if(e.key==='Escape'){ endTour(); }
+});
 function endTour(){
   tourI=-1;
   document.querySelectorAll('.spot').forEach(e=>e.classList.remove('spot'));
