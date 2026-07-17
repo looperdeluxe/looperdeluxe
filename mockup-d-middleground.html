@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v28 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v29 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -207,7 +207,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 #loopLyric .line.up1 .ich,#loopLyric .line.up2 .ich{color:var(--purple);background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4);animation:none}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v28 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v29 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -435,8 +435,37 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 
     <!-- ════ MY STUFF ════ -->
     <div class="view" id="view-stuff">
-      <div class="panel" style="flex:1"><div class="ptitle">📁 MY STUFF · loops, saved songs, setlists</div>
+      <div class="panel" style="flex:1"><div class="ptitle">📁 MY STUFF · loops, songs, setlists · your practice room</div>
         <div class="cardgrid">
+          <div class="card"><b>⏱ METRONOME</b>
+            <div style="font-family:Orbitron;font-size:1.3rem;color:var(--cyan);text-shadow:0 0 10px rgba(34,211,238,.5);margin:4px 0" id="metroBpm">133 BPM</div>
+            <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:6px">
+              <input type="checkbox" id="metroLock" checked style="accent-color:#22d3ee"
+                onchange="document.getElementById('metroFree').style.display=this.checked?'none':'flex';
+                          document.getElementById('metroBpm').textContent=this.checked?'133 BPM':(document.getElementById('metroSl').value+' BPM');
+                          toast(this.checked?'⏱ locked to the song — ticks with playback':'free mode — your tempo')">
+              🔗 LOCK TO SONG</label>
+            <div id="metroFree" style="display:none;align-items:center;gap:8px;margin-bottom:6px">
+              <input type="range" id="metroSl" min="40" max="220" value="90" style="flex:1;accent-color:#22d3ee"
+                oninput="document.getElementById('metroBpm').textContent=this.value+' BPM'">
+            </div>
+            <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
+              <span class="kc on" onclick="toast('tone: click')">CLICK</span>
+              <span class="kc" onclick="toast('tone: woodblock')">WOOD</span>
+              <span class="kc" onclick="toast('tone: soft beep')">BEEP</span>
+            </div>
+            <button class="btn primary" onclick="toast('mock: tick… tick… tick…')">▶ START</button>
+          </div>
+          <div class="card"><b>🎼 BACKING TRACKS</b>Pick a vibe, jam over it — pairs with the metronome and the LEARN scales.
+            <div style="display:flex;gap:5px;flex-wrap:wrap;margin:8px 0">
+              <span class="kc" onclick="toast('mock: ▶ A minor backing track')">A MINOR</span>
+              <span class="kc" onclick="toast('mock: ▶ E minor backing track')">E MINOR</span>
+              <span class="kc" onclick="toast('mock: ▶ D major backing track')">D MAJOR</span>
+              <span class="kc" onclick="toast('mock: ▶ G major backing track')">G MAJOR</span>
+              <span class="kc" onclick="toast('mock: ▶ blues in A backing track')">BLUES IN A</span>
+            </div>
+            <span style="font-size:.58rem;color:var(--dim)">tap one → the LEARN neck shows its scale, the metronome keeps your time</span>
+          </div>
           <div class="card"><b>💾 SAVED LOOPS</b><span id="savedLoops"></span>Turmoil solo (2:41–3:05) · NHF bridge (3:10–3:44) · CYS intro ×3<div style="margin-top:6px"><button class="btn" onclick="toast('mock: loop loaded + playing')">▶ PLAY LOOP</button></div></div>
           <div class="card"><b>★ SAVED SONGS</b>Turmoil &amp; Tinfoil · No Hard Feelings · Can't You See · Mercy</div>
           <div class="card"><b>🎵 SETLIST</b>Open-mic Thursday: 4 songs · auto-advance on</div>
@@ -447,7 +476,6 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
     <div class="view" id="view-settings">
       <div class="panel" style="flex:1"><div class="ptitle">⚙ SETTINGS · true set-and-forget only</div>
         <div class="cardgrid">
-          <div class="card"><b>METRONOME</b>133 BPM · tap-to-lock (T) · click sync · offset 0.00s</div>
           <div class="card"><b>TIMING</b>Latency calibration ±0ms (step-up / gap / start delay live on the PLAY page)</div>
           <div class="card"><b>LYRIC SYNC</b>±0.0s fine alignment slider</div>
           <div class="card"><b>😌 CALM MODE</b>Keeps the chord pops, quiets the word-sweep glow — easier on the eyes for long sessions.<br>
