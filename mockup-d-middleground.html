@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v21 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v22 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -203,7 +203,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 #loopLyric .line.up1 .ich,#loopLyric .line.up2 .ich{color:var(--purple);background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4);animation:none}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v21 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v22 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -323,7 +323,11 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
             <span class="tab" onclick="document.getElementById('stagePanel').classList.toggle('max');toast('phone view — current line pins to the top · ring appears while looping')">⛶ EXPAND</span>
           </div>
           <div class="pane on" id="pane-chart">
-            <div class="cap" style="margin-top:0">THE CHORDS YOU'LL PLAY · know them before you press play</div>
+            <div style="display:flex;align-items:center;gap:10px;background:rgba(34,211,238,.07);border:1px dashed rgba(34,211,238,.4);border-radius:10px;padding:8px 12px;margin-bottom:8px">
+              <span style="font-size:.66rem;color:var(--dim);flex:1">📄 This is the <b style="color:#fff">study sheet</b> — it doesn't move. Press ▶ (or tap any line) and it goes live:</span>
+              <button class="btn primary" onclick="const st=document.querySelector('.tab[data-pane=\'stage\']'); if(st) pane(st); if(!playing) togglePlay();">🎤 GO LIVE → STAGE</button>
+            </div>
+            <div class="cap" style="margin-top:0">THE CHORDS YOU'LL PLAY · ‹ › changes the shape · starts on the OPEN shape</div>
             <div class="fbrow" id="chartChords" style="grid-template-columns:repeat(auto-fit,minmax(96px,1fr))"></div>
             <div class="cap">THE WHOLE SONG · tap any line to jump there</div>
             <div class="chart" id="chartSheet"></div>
@@ -410,6 +414,11 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
     <!-- ════ COACH ════ -->
     <div class="view" id="view-coach">
       <div class="panel" style="flex:1">
+        <div class="ptitle">🎤 CHORD COACH · your mic, your accuracy</div>
+        <div class="card" style="margin-bottom:12px"><b>LIVE HIT RATE</b>
+          <div class="meter"><i></i></div>
+          <span style="color:var(--green)">B♭ ✓ &nbsp;F ✓ &nbsp;E♭ ✗ (heard D♯m)</span>
+          <div style="margin-top:8px"><button class="btn primary" onclick="toast('mock: coach listening…')">▶ START LISTENING</button></div></div>
         <div class="ptitle">🤖 AI COACH · ask anything about the song you're playing</div>
         <div class="bubble me">What key is this and why does the Fm feel so dark?</div>
         <div class="bubble ai">You're in F major, but that Fm is a <b>borrowed iv chord</b> — taking the minor four from F minor. It's the classic "sunshine turns to shadow" move. Try letting it ring longer than written.</div>
@@ -483,7 +492,8 @@ const TOUR=[
   ['.ribbon','Chords flow toward the white line. When a chord crosses it, that\'s your change — right now.'],
   ['#map','The whole song\'s loud and quiet parts. Click anywhere to jump. Your loop shows here in cyan.'],
   ['#loopRowMain','Mark IN and OUT around a hard part — it repeats until you own it. 💾 saves it forever.'],
-  ['#practiceRow','Step-up re-speeds each pass (+4%, caps at 100%). Gap counts you back in: 1.5… 0.0.'],
+  ['#practiceRow','STEP-UP: practice a hard part SLOW — say 70% speed. Every time the loop repeats, it quietly adds +4%. A few passes later you\'re playing it at full speed without noticing the climb. It stops at 100%, never past.'],
+  ['#practiceRow','GAP: without it, the loop restarts instantly and your hands never reset. Turn it on and the song PAUSES between passes with a live countdown — 1.5… 0.8… 0.0 — so you breathe, reset your fingers, and come in clean every time.'],
   ['#strumRow','The strumming pattern, auto-picked for this song\'s feel. ‹ › to choose your own.'],
   ['#stagePanel','FULL CHART = the whole song like a tab sheet. STAGE = it comes alive, chord popping on its word.'],
   ['#tourBtn','That\'s the core. ⭐ FEATURES in the sidebar tours the rest — stems, coach, scales. Go play.']];
@@ -595,18 +605,33 @@ LINES.forEach(seg=>{
   stageEl.appendChild(d);
 });
 // FULL CHART: the whole song, static — chords above words, mini boards of every chord up top
-(function(){
+const CHART_SHAPES=[
+  ['F',[['open · D shape',[[2,0],[3,1],[2,2]]],['barre @ 1st',[[0,1],[1,3],[2,3],[3,2],[4,1],[5,1]]],['CAGED · E @ 1',[[0,1],[3,2],[4,3]]]]],
+  ['B♭',[['open · G shape',[[0,2],[1,0],[5,2]]],['barre @ 6th',[[0,1],[1,3],[2,3],[3,2]]],['CAGED · A @ 1',[[1,1],[2,3],[3,3],[4,3]]]]],
+  ['E♭',[['open · C shape',[[1,1],[3,0],[4,2]]],['barre @ 6th',[[0,2],[1,1],[2,3],[3,3]]],['CAGED · G @ 3',[[0,3],[1,2],[5,3]]]]],
+  ['Fm',[['open · Dm shape',[[0,0],[2,1],[3,2]]],['barre @ 1st',[[0,1],[1,3],[2,3],[4,1],[5,1]]],['CAGED · Em @ 1',[[0,1],[3,2],[4,2]]]]]];
+let chartSel=[0,0,0,0];
+function chartCycle(i,d){ chartSel[i]=(chartSel[i]+d+3)%3; drawChartChords(); }
+function drawChartChords(){
   const cc=document.getElementById('chartChords');
-  [['F','D shape'],['B♭','G shape'],['E♭','C shape'],['Fm','Dm shape']].forEach(([nm,shp],i)=>{
+  cc.innerHTML='';
+  CHART_SHAPES.forEach(([nm,vars],i)=>{
+    const [sub,dots]=vars[chartSel[i]];
     const div=document.createElement('div'); div.className='vfb';
-    const dots=[[[2,0],[3,1],[2,2]],[[0,2],[1,0],[5,2]],[[1,1],[3,0],[4,2]],[[0,0],[2,1],[3,2]]][i];
     let rows='';
     for(let f=0;f<4;f++){ rows+='<tr>';
       for(let s=0;s<6;s++){ const d=dots.find(([ds,df])=>ds===s&&df===f);
         rows+='<td>'+(d?'<span class="dot"></span>':'')+'</td>'; } rows+='</tr>'; }
-    div.innerHTML='<div class="nm">'+nm+'</div><table>'+rows+'</table><div class="cap2">'+shp+' · capo 3</div>';
+    div.innerHTML='<div class="nm" style="display:flex;align-items:center;justify-content:center;gap:7px">'
+      +'<span class="kc" style="padding:1px 7px" onclick="chartCycle('+i+',-1)">‹</span>'
+      +'<span>'+nm+'</span>'
+      +'<span class="kc" style="padding:1px 7px" onclick="chartCycle('+i+',1)">›</span></div>'
+      +'<table>'+rows+'</table><div class="cap2">'+sub+' · '+(chartSel[i]+1)+'/3</div>';
     cc.appendChild(div);
   });
+}
+(function(){
+  drawChartChords();
   const sheet=document.getElementById('chartSheet');
   LINES.forEach((seg,li)=>{
     const d=document.createElement('div'); d.className='line';
@@ -715,7 +740,14 @@ function togglePlay(){
   playing=!playing;
   document.getElementById('btnPlay').textContent=playing?'⏸ PAUSE':'▶ PLAY';
   document.getElementById('bigPlay').textContent=playing?'⏸':'▶';
-  if(playing){ lastTs=null; raf=requestAnimationFrame(frame); }
+  if(playing){
+    lastTs=null; raf=requestAnimationFrame(frame);
+    // the chart is a study sheet — playing means LIVE, so the stage takes over
+    if(document.getElementById('pane-chart').classList.contains('on')){
+      const st=document.querySelector('.tab[data-pane="stage"]'); if(st) pane(st);
+      toast('▶ live — the FULL CHART tab is always there to study');
+    }
+  }
 }
 let gapS=1.5, gapping=false, gapEnd=0;
 function startGap(ts){
