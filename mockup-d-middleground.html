@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v38 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v39 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -176,9 +176,13 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 .chatdivider{display:flex;align-items:center;gap:10px;margin:12px 0 8px;font-family:Orbitron;font-size:.54rem;letter-spacing:1px;color:var(--cyan)}
 .chatdivider::before,.chatdivider::after{content:"";flex:1;border-top:1px dashed rgba(34,211,238,.35)}
 #tourBtn{position:fixed;bottom:16px;right:16px;z-index:45;font-family:Orbitron;font-size:.6rem;letter-spacing:1px;
-  background:linear-gradient(135deg,#7c3aed,#5b21b6);border:1px solid var(--purple);color:#fff;border-radius:20px;
-  padding:9px 15px;cursor:pointer;box-shadow:0 0 16px rgba(124,58,237,.5);transition:.2s}
-#tourBtn:hover{transform:translateY(-2px);box-shadow:0 0 24px rgba(168,85,247,.7)}
+  background:linear-gradient(135deg,#7c3aed,#0e7490);border:1px solid var(--purple);color:#fff;border-radius:20px;
+  padding:10px 16px;cursor:pointer;box-shadow:0 0 16px rgba(124,58,237,.5);transition:.2s;
+  animation:tourbeckon 9s ease-in-out infinite}
+@keyframes tourbeckon{0%,88%,100%{transform:none;box-shadow:0 0 16px rgba(124,58,237,.5)}
+  92%{transform:translateY(-4px) rotate(-1.5deg);box-shadow:0 0 26px rgba(34,211,238,.7)}
+  96%{transform:translateY(0) rotate(1deg);box-shadow:0 0 22px rgba(168,85,247,.7)}}
+#tourBtn:hover{transform:translateY(-2px);box-shadow:0 0 26px rgba(168,85,247,.8);animation:none}
 #tourDim{display:none;position:fixed;inset:0;z-index:46;background:rgba(8,8,15,.6)}
 #tourDim.on{display:block}
 #tourTip{display:none;position:fixed;z-index:48;max-width:290px;background:#1a1a2c;border:1px solid var(--purple);
@@ -218,7 +222,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 #loopLyric .line.up1 .ich,#loopLyric .line.up2 .ich{color:var(--purple);background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4);animation:none}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v38 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v39 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -544,6 +548,8 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
         <div class="cardgrid">
           <div class="card"><b>TIMING</b>Latency calibration ±0ms (step-up / gap / start delay live on the PLAY page)</div>
           <div class="card"><b>LYRIC SYNC</b>±0.0s fine alignment slider</div>
+          <div class="card"><b>🎓 THE TOUR</b>Lost? 12 quick stops through everything — takes about a minute, arrows or space to move.<br>
+            <button class="btn primary" style="margin-top:8px" onclick="startTour()">🎸 START THE 60-SECOND TOUR</button></div>
           <div class="card"><b>😌 CALM MODE</b>Keeps the chord pops, quiets the word-sweep glow — easier on the eyes for long sessions.<br>
             <label style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer">
             <input type="checkbox" style="accent-color:#a855f7" onchange="document.body.classList.toggle('calm',this.checked);toast(this.checked?'calm mode on — glow quieted':'full glow back on')"> ENABLE</label></div>
@@ -575,7 +581,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
   </div>
   <div id="loopLyric"></div>
 </div>
-<div id="tourBtn" onclick="startTour()" title="a one-by-one walkthrough">❔ FIRST TIME?</div>
+<div id="tourBtn" onclick="startTour()" title="12 quick stops — arrows or space to move">🎸 NEW HERE? <b style="color:#a5f3fc">60-SECOND TOUR</b></div>
 <div id="tourDim" onclick="endTour()"></div>
 <div id="tourTip"><div id="tourText"></div>
   <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end;align-items:center">
