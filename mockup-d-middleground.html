@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v39 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v40 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -183,6 +183,12 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
   92%{transform:translateY(-4px) rotate(-1.5deg);box-shadow:0 0 26px rgba(34,211,238,.7)}
   96%{transform:translateY(0) rotate(1deg);box-shadow:0 0 22px rgba(168,85,247,.7)}}
 #tourBtn:hover{transform:translateY(-2px);box-shadow:0 0 26px rgba(168,85,247,.8);animation:none}
+#tourBtn .tx{position:absolute;top:-8px;right:-8px;width:19px;height:19px;border-radius:50%;background:#1a1a2c;
+  border:1px solid var(--border);color:var(--dim);font-size:.6rem;line-height:17px;text-align:center;cursor:pointer}
+#tourBtn .tx:hover{color:#fff;border-color:var(--purple);background:#26263c}
+body.offhome #tourBtn,body.karaoke #tourBtn,#tourBtn.gone,
+body:has(#loopMode.on) #tourBtn,body:has(#vBoard.on) #tourBtn,
+body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
 #tourDim{display:none;position:fixed;inset:0;z-index:46;background:rgba(8,8,15,.6)}
 #tourDim.on{display:block}
 #tourTip{display:none;position:fixed;z-index:48;max-width:290px;background:#1a1a2c;border:1px solid var(--purple);
@@ -222,7 +228,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 #loopLyric .line.up1 .ich,#loopLyric .line.up2 .ich{color:var(--purple);background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4);animation:none}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v39 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v40 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -368,6 +374,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
           </div>
           <div class="pane" id="pane-ccoach">
             <div class="card"><b>🎤 CHORD COACH · listens through your mic</b>
+              <div style="color:var(--dim);font-size:.62rem;margin:3px 0 4px">🎧 follows the song on stage — ask "does this C sound good here?" and it hears your take</div>
               Hit rate this session:
               <div class="meter"><i></i></div>
               <span style="color:var(--green)">B♭ ✓ &nbsp;F ✓ &nbsp;E♭ ✗ (heard D♯m)</span>
@@ -438,6 +445,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
       <div class="panel" style="flex:1">
         <div class="ptitle">🎤 CHORD COACH · your mic, your accuracy</div>
         <div class="card" style="margin-bottom:12px"><b>LIVE HIT RATE</b>
+          <div style="color:var(--dim);font-size:.62rem;margin:3px 0 6px">🎧 following <b style="color:#a5f3fc">FORTUNATE SON — CCR</b> · switches automatically when you load a different song</div>
           <div class="meter"><i></i></div>
           <span style="color:var(--green)">B♭ ✓ &nbsp;F ✓ &nbsp;E♭ ✗ (heard D♯m)</span>
           <div style="margin-top:8px"><button class="btn primary" onclick="toast('mock: coach listening…')">▶ START LISTENING</button></div></div>
@@ -446,6 +454,8 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
         <div class="bubble ai ex">You're in F major, but that Fm is a <b>borrowed iv chord</b> — taking the minor four from F minor. It's the classic "sunshine turns to shadow" move. Try letting it ring longer than written.</div>
         <div class="bubble me ex">Give me an easier voicing for E♭ at capo 3.</div>
         <div class="bubble ai ex">With capo 3, E♭ = a <b>C shape</b>. Use C-add9 (x32033) — two fingers move from your G shape, much smoother in this progression.</div>
+        <div class="bubble me ex">Does this C sound good here? <i style="color:var(--dim)">🎤 plays the chord…</i></div>
+        <div class="bubble ai ex">Heard it — that C fits, it's the <b>V of your key</b>. But your high E string barely rang (finger 1 is brushing it). Arch the ring finger more and hit it again — or try Cadd9 to match this song's color.</div>
         <div class="chatdivider">YOUR CONVERSATION STARTS FRESH BELOW — the chats above are just examples</div>
         <div style="display:flex;gap:8px;margin-top:10px"><input style="flex:1;background:#0a0a14;border:1px solid var(--border);border-radius:8px;color:#fff;padding:9px 11px;font-family:inherit;font-size:.72rem" placeholder="Ask the coach…" onkeydown="if(event.key==='Enter')toast('mock: coach would answer')"><button class="btn primary" onclick="toast('mock: coach would answer')">ASK</button></div>
       </div>
@@ -581,7 +591,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
   </div>
   <div id="loopLyric"></div>
 </div>
-<div id="tourBtn" onclick="startTour()" title="12 quick stops — arrows or space to move">🎸 NEW HERE? <b style="color:#a5f3fc">60-SECOND TOUR</b></div>
+<div id="tourBtn" onclick="startTour()" title="12 quick stops — arrows or space to move">🎸 NEW HERE? <b style="color:#a5f3fc">60-SECOND TOUR</b><span class="tx" title="hide this — the tour lives on in ⚙ SETTINGS" onclick="event.stopPropagation();tourDismiss()">✕</span></div>
 <div id="tourDim" onclick="endTour()"></div>
 <div id="tourTip"><div id="tourText"></div>
   <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end;align-items:center">
@@ -611,7 +621,7 @@ function startTour(){ nav('play'); tourI=-1; document.getElementById('tourDim').
 function tourNext(){
   document.querySelectorAll('.spot').forEach(e=>e.classList.remove('spot'));
   tourI++;
-  if(tourI>=TOUR.length){ endTour(); return; }
+  if(tourI>=TOUR.length){ endTour(); tourDismiss('you’re toured up 🎸 — replay anytime in ⚙ SETTINGS'); return; }
   const [sel,txt,view]=TOUR[tourI];
   if(view) nav(view);
   const el=document.querySelector(sel);
@@ -641,6 +651,12 @@ function endTour(){
   document.getElementById('tourDim').classList.remove('on');
   document.getElementById('tourTip').classList.remove('on');
 }
+function tourDismiss(msg){
+  try{localStorage.setItem('ld_tourdone','1')}catch(e){}
+  document.getElementById('tourBtn').classList.add('gone');
+  toast(msg||'tour tucked away — find it anytime in ⚙ SETTINGS');
+}
+try{if(localStorage.getItem('ld_tourdone'))document.getElementById('tourBtn').classList.add('gone')}catch(e){}
 function helpGo(view, tabPane, sel){
   document.getElementById('helpOv').classList.remove('on');
   nav(view);
@@ -658,6 +674,7 @@ function nav(k){
   document.querySelectorAll('.nav').forEach(n=>n.classList.remove('on'));
   document.getElementById('view-'+k).classList.add('on');
   document.getElementById('nav-'+k).classList.add('on');
+  document.body.classList.toggle('offhome',k!=='play');
 }
 function pane(el){
   if(!el.dataset.pane) return;
