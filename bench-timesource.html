@@ -56,9 +56,11 @@ function row(tbl, name, ok, det) {
   document.getElementById('t-' + tbl).appendChild(tr);
 }
 
-// 60s of a quiet 220Hz tone as a WAV blob — a real, seekable media file we own
+// 60s of a quiet 220Hz tone as a WAV blob — a real, seekable media file we own.
+// 44.1kHz like real songs: iOS's pitch-preserving time-stretch stalled on an 8kHz
+// file (bench run 2026-07-17: rate 0.75 → 0.07× advance) — unrealistic rates break it.
 function makeWav() {
-  const sr = 8000, secs = 60, n = sr * secs;
+  const sr = 44100, secs = 60, n = sr * secs;
   const buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
   const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
   ws(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); ws(8, 'WAVEfmt '); v.setUint32(16, 16, true);
@@ -94,8 +96,10 @@ async function contractSuite(tbl, src, clock, { fineRates }) {
   const t3 = src.now();
   row(tbl, 'T3 seek(30) lands', t3 > 29 && t3 < 33.5, `now()=${t3.toFixed(2)}s`);
 
-  // T4 rate request-and-verify + measured advance
+  // T4 rate request-and-verify + measured advance (500ms settle: rate changes
+  // rebuffer briefly on both players — measure steady-state, not the hiccup)
   const actual = await src.rate(0.75);
+  await sleep(500);
   const a0 = src.now(), w0 = performance.now(); await sleep(2400);
   const ratio = (src.now() - a0) / ((performance.now() - w0) / 1000);
   row(tbl, 'T4 rate(0.75) verified', Math.abs(ratio - actual) < 0.15, `player accepted ${actual}, measured advance ${ratio.toFixed(3)}×`);
