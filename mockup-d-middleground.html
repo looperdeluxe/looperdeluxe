@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v25 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v26 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -66,6 +66,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 .looprow .lbl{font-family:Orbitron;font-size:.52rem;letter-spacing:2px;color:var(--cyan)}
 .sl{display:flex;align-items:center;gap:5px;font-size:.6rem;color:var(--dim);flex:1 1 auto;min-width:150px}
 .sl input[type=range]{flex:1;min-width:70px;max-width:220px;accent-color:#a855f7}
+.sl input[type=range]:focus{outline:none;filter:drop-shadow(0 0 6px rgba(168,85,247,.7))}
 .tabs{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
 .tab{font-family:Orbitron;font-size:.54rem;padding:6px 10px;border-radius:8px;border:1px solid var(--border);color:var(--dim);cursor:pointer;transition:.15s}
 .tab:hover{color:#fff;border-color:var(--purple)}
@@ -204,7 +205,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 #loopLyric .line.up1 .ich,#loopLyric .line.up2 .ich{color:var(--purple);background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4);animation:none}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v25 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v26 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -292,7 +293,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
             <button class="btn" onclick="saveLoop()">💾 SAVE LOOP</button>
             <button class="btn primary" onclick="openLoop()">◉ LOOP MODE</button>
             <span style="flex:1"></span>
-            <span class="sl">SPEED <input type="range" id="spd" min="25" max="100" value="100" oninput="setSpeed(this.value)"> <b id="spdVal" style="color:var(--cyan);font-size:.64rem">100%</b></span>
+            <span class="sl">SPEED <input type="range" id="spd" min="25" max="100" step="1" value="100" oninput="setSpeed(this.value)" title="click it once, then ← → arrows nudge 1% at a time"> <b id="spdVal" style="color:var(--cyan);font-size:.64rem">100%</b></span>
             <span class="sl" style="flex:0 0 auto;min-width:0">TRANSPOSE
               <button class="btn" style="padding:4px 9px" onclick="trAdj(-1)">−</button>
               <b id="trVal" style="color:var(--cyan);font-size:.66rem;min-width:38px;text-align:center">0 st</b>
@@ -573,8 +574,7 @@ function toast(m){
 const SONG_S=64;                          // base pace — 100% feels like a real song now
 let SPEED=1;
 function setSpeed(v){
-  v=parseInt(v);
-  if(v>=97){ v=100; document.getElementById('spd').value=100; }   // magnetic snap — 100 clicks into place
+  v=parseInt(v);   // no snap — 95% is a real choice; arrows nudge by exactly 1
   SPEED=v/100; document.getElementById('spdVal').textContent=v+'%';
 }
 let CHANGES=[];   // built from LINES below — the ribbon and the stage share ONE timeline
