@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v18 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v19 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -173,13 +173,17 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 #loopLyric .ich{font-family:Orbitron;font-size:.62em;font-weight:700;color:var(--cyan);background:rgba(34,211,238,.12);
                 border:1px solid rgba(34,211,238,.4);border-radius:6px;padding:1px 7px;margin-bottom:3px}
 #loopLyric .spacer{height:1.4em}
-#loopLyric .w.sung{color:var(--cyan)}
+#loopLyric .line:first-child .w.sung{color:var(--cyan);text-shadow:0 0 8px rgba(34,211,238,.45)}
+#loopLyric .line:first-child .ich.soon{animation:buildup .4s linear forwards;border-color:var(--pink)}
+#loopLyric .line:first-child .ich.hit{background:rgba(34,211,238,.3);border-color:var(--cyan);color:var(--cyan);animation:pop .22s ease-out}
 #loopLyric .line{transition:all .4s ease}
-#loopLyric .line.up1{opacity:.55;font-size:.82em}
-#loopLyric .line.up2{opacity:.3;font-size:.7em}
+#loopLyric .line.up1{opacity:.6;font-size:.82em}
+#loopLyric .line.up2{opacity:.35;font-size:.7em}
+#loopLyric .line.up1 .w,#loopLyric .line.up2 .w{color:#e8e8f0}
+#loopLyric .line.up1 .ich,#loopLyric .line.up2 .ich{color:var(--purple);background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4);animation:none}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v18 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v19 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -590,10 +594,11 @@ function frame(ts){
       const l0=stageEl.children[ci2], l1=stageEl.children[(ci2+1)%LINES.length], l2=stageEl.children[(ci2+2)%LINES.length];
       const html=(l0?l0.innerHTML:'');
       const ll=document.getElementById('loopLyric');
+      const clean=h=>h.replace(/\b(sung|hit|soon)\b/g,'');
       if(ll.__last!==html){
         ll.innerHTML='<div class="line">'+html+'</div>'
-          +'<div class="line up1">'+(l1?l1.innerHTML:'')+'</div>'
-          +'<div class="line up2">'+(l2?l2.innerHTML:'')+'</div>';
+          +'<div class="line up1">'+clean(l1?l1.innerHTML:'')+'</div>'
+          +'<div class="line up2">'+clean(l2?l2.innerHTML:'')+'</div>';
         ll.__last=html;
       }
     }
