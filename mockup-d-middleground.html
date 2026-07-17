@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v27 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v28 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -207,7 +207,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 #loopLyric .line.up1 .ich,#loopLyric .line.up2 .ich{color:var(--purple);background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4);animation:none}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v27 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v28 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -324,6 +324,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
             <span class="tab" data-pane="ccoach" onclick="pane(this)">🎤 CHORD COACH</span>
             <span class="tab" data-pane="versions" onclick="pane(this)">👥 VERSIONS</span>
             <span style="flex:1"></span>
+            <span class="tab" id="karaokeTab" title="hide the chord chips — pure karaoke lyric scroll" onclick="const on=document.body.classList.toggle('karaoke');this.classList.toggle('on',on);toast(on?'🎤 karaoke — just the lyrics':'chords back on')">🎤 KARAOKE</span>
             <span class="tab" onclick="document.getElementById('stagePanel').classList.toggle('max');toast('phone view — current line pins to the top · ring appears while looping')">⛶ EXPAND</span>
           </div>
           <div class="pane on" id="pane-chart">
@@ -337,11 +338,6 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
             <div class="chart" id="chartSheet"></div>
           </div>
           <div class="pane" id="pane-stage">
-            <div style="display:flex;justify-content:flex-end;margin-bottom:4px">
-              <label style="display:inline-flex;align-items:center;gap:7px;font-family:Orbitron;font-size:.56rem;letter-spacing:1px;color:var(--dim);border:1px solid var(--border);border-radius:16px;padding:5px 12px;cursor:pointer" title="hides the chord chips — pure karaoke lyric scroll">
-                <input type="checkbox" style="accent-color:#a855f7" onchange="document.body.classList.toggle('karaoke',this.checked);toast(this.checked?'🎤 karaoke mode — just the lyrics':'chords back on')">
-                🎤 HIDE CHORDS · KARAOKE</label>
-            </div>
             <div id="maxRing"><b id="maxChord">B♭</b></div>
             <div class="stage" id="stage"></div>
             <div class="next">NEXT CHANGE → <b id="nextCh">B♭</b> <span style="opacity:.6">watch it pulse pink above the word it lands on</span></div>
