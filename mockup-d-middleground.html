@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v32 — Looper Deluxe redesign</title>
+<html lang="en"><head><meta charset="UTF-8"><title>PROTOTYPE v33 — Looper Deluxe redesign</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"><meta name="robots" content="noindex">
 <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -209,7 +209,7 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 #loopLyric .line.up1 .ich,#loopLyric .line.up2 .ich{color:var(--purple);background:rgba(124,58,237,.14);border-color:rgba(124,58,237,.4);animation:none}
 #loopMode .hint{font-size:.6rem;color:var(--dim);letter-spacing:1px}
 </style></head><body>
-<div class="banner">⚠ INTERACTIVE PROTOTYPE v32 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
+<div class="banner">⚠ INTERACTIVE PROTOTYPE v33 — speed bar (100% default) · expand auto-scrolls current line to the TOP · ring only while looping · SCALES: pick any key × any scale → real notes on a full horizontal fretboard, ⛶ flips it vertical</div>
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
@@ -265,10 +265,10 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
 <div class="shell">
   <div class="side">
     <div class="nav on" id="nav-play" onclick="nav('play')">🎸 <span class="lbl">PLAY</span></div>
+    <div class="nav" id="nav-metro" onclick="nav('metro')">⏱ <span class="lbl">PRACTICE</span></div>
     <div class="nav" id="nav-learn" onclick="nav('learn')">🎼 <span class="lbl">LEARN</span></div>
     <div class="nav" id="nav-coach" onclick="nav('coach')">🤖 <span class="lbl">COACH</span></div>
     <div class="nav" id="nav-stuff" onclick="nav('stuff')">📁 <span class="lbl">MY STUFF</span></div>
-    <div class="nav" id="nav-metro" onclick="nav('metro')">⏱ <span class="lbl">PRACTICE</span></div>
     <div class="nav" onclick="document.getElementById('helpOv').classList.add('on')">⭐ <span class="lbl">FEATURES</span></div>
     <div class="nav" id="nav-settings" onclick="nav('settings')">⚙ <span class="lbl">SETTINGS</span></div>
     <div class="foot">Every feature keeps a home — one hop away.</div>
@@ -452,16 +452,25 @@ body.calm .chip.cur{animation:none;box-shadow:0 0 8px rgba(34,211,238,.4)}
       <div class="panel" style="flex:1"><div class="ptitle">⏱ PRACTICE · metronome, backing tracks &amp; your jam coach</div>
         <div class="cardgrid">
           <div class="card"><b>⏱ METRONOME</b>
-            <div style="font-family:Orbitron;font-size:1.5rem;color:var(--cyan);text-shadow:0 0 10px rgba(34,211,238,.5);margin:4px 0" id="metroBpm">133 BPM</div>
+            <div style="display:flex;align-items:center;gap:6px;margin:4px 0">
+              <input id="metroNum" type="number" min="40" max="220" value="133"
+                style="width:86px;background:#0a0a14;border:1px solid rgba(34,211,238,.5);border-radius:8px;color:var(--cyan);font-family:Orbitron;font-size:1.3rem;text-align:center;padding:3px;outline:none;text-shadow:0 0 10px rgba(34,211,238,.5)"
+                oninput="metroSet(this.value)">
+              <span style="font-family:Orbitron;font-size:.8rem;color:var(--cyan)">BPM</span>
+              <span style="display:flex;flex-direction:column;gap:2px">
+                <button class="btn" style="padding:0 6px;font-size:.5rem;line-height:1.3" onclick="metroSet(parseInt(document.getElementById('metroNum').value||133)+1)">▲</button>
+                <button class="btn" style="padding:0 6px;font-size:.5rem;line-height:1.3" onclick="metroSet(parseInt(document.getElementById('metroNum').value||133)-1)">▼</button>
+              </span>
+            </div>
             <label style="display:inline-flex;align-items:center;gap:6px;cursor:pointer;margin-bottom:6px">
               <input type="checkbox" id="metroLock" checked style="accent-color:#22d3ee"
                 onchange="document.getElementById('metroFree').style.display=this.checked?'none':'flex';
-                          document.getElementById('metroBpm').textContent=this.checked?'133 BPM':(document.getElementById('metroSl').value+' BPM');
+                          document.getElementById('metroNum').value=this.checked?133:document.getElementById('metroSl').value;
                           toast(this.checked?'⏱ locked to the song — ticks with playback':'free mode — your tempo')">
               🔗 LOCK TO SONG</label>
             <div id="metroFree" style="display:none;align-items:center;gap:8px;margin-bottom:6px">
               <input type="range" id="metroSl" min="40" max="220" value="90" style="flex:1;accent-color:#22d3ee"
-                oninput="document.getElementById('metroBpm').textContent=this.value+' BPM'">
+                oninput="document.getElementById('metroNum').value=this.value">
             </div>
             <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
               <span class="kc on" onclick="toast('tone: click')">CLICK</span>
@@ -1052,6 +1061,14 @@ function renderBT(){
     +'<div style="font-size:.6rem;color:var(--dim)">'+bpm+' BPM · option '+(btIdx+1)+'/3 · the LEARN neck shows this scale</div></div>'
     +'<span class="kc" style="padding:4px 10px" onclick="btIdx=(btIdx+1)%3;renderBT()">›</span>'
     +'<button class="btn primary" onclick="toast(\'mock: ▶ '+btKey+' '+btMode.toLowerCase()+' — '+nm+'\')">▶ PLAY</button></div>';
+}
+function metroSet(v){
+  v=Math.max(40,Math.min(220,parseInt(v)||133));
+  const lock=document.getElementById('metroLock');
+  if(lock.checked){ lock.checked=false; document.getElementById('metroFree').style.display='flex';
+    toast('free mode — your tempo (re-check 🔗 to lock back to the song)'); }
+  document.getElementById('metroNum').value=v;
+  document.getElementById('metroSl').value=Math.min(220,Math.max(40,v));
 }
 let _lickSeq=[], _lickTimer=null;
 function coachLick(q){
