@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bench — timeSource contract (clock + YouTube + file players)</title>
+<style>
+body{background:#0b0b14;color:#e4e4e7;font-family:system-ui,sans-serif;max-width:860px;margin:24px auto;padding:0 14px}
+h1{font-size:1.05rem;color:#a5f3fc}h2{font-size:.9rem;color:#c4b5fd;margin:22px 0 8px}
+button{background:linear-gradient(135deg,#7c3aed,#0e7490);color:#fff;border:0;border-radius:9px;padding:10px 18px;font-size:.9rem;cursor:pointer}
+table{border-collapse:collapse;width:100%;font-size:.8rem;margin-top:8px}
+td,th{border:1px solid #2a2a3e;padding:5px 9px;text-align:left}
+.P{color:#86efac;font-weight:700}.F{color:#fca5a5;font-weight:700}.I{color:#93c5fd}
+#verdict{font-size:1.15rem;font-weight:700;padding:12px;border-radius:10px;margin:14px 0}
+#verdict.good{background:rgba(34,197,94,.12);border:1px solid #22c55e;color:#86efac}
+#verdict.bad{background:rgba(239,68,68,.12);border:1px solid #ef4444;color:#fca5a5}
+#yt-box{width:320px;height:180px}#wave-box{width:100%;min-height:48px}
+#log{font-size:.7rem;color:#9ca3af;white-space:pre-wrap;margin-top:14px;max-height:260px;overflow:auto}
+</style></head><body>
+<h1>⏱ timeSource contract bench — build steps 1–3</h1>
+<p>Runs the SAME 7 contract tests against both players. Both must pass before any UI is built on them.
+Tap START (one tap = the user gesture browsers require), let it run ~60s. Muted.</p>
+<button id="go">▶ START THE BENCH</button>
+<div id="verdict">Not run yet.</div>
+<h2>YouTube source</h2><div id="yt-box"></div><table id="t-yt"><tr><th>Test</th><th>Result</th><th>Detail</th></tr></table>
+<h2>File source (generated 60s test tone)</h2><div id="wave-box"></div><table id="t-file"><tr><th>Test</th><th>Result</th><th>Detail</th></tr></table>
+<div id="log"></div>
+<script type="module">
+import { createClock } from './js/clock.js';
+import { createYouTubeSource, MAX_RATE } from './js/player-youtube.js';
+import { createFileSource } from './js/player-file.js';
+
+const log = (m) => { document.getElementById('log').textContent += m + '\n'; };
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const results = { yt: [], file: [] };
+
+function row(tbl, name, ok, detail) {
+  results[tbl].push(ok !== false);
+  const tr = document.createElement('tr');
+  const cls = ok === true ? 'P' : ok === false ? 'F' : 'I';
+  const txt = ok === true ? 'PASS' : ok === false ? 'FAIL' : 'INFO';
+  tr.innerHTML = `<td>${name}</td><td class="${cls}">${txt}</td><td>${detail}</td>`;
+  document.getElementById('t-' + tbl).appendChild(tr);
+}
+
+// 60s of a quiet 220Hz tone as a WAV blob — a real, seekable media file we own
+function makeWav() {
+  const sr = 8000, secs = 60, n = sr * secs;
+  const buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+  const ws = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  ws(0, 'RIFF'); v.setUint32(4, 36 + n * 2, true); ws(8, 'WAVEfmt '); v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true); v.setUint16(22, 1, true); v.setUint32(24, sr, true);
+  v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+  ws(36, 'data'); v.setUint32(40, n * 2, true);
+  for (let i = 0; i < n; i++) v.setInt16(44 + i * 2, Math.sin(i * 2 * Math.PI * 220 / sr) * 3000, true);
+  return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+}
+
+async function contractSuite(tbl, src, clock, { fineRates }) {
+  clock.setSource(src); clock.start();
+  src.play(); await sleep(2500);
+
+  // T1 monotonic + T2 smooth (stair-step detector — proves interpolation)
+  const samples = [];
+  const un = clock.subscribe((t) => samples.push(t));
+  await sleep(1600); un();
+  const mono = samples.every((t, i) => i === 0 || t >= samples[i - 1] - 0.001);
+  const distinct = new Set(samples.map((t) => t.toFixed(3))).size;
+  const maxJump = Math.max(...samples.slice(1).map((t, i) => Math.abs(t - samples[i])));
+  row(tbl, 'T1 monotonic while playing', mono, `${samples.length} frames`);
+  row(tbl, 'T2 smooth (no stair-steps)', distinct > samples.length * 0.5 && maxJump < 0.25, `${distinct}/${samples.length} distinct, max frame jump ${maxJump.toFixed(3)}s`);
+
+  // T3 seek accuracy
+  src.seek(30); await sleep(1500);
+  const t3 = src.now();
+  row(tbl, 'T3 seek(30) lands', t3 > 29 && t3 < 33.5, `now()=${t3.toFixed(2)}s`);
+
+  // T4 rate request-and-verify + measured advance
+  const actual = await src.rate(0.75);
+  const a0 = src.now(), w0 = performance.now(); await sleep(2400);
+  const ratio = (src.now() - a0) / ((performance.now() - w0) / 1000);
+  row(tbl, 'T4 rate(0.75) verified', Math.abs(ratio - actual) < 0.15, `player accepted ${actual}, measured advance ${ratio.toFixed(3)}×`);
+
+  // T5 the 100% cap
+  const capped = await src.rate(1.5);
+  row(tbl, 'T5 cap ≤ 100%', capped <= MAX_RATE + 0.001, `rate(1.5) → ${capped}`);
+
+  // T6 fine rates (informational for YouTube — THE mobile question)
+  const fine = [];
+  for (const r of fineRates) { const got = await src.rate(r); fine.push(`${r}→${got}`); }
+  row(tbl, 'T6 fine-rate report', null, fine.join('  ') + `  (available: ${src.availableRates().join(',') || 'continuous'})`);
+  await src.rate(1);
+
+  // T7 pause freezes now()
+  src.pause(); await sleep(600);
+  const p1 = src.now(); await sleep(600); const p2 = src.now();
+  row(tbl, 'T7 pause freezes time', Math.abs(p2 - p1) < 0.05, `drift while paused: ${(p2 - p1).toFixed(3)}s`);
+
+  clock.stop();
+}
+
+document.getElementById('go').onclick = async () => {
+  document.getElementById('go').disabled = true;
+  const verdict = document.getElementById('verdict');
+  verdict.textContent = 'Running…';
+  const clock = createClock();
+  try {
+    log('— YouTube source —');
+    const yt = createYouTubeSource('yt-box', { mute: true });
+    await yt.load('M7lc1UVf-VE');
+    await contractSuite('yt', yt, clock, { fineRates: [0.95, 0.9, 0.85, 0.7] });
+    yt.destroy();
+
+    log('— File source —');
+    const fs = createFileSource('#wave-box');
+    await fs.load(makeWav());
+    await contractSuite('file', fs, clock, { fineRates: [0.93, 0.87, 0.62] });
+    fs.destroy();
+
+    const pass = results.yt.every(Boolean) && results.file.every(Boolean);
+    verdict.className = pass ? 'good' : 'bad';
+    verdict.textContent = pass
+      ? '✅ CONTRACT HOLDS — both players obey the same timeSource rules. Steps 1–3 are solid ground.'
+      : '❌ CONTRACT VIOLATION — see FAIL rows. Do not build UI on this yet.';
+  } catch (e) {
+    verdict.className = 'bad';
+    verdict.textContent = '❌ BENCH CRASHED: ' + e.message;
+    log('ERROR ' + (e.stack || e));
+  }
+};
+</script></body></html>
