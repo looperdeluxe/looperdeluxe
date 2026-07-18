@@ -4,12 +4,12 @@
      The inline prototype logic below is placeholder UI that steps 10+ replace
      view-by-view with the certified modules imported here. Bump BUILD on every
      deploy — it cache-busts the whole module graph (GH Pages caches 10 min). -->
-<link rel="modulepreload" href="js/clock.js?v=b3">
-<link rel="modulepreload" href="js/engine-api.js?v=b3">
-<link rel="modulepreload" href="js/chart-model.js?v=b3">
-<link rel="modulepreload" href="js/store.js?v=b3">
+<link rel="modulepreload" href="js/clock.js?v=b4">
+<link rel="modulepreload" href="js/engine-api.js?v=b4">
+<link rel="modulepreload" href="js/chart-model.js?v=b4">
+<link rel="modulepreload" href="js/store.js?v=b4">
 <script type="module">
-const BUILD = 'b3';
+const BUILD = 'b4';
 const mod = (p) => import(`${p}?v=${BUILD}`);
 (async () => {
   try {
@@ -140,6 +140,19 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
           }
           window.loadRealSong({ lines, starts, changes, durationS: dur, envelope: c.envelope, title });
           LD.song.durationS = dur;
+        } else if (c.songChords.length) {
+          // preview-only / unanchored: show the REAL progression as a study chart —
+          // no fake sync (clock does not drive; durationS stays null), and the mock
+          // demo song never lingers under a real search (Brooks, Hey Ya test)
+          const lines = [], starts = [];
+          for (let i = 0; i < c.songChords.length; i += 4) {
+            const row = c.songChords.slice(i, i + 4);
+            lines.push(row.map((ch) => [ch.n, '···']));
+            starts.push(i / c.songChords.length * 100);
+          }
+          const changes = c.songChords.map((ch, i) => [i / c.songChords.length * 100, ch.n]);
+          window.loadRealSong({ lines, starts, changes, durationS: null, envelope: null, title });
+          LD.song.durationS = null;
         }
       } catch (e) {
         if (e && e.status === 404) {
