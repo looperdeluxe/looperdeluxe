@@ -4,12 +4,12 @@
      The inline prototype logic below is placeholder UI that steps 10+ replace
      view-by-view with the certified modules imported here. Bump BUILD on every
      deploy — it cache-busts the whole module graph (GH Pages caches 10 min). -->
-<link rel="modulepreload" href="js/clock.js?v=b11">
-<link rel="modulepreload" href="js/engine-api.js?v=b11">
-<link rel="modulepreload" href="js/chart-model.js?v=b11">
-<link rel="modulepreload" href="js/store.js?v=b11">
+<link rel="modulepreload" href="js/clock.js?v=b12">
+<link rel="modulepreload" href="js/engine-api.js?v=b12">
+<link rel="modulepreload" href="js/chart-model.js?v=b12">
+<link rel="modulepreload" href="js/store.js?v=b12">
 <script type="module">
-const BUILD = 'b11';
+const BUILD = 'b12';
 const mod = (p) => import(`${p}?v=${BUILD}`);
 (async () => {
   try {
@@ -104,9 +104,9 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
         const payload = await LD.engine.chords(artist, title);
         const c = LD.chart.parseChart(payload);
         LD.song.chart = c;
-        if (c.key) $('kKey').textContent = 'KEY ' + c.key.replace(/ major| minor/, (m2) => m2 === ' minor' ? 'm' : '');
-        $('kCapo').textContent = 'CAPO ' + (c.capo || 0);
-        if (c.bpm) $('kBpm').textContent = Math.round(c.bpm) + ' BPM';
+        if (c.key) { const kv = 'KEY ' + c.key.replace(/ major| minor/, (m2) => m2 === ' minor' ? 'm' : ''); $('kKey').textContent = kv; $('kKeyM').textContent = kv; }
+        { const cv = 'CAPO ' + (c.capo || 0); $('kCapo').textContent = cv; $('kCapoM').textContent = cv; }
+        if (c.bpm) { const bv = Math.round(c.bpm) + ' BPM'; $('kBpm').textContent = bv; $('kBpmM').textContent = bv; }
         if (c.state === 'full') {
           $('npStatus').style.color = 'var(--green)';
           $('npStatus').textContent = `✅ FULL SONG · ${c.songChords.length} chords` + (vid ? ' · 🎬 video loaded' : '');
@@ -286,6 +286,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
 .kchip{font-family:Orbitron;font-size:.6rem;padding:6px 10px;border-radius:8px;white-space:nowrap;
        background:rgba(34,211,238,.1);border:1px solid rgba(34,211,238,.5);color:var(--cyan);text-shadow:0 0 8px rgba(34,211,238,.5)}
 .kchip.capo{background:rgba(240,171,252,.08);border-color:rgba(240,171,252,.45);color:var(--pink)}
+.kchipRow-m{display:none;gap:6px;flex-wrap:wrap;margin-top:2px}
 .shell{display:flex;flex:1;min-height:0}
 .side{width:168px;flex-shrink:0;background:var(--panel2);border-right:1px solid var(--border);padding:14px 10px;display:flex;flex-direction:column;gap:6px}
 .nav{font-family:Orbitron;font-size:.62rem;letter-spacing:1px;padding:11px 12px;border-radius:10px;color:var(--dim);cursor:pointer;border:1px solid transparent;transition:.15s;display:flex;gap:9px;align-items:center}
@@ -330,17 +331,25 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
   .stage{max-height:44vh}
   /* play/pause: bottom-right just above the bar (Brooks: "good spot for it");
      tour stacks above it when a song is loaded, takes its place when not */
-  #tourBtn{bottom:80px;left:10px;right:auto;z-index:53}
+  #tourBtn{bottom:80px !important;left:10px !important;right:auto !important;z-index:53 !important}
+  /* back-arrow: top-right, shows on any non-PLAY view (bottom tabs) or the FEATURES overlay */
+  body.offhome #backHome,#helpOv.on ~ #backHome{display:flex}
   .toast{bottom:112px}
   .bar input{flex:1 1 calc(100% - 58px);order:9}
   #searchGo{order:10;flex:0 0 auto}
   body.songloaded #playFab{display:flex}
+  .kchipRow-m{display:flex}
+  .panel.max .stage{font-size:clamp(.85rem,4.4vw,1.7rem)}
 }
 #navSpacer{display:none}
 #playFab{display:none;position:fixed;bottom:80px;right:10px;z-index:53;width:56px;height:56px;
   border-radius:50%;background:linear-gradient(135deg,#7c3aed,#0e7490);border:1px solid var(--purple);
   color:#fff;font-size:1.3rem;line-height:1;align-items:center;justify-content:center;cursor:pointer;
   box-shadow:0 4px 18px rgba(124,58,237,.55)}
+#backHome{display:none;position:fixed;top:8px;right:8px;z-index:56;width:32px;height:32px;border-radius:50%;
+  background:var(--panel2);border:1px solid var(--border);color:#e2e8f0;font-size:1rem;line-height:1;
+  align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4)}
+body:has(#loopMode.on) #backHome,body:has(#vBoard.on) #backHome,body:has(#tourDim.on) #backHome{display:none}
 
 @media(max-width:900px){#btnPlay{font-size:.78rem;padding:11px 20px;box-shadow:0 0 16px rgba(124,58,237,.5)}}  /* phone: play is unmissable up top */
 .grid{display:grid;grid-template-columns:1.3fr 1fr;gap:12px;flex:1;min-height:0}
@@ -571,6 +580,7 @@ body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
     </div>
   </div>
 </div>
+<div id="backHome" onclick="document.getElementById('helpOv').classList.remove('on');nav('play')" title="back to PLAY">←</div>
 <style>
 .spot{outline:2px solid var(--pink) !important;box-shadow:0 0 30px rgba(240,171,252,.75) !important;border-radius:10px;transition:box-shadow .4s, outline-color .4s}
 #helpOv{display:none}
@@ -612,6 +622,9 @@ body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
               <div class="ptitle" style="margin:0">NOW PLAYING <span id="npSave" onclick="ldSaveSong()" title="save to MY STUFF" style="cursor:pointer;display:none">⭐</span></div>
               <div id="npTitle" style="font-size:.95rem;color:#fff;font-weight:700">Turmoil &amp; Tinfoil <span style="color:var(--dim);font-weight:400">— Billy Strings</span></div>
               <div id="npStatus" style="font-size:.62rem;color:var(--green)">✅ FULL SONG · verified from a real play-through · 🎬 video in VIDEO STUDIO</div>
+              <div class="kchipRow-m">
+                <span class="kchip" id="kKeyM" title="the song's key — from the audio itself, web-checked">KEY F</span><span class="kchip capo" id="kCapoM" title="suggested capo for the easiest open shapes">CAPO 3</span><span class="kchip" id="kBpmM" title="tempo — beats per minute">133 BPM</span>
+              </div>
             </div>
             <div id="ytHost" style="display:none;width:214px;height:120px;border-radius:10px;overflow:hidden;flex:0 0 auto"></div>
           </div>
