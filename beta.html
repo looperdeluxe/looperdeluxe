@@ -4,12 +4,12 @@
      The inline prototype logic below is placeholder UI that steps 10+ replace
      view-by-view with the certified modules imported here. Bump BUILD on every
      deploy — it cache-busts the whole module graph (GH Pages caches 10 min). -->
-<link rel="modulepreload" href="js/clock.js?v=b12">
-<link rel="modulepreload" href="js/engine-api.js?v=b12">
-<link rel="modulepreload" href="js/chart-model.js?v=b12">
-<link rel="modulepreload" href="js/store.js?v=b12">
+<link rel="modulepreload" href="js/clock.js?v=b13">
+<link rel="modulepreload" href="js/engine-api.js?v=b13">
+<link rel="modulepreload" href="js/chart-model.js?v=b13">
+<link rel="modulepreload" href="js/store.js?v=b13">
 <script type="module">
-const BUILD = 'b12';
+const BUILD = 'b13';
 const mod = (p) => import(`${p}?v=${BUILD}`);
 (async () => {
   try {
@@ -332,8 +332,12 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
   /* play/pause: bottom-right just above the bar (Brooks: "good spot for it");
      tour stacks above it when a song is loaded, takes its place when not */
   #tourBtn{bottom:80px !important;left:10px !important;right:auto !important;z-index:53 !important}
-  /* back-arrow: top-right, shows on any non-PLAY view (bottom tabs) or the FEATURES overlay */
-  body.offhome #backHome,#helpOv.on ~ #backHome{display:flex}
+  /* back-arrow: top-right, shows on any non-PLAY view (bottom tabs), the FEATURES overlay,
+     EXPAND fullscreen, or any PLAY pane other than the FULL CHART default landing screen */
+  body.offhome #backHome,#helpOv.on ~ #backHome,
+  body:has(#stagePanel.max) #backHome,
+  body:has(#pane-stage.on) #backHome,body:has(#pane-stems.on) #backHome,
+  body:has(#pane-ccoach.on) #backHome,body:has(#pane-versions.on) #backHome{display:flex}
   .toast{bottom:112px}
   .bar input{flex:1 1 calc(100% - 58px);order:9}
   #searchGo{order:10;flex:0 0 auto}
@@ -346,9 +350,10 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
   border-radius:50%;background:linear-gradient(135deg,#7c3aed,#0e7490);border:1px solid var(--purple);
   color:#fff;font-size:1.3rem;line-height:1;align-items:center;justify-content:center;cursor:pointer;
   box-shadow:0 4px 18px rgba(124,58,237,.55)}
-#backHome{display:none;position:fixed;top:8px;right:8px;z-index:56;width:32px;height:32px;border-radius:50%;
-  background:var(--panel2);border:1px solid var(--border);color:#e2e8f0;font-size:1rem;line-height:1;
-  align-items:center;justify-content:center;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4)}
+#backHome{display:none;position:fixed;top:8px;right:8px;z-index:56;width:34px;height:34px;border-radius:50%;
+  background:var(--panel2);border:1px solid var(--border);cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.4);
+  align-items:center;justify-content:center}
+#backHome svg{display:block}
 body:has(#loopMode.on) #backHome,body:has(#vBoard.on) #backHome,body:has(#tourDim.on) #backHome{display:none}
 
 @media(max-width:900px){#btnPlay{font-size:.78rem;padding:11px 20px;box-shadow:0 0 16px rgba(124,58,237,.5)}}  /* phone: play is unmissable up top */
@@ -580,7 +585,7 @@ body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
     </div>
   </div>
 </div>
-<div id="backHome" onclick="document.getElementById('helpOv').classList.remove('on');nav('play')" title="back to PLAY">←</div>
+<div id="backHome" onclick="document.getElementById('helpOv').classList.remove('on');document.getElementById('stagePanel').classList.remove('max');const bt=document.querySelector('.tab[data-pane=&quot;chart&quot;]');if(bt)pane(bt);nav('play')" title="back to PLAY"><svg width="16" height="16" viewBox="0 0 24 24"><path fill="none" stroke="#e2e8f0" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" d="M15 5l-7 7 7 7"/></svg></div>
 <style>
 .spot{outline:2px solid var(--pink) !important;box-shadow:0 0 30px rgba(240,171,252,.75) !important;border-radius:10px;transition:box-shadow .4s, outline-color .4s}
 #helpOv{display:none}
