@@ -4,12 +4,12 @@
      The inline prototype logic below is placeholder UI that steps 10+ replace
      view-by-view with the certified modules imported here. Bump BUILD on every
      deploy — it cache-busts the whole module graph (GH Pages caches 10 min). -->
-<link rel="modulepreload" href="js/clock.js?v=b9">
-<link rel="modulepreload" href="js/engine-api.js?v=b9">
-<link rel="modulepreload" href="js/chart-model.js?v=b9">
-<link rel="modulepreload" href="js/store.js?v=b9">
+<link rel="modulepreload" href="js/clock.js?v=b10">
+<link rel="modulepreload" href="js/engine-api.js?v=b10">
+<link rel="modulepreload" href="js/chart-model.js?v=b10">
+<link rel="modulepreload" href="js/store.js?v=b10">
 <script type="module">
-const BUILD = 'b9';
+const BUILD = 'b10';
 const mod = (p) => import(`${p}?v=${BUILD}`);
 (async () => {
   try {
@@ -126,7 +126,8 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
           let lines, starts, changes;
           if (lyr && lyr.lines) {
             const tl = LD.lyrics.deriveTimeline(lyr.lines, c.songChords, dur);
-            lines = tl.lines.map((L) => L.words.map((w) => [w.chord, w.w]));
+            // [chord, word, wordPct] — the third slot makes EVERY WORD a seek target
+            lines = tl.lines.map((L) => L.words.map((w) => [w.chord, w.w, Math.min(99.9, w.t / dur * 100)]));
             starts = tl.lines.map((L) => Math.min(99.9, L.t / dur * 100));
             changes = tl.changes.map((ch) => [Math.min(99.9, ch.t / dur * 100), ch.n]);
           } else {
@@ -134,7 +135,7 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
             lines = []; starts = [];
             for (let i = 0; i < c.songChords.length; i += 4) {
               const row = c.songChords.slice(i, i + 4);
-              lines.push(row.map((ch) => [ch.n, '···']));
+              lines.push(row.map((ch) => [ch.n, '···', Math.min(99.9, ch.t / dur * 100)]));
               starts.push(Math.min(99.9, row[0].t / dur * 100));
             }
             changes = c.songChords.map((ch) => [Math.min(99.9, ch.t / dur * 100), ch.n]);
@@ -1132,6 +1133,7 @@ function renderRibbon(){
   });
 }
 let LINE_STARTS=null;  // real songs: per-line % starts (lines are NOT uniform) — null = mock uniform spans
+let jumpSnap=false;    // set by manual jumps: next stage scroll is INSTANT (kills the smooth-scroll bounce)
 function lineAt(p){
   if(!LINE_STARTS) return Math.min(LINES.length-1,Math.floor(p/LINE_SPAN));
   let i=0; while(i+1<LINE_STARTS.length&&LINE_STARTS[i+1]<=p) i++; return i;
@@ -1152,7 +1154,8 @@ function syncStage(){
     [...line.querySelectorAll('.ich')].forEach(c=>c.classList.remove('hit','soon'));
     // ALWAYS scroll the stage box so the current line sits at the top — expanded or not —
     // and the upcoming lines are visible below it (scrolls the BOX, never the page)
-    stageEl.scrollTo({top:Math.max(0,line.offsetTop-stageEl.offsetTop-6),behavior:'smooth'});
+    stageEl.scrollTo({top:Math.max(0,line.offsetTop-stageEl.offsetTop-6),behavior:jumpSnap?'auto':'smooth'});
+    jumpSnap=false;
   }
   const words=[...line.querySelectorAll('.w')];
   const frac=lineFrac(pos,ln);
@@ -1318,43 +1321,54 @@ function loadRealSong(d){
   SONG_DISPLAY_S=d.durationS||230;
   loopA=null; loopB=null; region(); stamp(); curLine=-1; pos=0;
   document.getElementById('mph').style.left='0%';
+  // jumpTo: the ONE way every tap navigates — word-exact when the word has a
+  // time, instant scroll (no smooth-animation bounce), page scroll preserved
+  const jumpTo=(p)=>{
+    const sy=window.scrollY;
+    jumpSnap=true; pos=p;
+    if(window.__realSeek) __realSeek(p);
+    curLine=-1; renderRibbon(); syncStage();
+    window.scrollTo({top:sy});
+  };
   // stage + study sheet rebuilt from the same data
   stageEl.innerHTML='';
   LINES.forEach((seg,li)=>{
     const dv=document.createElement('div'); dv.className='line';
-    seg.forEach(([ch,words])=>{
+    seg.forEach(([ch,words,wp])=>{
       String(words).split(' ').forEach((w,i)=>{
         const s=document.createElement('span'); s.className='seg';
         if(ch&&i===0){ const c=document.createElement('span'); c.className='ich'; c.textContent=ch; s.appendChild(c); }
         else { const sp=document.createElement('span'); sp.className='spacer'; s.appendChild(sp); }
         const wd=document.createElement('span'); wd.className='w wds'; wd.textContent=w;
+        // tap THE WORD → play from that word (Brooks: 4th word = 4th word, not the line)
+        if(wp!=null){ wd.style.cursor='pointer';
+          wd.onclick=(e)=>{ e.stopPropagation(); e.preventDefault(); jumpTo(wp); }; }
         s.appendChild(wd); dv.appendChild(s);
       });
     });
-    // tap any lyric line on the STAGE → jump the real song there (Brooks 2026-07-18)
     dv.style.cursor='pointer';
-    dv.onclick=()=>{ const p=LINE_STARTS?LINE_STARTS[li]:li*(100/Math.max(LINES.length,1));
-      pos=p; if(window.__realSeek) __realSeek(p);
-      curLine=-1; renderRibbon(); syncStage(); };
+    dv.onclick=()=>jumpTo(LINE_STARTS?LINE_STARTS[li]:li*(100/Math.max(LINES.length,1)));
     stageEl.appendChild(dv);
   });
   const sheet=document.getElementById('chartSheet');
   sheet.innerHTML='';
   LINES.forEach((seg,li)=>{
     const dv=document.createElement('div'); dv.className='line';
-    seg.forEach(([ch,words])=>{
+    seg.forEach(([ch,words,wp])=>{
       String(words).split(' ').forEach((w,i)=>{
         const s=document.createElement('span'); s.className='seg';
         if(ch&&i===0){ const c=document.createElement('span'); c.className='ich'; c.textContent=ch; s.appendChild(c); }
         else { const sp=document.createElement('span'); sp.className='spacer'; s.appendChild(sp); }
         const wd=document.createElement('span'); wd.className='wds'; wd.textContent=w;
+        if(wp!=null){ wd.style.cursor='pointer';
+          wd.onclick=(e)=>{ e.stopPropagation(); e.preventDefault();
+            const st=document.querySelector('.tab[data-pane="stage"]'); if(st) pane(st);
+            jumpTo(wp); }; }
         s.appendChild(wd); dv.appendChild(s);
       });
     });
-    dv.onclick=()=>{ const p=LINE_STARTS?LINE_STARTS[li]:li*(100/LINES.length);
-      pos=p; if(window.__realSeek) __realSeek(p);
-      const st=document.querySelector('.tab[data-pane="stage"]'); if(st) pane(st);
-      renderRibbon(); syncStage(); };
+    dv.onclick=()=>{ const st=document.querySelector('.tab[data-pane="stage"]'); if(st) pane(st);
+      jumpTo(LINE_STARTS?LINE_STARTS[li]:li*(100/LINES.length)); };
     sheet.appendChild(dv);
   });
   // the shapes row: TAP a chord → LEARN opens on that key (Brooks 2026-07-18)
