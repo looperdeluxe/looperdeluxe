@@ -4,12 +4,12 @@
      The inline prototype logic below is placeholder UI that steps 10+ replace
      view-by-view with the certified modules imported here. Bump BUILD on every
      deploy — it cache-busts the whole module graph (GH Pages caches 10 min). -->
-<link rel="modulepreload" href="js/clock.js?v=b5">
-<link rel="modulepreload" href="js/engine-api.js?v=b5">
-<link rel="modulepreload" href="js/chart-model.js?v=b5">
-<link rel="modulepreload" href="js/store.js?v=b5">
+<link rel="modulepreload" href="js/clock.js?v=b6">
+<link rel="modulepreload" href="js/engine-api.js?v=b6">
+<link rel="modulepreload" href="js/chart-model.js?v=b6">
+<link rel="modulepreload" href="js/store.js?v=b6">
 <script type="module">
-const BUILD = 'b5';
+const BUILD = 'b6';
 const mod = (p) => import(`${p}?v=${BUILD}`);
 (async () => {
   try {
@@ -1299,7 +1299,7 @@ function loadRealSong(d){
   document.getElementById('mph').style.left='0%';
   // stage + study sheet rebuilt from the same data
   stageEl.innerHTML='';
-  LINES.forEach(seg=>{
+  LINES.forEach((seg,li)=>{
     const dv=document.createElement('div'); dv.className='line';
     seg.forEach(([ch,words])=>{
       String(words).split(' ').forEach((w,i)=>{
@@ -1310,6 +1310,11 @@ function loadRealSong(d){
         s.appendChild(wd); dv.appendChild(s);
       });
     });
+    // tap any lyric line on the STAGE → jump the real song there (Brooks 2026-07-18)
+    dv.style.cursor='pointer';
+    dv.onclick=()=>{ const p=LINE_STARTS?LINE_STARTS[li]:li*(100/Math.max(LINES.length,1));
+      pos=p; if(window.__realSeek) __realSeek(p);
+      curLine=-1; renderRibbon(); syncStage(); };
     stageEl.appendChild(dv);
   });
   const sheet=document.getElementById('chartSheet');
@@ -1331,10 +1336,10 @@ function loadRealSong(d){
       renderRibbon(); syncStage(); };
     sheet.appendChild(dv);
   });
-  // the shapes row: real songs show their actual chord set (shape browser lives in LEARN)
+  // the shapes row: TAP a chord → LEARN opens on that key (Brooks 2026-07-18)
   const cc=document.getElementById('chartChords');
   const uniq=[...new Set(CHANGES.map(([,n])=>n))];
-  cc.innerHTML=uniq.map(n=>'<div class="vfb" style="text-align:center;padding:10px 4px"><b style="font-size:1rem;color:#a5f3fc">'+n+'</b><div style="font-size:.5rem;color:var(--dim);margin-top:4px">shapes → 🎼 LEARN</div></div>').join('');
+  cc.innerHTML=uniq.map(n=>'<div class="vfb" onclick="chordToLearn(\''+String(n).replace(/[^A-Ga-g#b♯♭majdimsu0-9/]/g,'')+'\')" style="text-align:center;padding:10px 4px;cursor:pointer"><b style="font-size:1rem;color:#a5f3fc">'+n+'</b><div style="font-size:.5rem;color:var(--dim);margin-top:4px">tap → 🎼 LEARN</div></div>').join('');
   // envelope → waveform (46 bars, normalized)
   if(d.envelope&&d.envelope.v&&d.envelope.v.length){
     const v=d.envelope.v, n=46, out=[];
@@ -1346,6 +1351,19 @@ function loadRealSong(d){
   renderRibbon(); syncStage();
 }
 // clock → mock globals: the module calls this every frame with real song %
+// a chord chip in FULL CHART → LEARN with that chord's key selected
+function chordToLearn(name){
+  const m=/^([A-G])([#b♯♭]?)/.exec(name||'');
+  if(m){
+    let root=m[1]+(m[2]==='#'||m[2]==='♯'?'♯':'');
+    if(m[2]==='b'||m[2]==='♭'){ // LEARN's chips are sharp-named — map flats
+      const F={'A♭':'G♯','B♭':'A♯','D♭':'C♯','E♭':'D♯','G♭':'F♯'}; root=F[m[1]+'♭']||m[1];
+    }
+    if(typeof setKey==='function'&&NOTES.includes(root)) setKey(root);
+  }
+  nav('learn');
+  toast('🎼 '+name+' — its key on the neck; scale + shapes below');
+}
 function realFrame(p){
   pos=Math.max(0,Math.min(99.95,p));
   document.getElementById('mph').style.left=pos+'%';
