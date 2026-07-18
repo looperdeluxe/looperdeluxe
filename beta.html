@@ -4,12 +4,12 @@
      The inline prototype logic below is placeholder UI that steps 10+ replace
      view-by-view with the certified modules imported here. Bump BUILD on every
      deploy — it cache-busts the whole module graph (GH Pages caches 10 min). -->
-<link rel="modulepreload" href="js/clock.js?v=b6">
-<link rel="modulepreload" href="js/engine-api.js?v=b6">
-<link rel="modulepreload" href="js/chart-model.js?v=b6">
-<link rel="modulepreload" href="js/store.js?v=b6">
+<link rel="modulepreload" href="js/clock.js?v=b7">
+<link rel="modulepreload" href="js/engine-api.js?v=b7">
+<link rel="modulepreload" href="js/chart-model.js?v=b7">
+<link rel="modulepreload" href="js/store.js?v=b7">
 <script type="module">
-const BUILD = 'b6';
+const BUILD = 'b7';
 const mod = (p) => import(`${p}?v=${BUILD}`);
 (async () => {
   try {
@@ -97,6 +97,7 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
       $('npTitle').innerHTML = `${title.replace(/</g,'&lt;')} <span style="color:var(--dim);font-weight:400">— ${artist.replace(/</g,'&lt;')}</span>`;
       $('npStatus').textContent = '⏳ loading chords…';
       $('npSave').style.display = '';
+      document.body.classList.add('songloaded'); // phone: shows the floating play/pause
       LD.song = { artist, title, vid, chart: null };
       history.replaceState(null, '', '?song=' + encodeURIComponent(artist + '|' + title));
       try {
@@ -226,13 +227,14 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
       if (lb && pct > lb.b) { window.__realSeek(lb.a); return; }
       if (LD.player.state() === 'playing') window.realFrame && realFrame(pct);
     });
-    // big play button mirrors the REAL player state
+    // big play button + phone FAB mirror the REAL player state
     const bigPlayUI = (s) => {
-      const bp = $('bigPlay'), pb = $('btnPlay');
+      const bp = $('bigPlay'), pb = $('btnPlay'), fab = $('playFab');
       if (!LD.song) return;
       const on = s === 'playing';
       if (bp) bp.textContent = on ? '❚❚' : '▶';
       if (pb) pb.textContent = on ? '⏸ PAUSE' : '▶ PLAY';
+      if (fab) fab.textContent = on ? '❚❚' : '▶';
     };
     const armStateUI = () => { if (LD.player && !LD.player.__uiArmed) { LD.player.__uiArmed = true; LD.player.onState(bigPlayUI); } };
     // arm the state mirror after the first player exists
@@ -318,9 +320,17 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
   .map{height:64px}
   #searchResults{top:96px}
   .stage{max-height:44vh}
-  #tourBtn{bottom:64px}
-  .toast{bottom:70px}
+  /* tour bottom-LEFT above the nav bar (was hidden behind it); play FAB bottom-RIGHT */
+  #tourBtn{bottom:78px;left:10px;right:auto;z-index:53}
+  .toast{bottom:112px}
+  .bar input{flex:1 1 calc(100% - 58px);order:9}
+  #searchGo{order:10;flex:0 0 auto}
+  body.songloaded #playFab{display:flex}
 }
+#playFab{display:none;position:fixed;bottom:78px;right:10px;z-index:53;width:52px;height:52px;
+  border-radius:50%;background:linear-gradient(135deg,#7c3aed,#0e7490);border:1px solid var(--purple);
+  color:#fff;font-size:1.25rem;align-items:center;justify-content:center;cursor:pointer;
+  box-shadow:0 4px 18px rgba(124,58,237,.55)}
 @media(max-width:900px){#btnPlay{font-size:.78rem;padding:11px 20px;box-shadow:0 0 16px rgba(124,58,237,.5)}}  /* phone: play is unmissable up top */
 .grid{display:grid;grid-template-columns:1.3fr 1fr;gap:12px;flex:1;min-height:0}
 @media(max-width:900px){.grid{grid-template-columns:1fr}
@@ -517,7 +527,8 @@ body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
-  <input id="searchIn" placeholder="🔍 Search a song…" autocomplete="off" onkeydown="if(event.key==='Enter')ldSearch()">
+  <input id="searchIn" placeholder="Search a song…" autocomplete="off" onkeydown="if(event.key==='Enter')ldSearch()">
+  <button class="btn" id="searchGo" title="search" onclick="ldSearch()" style="padding:8px 13px">🔍</button>
   <button class="btn primary" id="btnPlay" onclick="togglePlay()">▶ PLAY</button>
   <button class="btn chords" title="re-fetch this song's chords from the library" onclick="ldGetChords()">🎸 GET CHORDS</button>
   <span class="kchip" id="kKey" title="the song's key — from the audio itself, web-checked">KEY F</span><span class="kchip capo" id="kCapo" title="suggested capo for the easiest open shapes">CAPO 3</span><span class="kchip" id="kBpm" title="tempo — beats per minute">133 BPM</span>
@@ -879,6 +890,7 @@ body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
   <div id="loopLyric"></div>
 </div>
 <div id="tourBtn" onclick="startTour()" title="12 quick stops — arrows or space to move">🎸 NEW HERE? <b style="color:#a5f3fc">60-SECOND TOUR</b><span class="tx" title="hide this — the tour lives on in ⚙ SETTINGS" onclick="event.stopPropagation();tourDismiss()">✕</span></div>
+<div id="playFab" onclick="togglePlay()" title="play / pause">▶</div>
 <div id="tourDim" onclick="endTour()"></div>
 <div id="tourTip"><div id="tourText"></div>
   <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end;align-items:center">
