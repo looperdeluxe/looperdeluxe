@@ -4,12 +4,12 @@
      The inline prototype logic below is placeholder UI that steps 10+ replace
      view-by-view with the certified modules imported here. Bump BUILD on every
      deploy — it cache-busts the whole module graph (GH Pages caches 10 min). -->
-<link rel="modulepreload" href="js/clock.js?v=b1">
-<link rel="modulepreload" href="js/engine-api.js?v=b1">
-<link rel="modulepreload" href="js/chart-model.js?v=b1">
-<link rel="modulepreload" href="js/store.js?v=b1">
+<link rel="modulepreload" href="js/clock.js?v=b2">
+<link rel="modulepreload" href="js/engine-api.js?v=b2">
+<link rel="modulepreload" href="js/chart-model.js?v=b2">
+<link rel="modulepreload" href="js/store.js?v=b2">
 <script type="module">
-const BUILD = 'b1';
+const BUILD = 'b2';
 const mod = (p) => import(`${p}?v=${BUILD}`);
 (async () => {
   try {
@@ -34,6 +34,34 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
       return { artist: ch.replace(/VEVO$/i, ''), title: r.title };
     }
 
+    // ——— step 11: honest failure states ———
+    let engDownTimer = null;
+    function engineDown(yes) {
+      let b = $('engBanner');
+      if (!b) {
+        b = document.createElement('div');
+        b.id = 'engBanner';
+        b.style.cssText = 'display:none;position:fixed;top:0;left:0;right:0;z-index:70;background:#7f1d1d;color:#fecaca;font-size:.68rem;text-align:center;padding:5px';
+        b.textContent = '⚠ the chord engine is unreachable — playback still works; chords return automatically when it does';
+        document.body.appendChild(b);
+      }
+      b.style.display = yes ? 'block' : 'none';
+      if (yes && !engDownTimer) {
+        engDownTimer = setInterval(async () => {
+          try { await LD.engine.health(); engineDown(false); clearInterval(engDownTimer); engDownTimer = null; }
+          catch (e) { /* still down */ }
+        }, 30000);
+      }
+    }
+    LD.engineDown = engineDown;
+
+    // embed-blocked (101/150) → auto-try the next candidate; label "- Topic"
+    // audio uploads rarely block, so they sort first among fallbacks
+    function fallbackOrder(cands, failedId) {
+      return cands.filter((c) => c.id !== failedId)
+        .sort((a, b) => (/ - Topic$/.test(b.channel || '') ? 1 : 0) - (/ - Topic$/.test(a.channel || '') ? 1 : 0));
+    }
+
     window.ldSearch = async () => {
       const q = $('searchIn').value.trim();
       if (!q) return;
@@ -42,20 +70,24 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
       box.innerHTML = '<div style="padding:12px;font-size:.7rem;color:#a1a1aa">searching…</div>';
       try {
         const rs = await LD.engine.search(q, { n: 6 });
+        engineDown(false);
         box.innerHTML = rs.map((r, i) =>
           `<div class="srow" data-i="${i}" style="display:flex;gap:10px;align-items:center;padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)">
              <img src="${r.thumb}" style="width:64px;height:36px;object-fit:cover;border-radius:6px">
              <div style="min-width:0"><div style="font-size:.72rem;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.title.replace(/</g,'&lt;')}</div>
              <div style="font-size:.6rem;color:#a1a1aa">${(r.channel||'').replace(/</g,'&lt;')}</div></div></div>`).join('')
           || '<div style="padding:12px;font-size:.7rem">no results</div>';
+        lastResults = rs;
         box.querySelectorAll('.srow').forEach((el) => {
           el.onclick = () => { box.style.display = 'none'; ldPick(rs[+el.dataset.i]); };
         });
       } catch (e) {
-        box.innerHTML = `<div style="padding:12px;font-size:.7rem;color:#fca5a5">⚠ ${e.message} — engine unreachable? try again</div>`;
+        if (e && e.status === 0) engineDown(true);
+        box.innerHTML = `<div style="padding:12px;font-size:.7rem;color:#fca5a5">⚠ ${e.message} — try again in a moment</div>`;
       }
     };
 
+    let lastResults = [];
     async function ldPick(r) {
       const { artist, title } = resolveArtistTitle(r);
       await ldLoadSong(artist, title, r.id);
@@ -89,7 +121,8 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
           LD.engine.requestChart(artist, title).catch(() => {});
         } else {
           $('npStatus').style.color = '#fca5a5';
-          $('npStatus').textContent = '⚠ engine unreachable — chords will load when it is back';
+          $('npStatus').textContent = '⚠ engine unreachable — chords load automatically when it is back';
+          engineDown(true);
         }
       }
       if (vid) {
@@ -98,9 +131,15 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
           LD.player = playerYT.createYouTubeSource('ytHost');
           LD.clock.setSource(LD.player);
         }
-        try { await LD.player.load(vid); LD.clock.start(); } catch (e) {
-          $('npStatus').textContent += ' · ⚠ video would not embed';
+        const tryIds = [vid, ...fallbackOrder(lastResults, vid).map((c) => c.id)].slice(0, 4);
+        let loaded = false;
+        for (const id of tryIds) {
+          try { await LD.player.load(id); loaded = true; break; }
+          catch (e) { console.warn('[LD] embed failed', id, e.code || e.message); }
         }
+        if (loaded) LD.clock.start();
+        else { $('ytHost').style.display = 'none';
+               $('npStatus').textContent += ' · ⚠ no embeddable video — chords still work'; }
       }
     }
     window.ldLoadSong = ldLoadSong;

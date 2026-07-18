@@ -30,10 +30,24 @@ function ytApi() {
 const STATE_MAP = { '-1': 'ready', 0: 'ended', 1: 'playing', 2: 'paused', 3: 'buffering', 5: 'ready' };
 
 export function createYouTubeSource(containerId, { mute = false } = {}) {
-  let p = null, st = 'idle', offset = 0, destroyed = false;
+  let p = null, st = 'idle', offset = 0, destroyed = false, lastErr = null;
   let lastRaw = 0, lastWall = 0, actualRate = 1;
   let seekPending = 0; // wall-clock deadline while a deliberate jump is allowed
   const stateCbs = new Set();
+
+  // resolves when the CURRENT video is playable, rejects on embed error/timeout —
+  // load() awaits this on swaps too, so embed-block fallbacks (step 11) can loop
+  function oncePlayable() {
+    return new Promise((res, rej) => {
+      const cb = (s) => {
+        if (s === 'ready' || s === 'playing' || s === 'paused') { done(); res(); }
+        else if (s === 'error') { done(); rej(Object.assign(new Error('yt embed error'), { code: lastErr })); }
+      };
+      const to = setTimeout(() => { done(); rej(new Error('yt load timeout')); }, 20000);
+      const done = () => { clearTimeout(to); stateCbs.delete(cb); };
+      stateCbs.add(cb);
+    });
+  }
 
   function setState(s) {
     if (s === st || destroyed) return;
@@ -65,7 +79,9 @@ export function createYouTubeSource(containerId, { mute = false } = {}) {
       setState('loading');
       lastRaw = 0; lastWall = performance.now(); seekPending = performance.now() + 4000;
       if (p) {
+        const playable = oncePlayable();
         p.loadVideoById(videoId);
+        await playable;
         return;
       }
       await new Promise((res, rej) => {
@@ -80,7 +96,7 @@ export function createYouTubeSource(containerId, { mute = false } = {}) {
               setState(s);
             },
             onPlaybackRateChange: () => { actualRate = p.getPlaybackRate() || 1; lastWall = performance.now(); read(); },
-            onError: (e) => { setState('error'); rej(Object.assign(new Error('yt error ' + e.data), { code: e.data })); },
+            onError: (e) => { lastErr = e.data; setState('error'); rej(Object.assign(new Error('yt error ' + e.data), { code: e.data })); },
           },
         });
         // errors after successful load surface via onState('error'), not this promise
