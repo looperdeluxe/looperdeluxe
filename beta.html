@@ -4,12 +4,12 @@
      The inline prototype logic below is placeholder UI that steps 10+ replace
      view-by-view with the certified modules imported here. Bump BUILD on every
      deploy — it cache-busts the whole module graph (GH Pages caches 10 min). -->
-<link rel="modulepreload" href="js/clock.js?v=b2">
-<link rel="modulepreload" href="js/engine-api.js?v=b2">
-<link rel="modulepreload" href="js/chart-model.js?v=b2">
-<link rel="modulepreload" href="js/store.js?v=b2">
+<link rel="modulepreload" href="js/clock.js?v=b3">
+<link rel="modulepreload" href="js/engine-api.js?v=b3">
+<link rel="modulepreload" href="js/chart-model.js?v=b3">
+<link rel="modulepreload" href="js/store.js?v=b3">
 <script type="module">
-const BUILD = 'b2';
+const BUILD = 'b3';
 const mod = (p) => import(`${p}?v=${BUILD}`);
 (async () => {
   try {
@@ -114,6 +114,33 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
           $('npStatus').textContent = '🚀 REQUESTED — full-song chart coming soon · preview chords only for now';
           LD.engine.requestChart(artist, title).catch(() => {});
         }
+        // ——— step 12: the loaded song takes over stage/chart/ribbon/waveform ———
+        if (c.songChords.length && c.durationS && c.timeline === 'absolute') {
+          const dur = c.durationS;
+          let lyr = null;
+          try {
+            lyr = await LD.lyrics.fetchLyrics({ artist, title, durationS: dur,
+              lrcId: c.lrcId, lrcHash: c.lrcHash, sections: c.sections });
+          } catch (e2) { /* lyrics optional — chord-only below */ }
+          let lines, starts, changes;
+          if (lyr && lyr.lines) {
+            const tl = LD.lyrics.deriveTimeline(lyr.lines, c.songChords, dur);
+            lines = tl.lines.map((L) => L.words.map((w) => [w.chord, w.w]));
+            starts = tl.lines.map((L) => Math.min(99.9, L.t / dur * 100));
+            changes = tl.changes.map((ch) => [Math.min(99.9, ch.t / dur * 100), ch.n]);
+          } else {
+            // no usable lyrics: chord rows of 4, each row timed by its first chord
+            lines = []; starts = [];
+            for (let i = 0; i < c.songChords.length; i += 4) {
+              const row = c.songChords.slice(i, i + 4);
+              lines.push(row.map((ch) => [ch.n, '···']));
+              starts.push(Math.min(99.9, row[0].t / dur * 100));
+            }
+            changes = c.songChords.map((ch) => [Math.min(99.9, ch.t / dur * 100), ch.n]);
+          }
+          window.loadRealSong({ lines, starts, changes, durationS: dur, envelope: c.envelope, title });
+          LD.song.durationS = dur;
+        }
       } catch (e) {
         if (e && e.status === 404) {
           $('npStatus').style.color = '#fbbf24';
@@ -161,6 +188,35 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
         (LD.player.state() === 'playing' ? LD.player.pause() : LD.player.play());
       } else if (mockToggle) mockToggle();
     };
+
+    // ——— step 12: the certified clock drives the mock renderers with real time ———
+    window.__realSeek = (pct) => {
+      if (LD.song && LD.player && LD.song.durationS) LD.player.seek(pct / 100 * LD.song.durationS);
+    };
+    window.__realRate = async (r) => {
+      if (!LD.song || !LD.player) return;
+      const actual = await LD.player.rate(r);
+      const el = $('spdVal');
+      if (el) el.textContent = Math.round(actual * 100) + '%' + (Math.abs(actual - r) > 0.001 ? ' (snapped)' : '');
+    };
+    LD.clock.subscribe((t) => {
+      if (!LD.song || !LD.player || !LD.song.durationS) return;
+      const pct = t / LD.song.durationS * 100;
+      const lb = window.loopBounds && loopBounds();
+      if (lb && pct > lb.b) { window.__realSeek(lb.a); return; }
+      if (LD.player.state() === 'playing') window.realFrame && realFrame(pct);
+    });
+    // big play button mirrors the REAL player state
+    const bigPlayUI = (s) => {
+      const bp = $('bigPlay'), pb = $('btnPlay');
+      if (!LD.song) return;
+      const on = s === 'playing';
+      if (bp) bp.textContent = on ? '❚❚' : '▶';
+      if (pb) pb.textContent = on ? '⏸ PAUSE' : '▶ PLAY';
+    };
+    const armStateUI = () => { if (LD.player && !LD.player.__uiArmed) { LD.player.__uiArmed = true; LD.player.onState(bigPlayUI); } };
+    // arm the state mirror after the first player exists
+    setInterval(armStateUI, 1500);
 
     // deep link: ?song=artist|title (new capability — classic site has no song URLs)
     const dl = new URLSearchParams(location.search).get('song');
@@ -408,8 +464,8 @@ body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
   <input id="searchIn" placeholder="🔍 Search a song…" autocomplete="off" onkeydown="if(event.key==='Enter')ldSearch()">
   <button class="btn primary" id="btnPlay" onclick="togglePlay()">▶ PLAY</button>
-  <button class="btn chords" onclick="ldGetChords()">🎸 GET CHORDS</button>
-  <span class="kchip" id="kKey">KEY F</span><span class="kchip capo" id="kCapo">CAPO 3</span><span class="kchip" id="kBpm">133 BPM</span>
+  <button class="btn chords" title="re-fetch this song's chords from the library" onclick="ldGetChords()">🎸 GET CHORDS</button>
+  <span class="kchip" id="kKey" title="the song's key — from the audio itself, web-checked">KEY F</span><span class="kchip capo" id="kCapo" title="suggested capo for the easiest open shapes">CAPO 3</span><span class="kchip" id="kBpm" title="tempo — beats per minute">133 BPM</span>
   <button class="btn" style="padding:6px 9px" onclick="toast('mock: BPM halved')">÷2</button>
   <button class="btn" style="padding:6px 9px" onclick="toast('mock: BPM doubled')">×2</button>
   <span style="flex:1"></span>
@@ -422,14 +478,14 @@ body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
     <div style="font-size:.68rem;color:#a1a1aa;margin-bottom:16px">tap any card to <b style="color:var(--cyan)">try it live</b> — it takes you there and lights it up · tap anywhere else to close</div>
     <div class="cardgrid">
       <div class="card" onclick="event.stopPropagation();helpGo('play',null,'.bar input')"><b>🔍 SEARCH → PLAY</b>Type any song. Chords, key, capo and lyrics load themselves — no buttons.</div>
-      <div class="card" onclick="event.stopPropagation();helpGo('play','stage','#stagePanel')"><b>🎤 STAGE</b>Lyrics with the chords above the exact word they change on. Pink build-up = change coming, pop = now.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('play','stage','#stagePanel')"><b>🎭 STAGE</b>Lyrics with the chords above the exact word they change on. Pink build-up = change coming, pop = now.</div>
       <div class="card" onclick="event.stopPropagation();helpGo('play',null,'#loopRowMain')"><b>🔁 LOOP</b>IN and OUT mark a section on the waveform. It repeats until you own it. 💾 saves it forever.</div>
       <div class="card" onclick="event.stopPropagation();document.getElementById('helpOv').classList.remove('on');nav('play');openLoop()"><b>◉ LOOP MODE</b>Fullscreen ring for hands-free practice — chord in the middle, lyrics below, phone on the music stand.</div>
       <div class="card" onclick="event.stopPropagation();helpGo('play',null,'#practiceRow')"><b>🚀 SPEED-UP</b>Step-up speeds each pass +4% and caps at 100%. Gap counts you back in with a live decimal countdown. Start delay counts you in.</div>
       <div class="card" onclick="event.stopPropagation();helpGo('play',null,'#strumRow')"><b>🎵 STRUM</b>Auto-detected pattern for the song's feel — or scroll ‹ › to pick your own.</div>
       <div class="card" onclick="event.stopPropagation();helpGo('learn',null,'#hfb')"><b>🎼 LEARN</b>Any key × any scale on a live neck. Flip it vertical. Ask in plain English: "D minor but darker."</div>
       <div class="card" onclick="event.stopPropagation();helpGo('play','stems','#pane-stems .card')"><b>🎚 STEMS</b>Mute your instrument, play with the rest of the band.</div>
-      <div class="card" onclick="event.stopPropagation();helpGo('play','ccoach','#pane-ccoach .card')"><b>🎤 CHORD COACH</b>Listens through the mic and tells you which chords you're actually hitting.</div>
+      <div class="card" onclick="event.stopPropagation();helpGo('play','ccoach','#pane-ccoach .card')"><b>👂 CHORD COACH</b>Listens through the mic and tells you which chords you're actually hitting.</div>
       <div class="card" onclick="event.stopPropagation();helpGo('coach',null,'#view-coach .panel')"><b>🤖 AI COACH</b>Ask anything about the song you're playing — theory, voicings, why it sounds the way it does.</div>
       <div class="card" onclick="event.stopPropagation();helpGo('play','versions','#pane-versions .card')"><b>👥 VERSIONS &amp; TABS</b>Community charts, or upload your own tab — it becomes playable, synced to the song.</div>
       <div class="card" onclick="event.stopPropagation();helpGo('play','stage','#stagePanel .tabs .tab:last-child')"><b>⛶ EXPAND</b>The stage, fullscreen. Current line pinned to the top. Built for the phone on your stand.</div>
@@ -517,19 +573,19 @@ body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
         </div>
         <div class="panel" id="stagePanel">
           <div class="tabs">
-            <span class="tab on" data-pane="chart" onclick="pane(this)">📄 FULL CHART</span>
-            <span class="tab" data-pane="stage" onclick="pane(this)">🎤 STAGE</span>
-            <span class="tab" data-pane="stems" onclick="pane(this)">🎚 STEMS</span>
-            <span class="tab" data-pane="ccoach" onclick="pane(this)">🎤 CHORD COACH</span>
-            <span class="tab" data-pane="versions" onclick="pane(this)">👥 VERSIONS</span>
+            <span class="tab on" data-pane="chart" title="the study sheet — whole song, chords over words, tap a line to jump" onclick="pane(this)">📄 FULL CHART</span>
+            <span class="tab" data-pane="stage" title="your main spot — lyrics scroll live, chords pop on their exact word" onclick="pane(this)">🎭 STAGE</span>
+            <span class="tab" data-pane="stems" title="mute your instrument and play with the rest (PREMIUM)" onclick="pane(this)">🎚 STEMS</span>
+            <span class="tab" data-pane="ccoach" title="mic on — it hears which chords you actually hit" onclick="pane(this)">👂 CHORD COACH</span>
+            <span class="tab" data-pane="versions" title="community chord charts — load one or publish yours" onclick="pane(this)">👥 VERSIONS</span>
             <span style="flex:1"></span>
-            <span class="tab" id="karaokeTab" title="hide the chord chips — pure karaoke lyric scroll" onclick="const on=document.body.classList.toggle('karaoke');this.classList.toggle('on',on);toast(on?'🎤 karaoke — just the lyrics':'chords back on')">🎤 KARAOKE</span>
+            <span class="tab" id="karaokeTab" title="hide the chord chips — pure karaoke lyric scroll" onclick="const st=document.querySelector('.tab[data-pane=\'stage\']'); if(st) pane(st); const on=document.body.classList.toggle('karaoke');this.classList.toggle('on',on);toast(on?'🎤 karaoke — just the lyrics':'chords back on')">🎤 KARAOKE</span>
             <span class="tab" onclick="document.getElementById('stagePanel').classList.toggle('max');toast('phone view — current line pins to the top · ring appears while looping')">⛶ EXPAND</span>
           </div>
           <div class="pane on" id="pane-chart">
             <div style="display:flex;align-items:center;gap:10px;background:rgba(34,211,238,.07);border:1px dashed rgba(34,211,238,.4);border-radius:10px;padding:8px 12px;margin-bottom:8px">
               <span style="font-size:.66rem;color:var(--dim);flex:1">📄 This is the <b style="color:#fff">study sheet</b> — it doesn't move. Press ▶ (or tap any line) and it goes live:</span>
-              <button class="btn primary" onclick="const st=document.querySelector('.tab[data-pane=\'stage\']'); if(st) pane(st); if(!playing) togglePlay();">🎤 GO LIVE → STAGE</button>
+              <button class="btn primary" onclick="const st=document.querySelector('.tab[data-pane=\'stage\']'); if(st) pane(st); if(!playing) togglePlay();">🎭 GO LIVE → STAGE</button>
             </div>
             <div class="cap" style="margin-top:0">THE CHORDS YOU'LL PLAY · ‹ › changes the shape · starts on the OPEN shape</div>
             <div class="fbrow" id="chartChords" style="grid-template-columns:repeat(auto-fit,minmax(96px,1fr))"></div>
@@ -549,7 +605,7 @@ body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
               </div></div>
           </div>
           <div class="pane" id="pane-ccoach">
-            <div class="card"><b>🎤 CHORD COACH · listens through your mic</b>
+            <div class="card"><b>👂 CHORD COACH · listens through your mic</b>
               <div style="color:var(--dim);font-size:.62rem;margin:3px 0 4px">🎧 follows the song on stage — ask "does this C sound good here?" and it hears your take</div>
               Hit rate this session:
               <div class="meter"><i></i></div>
@@ -619,7 +675,7 @@ body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
     <!-- ════ COACH ════ -->
     <div class="view" id="view-coach">
       <div class="panel" style="flex:1">
-        <div class="ptitle">🎤 CHORD COACH · your mic, your accuracy</div>
+        <div class="ptitle">👂 CHORD COACH · your mic, your accuracy</div>
         <div class="card" style="margin-bottom:12px"><b>LIVE HIT RATE</b>
           <div style="color:var(--dim);font-size:.62rem;margin:3px 0 6px">🎧 following <b style="color:#a5f3fc">FORTUNATE SON — CCR</b> · switches automatically when you load a different song</div>
           <div class="meter"><i></i></div>
@@ -876,6 +932,7 @@ let SPEED=1;
 function setSpeed(v){
   v=parseInt(v);   // no snap — 95% is a real choice; arrows nudge by exactly 1
   SPEED=v/100; document.getElementById('spdVal').textContent=v+'%';
+  if(window.__realRate) __realRate(v/100);   // real songs: request-and-verify on the player
 }
 let CHANGES=[];   // built from LINES below — the ribbon and the stage share ONE timeline
 const WIN=22, NOWX=12;
@@ -998,8 +1055,18 @@ function renderRibbon(){
     lane.appendChild(c);
   });
 }
+let LINE_STARTS=null;  // real songs: per-line % starts (lines are NOT uniform) — null = mock uniform spans
+function lineAt(p){
+  if(!LINE_STARTS) return Math.min(LINES.length-1,Math.floor(p/LINE_SPAN));
+  let i=0; while(i+1<LINE_STARTS.length&&LINE_STARTS[i+1]<=p) i++; return i;
+}
+function lineFrac(p,ln){
+  if(!LINE_STARTS){ return (p-ln*LINE_SPAN)/LINE_SPAN; }
+  const s=LINE_STARTS[ln], e=ln+1<LINE_STARTS.length?LINE_STARTS[ln+1]:100;
+  return Math.max(0,Math.min(1,(p-s)/Math.max(e-s,0.01)));
+}
 function syncStage(){
-  const ln=Math.min(LINES.length-1,Math.floor(pos/LINE_SPAN));
+  const ln=lineAt(pos);
   const line=stageEl.children[ln];
   const maxed=document.getElementById('stagePanel').classList.contains('max');
   if(ln!==curLine){
@@ -1012,7 +1079,7 @@ function syncStage(){
     stageEl.scrollTo({top:Math.max(0,line.offsetTop-stageEl.offsetTop-6),behavior:'smooth'});
   }
   const words=[...line.querySelectorAll('.w')];
-  const frac=(pos-ln*LINE_SPAN)/LINE_SPAN;
+  const frac=lineFrac(pos,ln);
   const wcut=Math.floor(frac*words.length+0.4);   // slight lead: the LAST word pops before the line flips
   words.forEach((w,i)=>w.classList.toggle('sung',i<wcut));
   const segs=[...line.querySelectorAll('.seg')];
@@ -1102,7 +1169,7 @@ function runGap(ts){
     }
   }
 }
-const SONG_DISPLAY_S=230;  // shown as a ~3:50 song
+let SONG_DISPLAY_S=230;  // mock default ~3:50 — loadRealSong() sets the real length
 function fmtT(p){ const s=Math.round(p/100*SONG_DISPLAY_S); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); }
 function stamp(){
   document.getElementById('loopStamp').textContent=
@@ -1151,13 +1218,86 @@ function closeLoop(){ loopOn=false; document.getElementById('loopMode').classLis
 document.getElementById('map').addEventListener('click',e=>{
   const r=e.currentTarget.getBoundingClientRect();
   pos=Math.max(0,Math.min(100,(e.clientX-r.left)/r.width*100));
+  if(window.__realSeek) __realSeek(pos);
   document.getElementById('mph').style.left=pos+'%';
   renderRibbon(); syncStage();
-  toast('jumped to '+Math.round(pos)+'% of the song');
+  toast('jumped to '+fmtT(pos));
 });
-(function(){ const m=document.getElementById('map');
-  for(let i=0;i<46;i++){ const b=document.createElement('i');
-    b.style.left=(1+i*2.12)+'%'; b.style.height=(8+Math.abs(Math.sin(i*.7))*62)+'px'; m.appendChild(b); } })();
+function buildMapBars(hs){ // hs: 46 heights 0..1
+  const m=document.getElementById('map');
+  [...m.querySelectorAll('i')].forEach(b=>b.remove());
+  hs.forEach((h,i)=>{ const b=document.createElement('i');
+    b.style.left=(1+i*2.12)+'%'; b.style.height=(8+h*62)+'px'; m.appendChild(b); });
+}
+buildMapBars(Array.from({length:46},(_,i)=>Math.abs(Math.sin(i*.7))));
+
+// ═══ REAL-SONG BRIDGE (build step 12): the module hands us the loaded song's
+// lyrics/chords/envelope and the certified clock drives pos. Same renderers,
+// real data — the ONE-timeline rule holds because the module derived CHANGES
+// from the same word list the stage shows.
+function loadRealSong(d){
+  LINES.length=0; d.lines.forEach(l=>LINES.push(l));
+  LINE_STARTS=d.starts;
+  CHANGES.length=0; d.changes.forEach(c=>CHANGES.push(c));
+  SONG_DISPLAY_S=d.durationS||230;
+  loopA=null; loopB=null; region(); stamp(); curLine=-1; pos=0;
+  document.getElementById('mph').style.left='0%';
+  // stage + study sheet rebuilt from the same data
+  stageEl.innerHTML='';
+  LINES.forEach(seg=>{
+    const dv=document.createElement('div'); dv.className='line';
+    seg.forEach(([ch,words])=>{
+      String(words).split(' ').forEach((w,i)=>{
+        const s=document.createElement('span'); s.className='seg';
+        if(ch&&i===0){ const c=document.createElement('span'); c.className='ich'; c.textContent=ch; s.appendChild(c); }
+        else { const sp=document.createElement('span'); sp.className='spacer'; s.appendChild(sp); }
+        const wd=document.createElement('span'); wd.className='w wds'; wd.textContent=w;
+        s.appendChild(wd); dv.appendChild(s);
+      });
+    });
+    stageEl.appendChild(dv);
+  });
+  const sheet=document.getElementById('chartSheet');
+  sheet.innerHTML='';
+  LINES.forEach((seg,li)=>{
+    const dv=document.createElement('div'); dv.className='line';
+    seg.forEach(([ch,words])=>{
+      String(words).split(' ').forEach((w,i)=>{
+        const s=document.createElement('span'); s.className='seg';
+        if(ch&&i===0){ const c=document.createElement('span'); c.className='ich'; c.textContent=ch; s.appendChild(c); }
+        else { const sp=document.createElement('span'); sp.className='spacer'; s.appendChild(sp); }
+        const wd=document.createElement('span'); wd.className='wds'; wd.textContent=w;
+        s.appendChild(wd); dv.appendChild(s);
+      });
+    });
+    dv.onclick=()=>{ const p=LINE_STARTS?LINE_STARTS[li]:li*(100/LINES.length);
+      pos=p; if(window.__realSeek) __realSeek(p);
+      const st=document.querySelector('.tab[data-pane="stage"]'); if(st) pane(st);
+      renderRibbon(); syncStage(); };
+    sheet.appendChild(dv);
+  });
+  // the shapes row: real songs show their actual chord set (shape browser lives in LEARN)
+  const cc=document.getElementById('chartChords');
+  const uniq=[...new Set(CHANGES.map(([,n])=>n))];
+  cc.innerHTML=uniq.map(n=>'<div class="vfb" style="text-align:center;padding:10px 4px"><b style="font-size:1rem;color:#a5f3fc">'+n+'</b><div style="font-size:.5rem;color:var(--dim);margin-top:4px">shapes → 🎼 LEARN</div></div>').join('');
+  // envelope → waveform (46 bars, normalized)
+  if(d.envelope&&d.envelope.v&&d.envelope.v.length){
+    const v=d.envelope.v, n=46, out=[];
+    const mx=Math.max(...v,1);
+    for(let i=0;i<n;i++){ const a=Math.floor(i*v.length/n), b=Math.max(a+1,Math.floor((i+1)*v.length/n));
+      out.push(Math.max(...v.slice(a,b))/mx); }
+    buildMapBars(out);
+  }
+  renderRibbon(); syncStage();
+}
+// clock → mock globals: the module calls this every frame with real song %
+function realFrame(p){
+  pos=Math.max(0,Math.min(99.95,p));
+  document.getElementById('mph').style.left=pos+'%';
+  renderRibbon(); syncStage();
+  const nxt=nextChange(); document.getElementById('nextCh').textContent=nxt[1];
+}
+function loopBounds(){ return (loopA!=null&&loopB!=null)?{a:loopA,b:loopB}:null; }
 
 /* ═══ LEARN v7: REAL music theory — any key × any scale on a live fretboard ═══ */
 const NOTES=['C','C♯','D','D♯','E','F','F♯','G','G♯','A','A♯','B'];

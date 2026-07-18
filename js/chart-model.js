@@ -95,6 +95,7 @@ export function parseChart(payload) {
     bpm: payload.bpm || null,
     durationS: payload.durationMs ? payload.durationMs / 1000 : null,
     previewStart: payload.previewStart ?? null,
+    lrcId: payload.lrcId ?? null, lrcHash: payload.lrcHash ?? null,
   };
 }
 
