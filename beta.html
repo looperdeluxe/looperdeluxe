@@ -4,12 +4,12 @@
      The inline prototype logic below is placeholder UI that steps 10+ replace
      view-by-view with the certified modules imported here. Bump BUILD on every
      deploy — it cache-busts the whole module graph (GH Pages caches 10 min). -->
-<link rel="modulepreload" href="js/clock.js?v=b13">
-<link rel="modulepreload" href="js/engine-api.js?v=b13">
-<link rel="modulepreload" href="js/chart-model.js?v=b13">
-<link rel="modulepreload" href="js/store.js?v=b13">
+<link rel="modulepreload" href="js/clock.js?v=b14">
+<link rel="modulepreload" href="js/engine-api.js?v=b14">
+<link rel="modulepreload" href="js/chart-model.js?v=b14">
+<link rel="modulepreload" href="js/store.js?v=b14">
 <script type="module">
-const BUILD = 'b13';
+const BUILD = 'b14';
 const mod = (p) => import(`${p}?v=${BUILD}`);
 (async () => {
   try {
@@ -1154,6 +1154,56 @@ function renderRibbon(){
 }
 let LINE_STARTS=null;  // real songs: per-line % starts (lines are NOT uniform) — null = mock uniform spans
 let jumpSnap=false;    // set by manual jumps: next stage scroll is INSTANT (kills the smooth-scroll bounce)
+let BASE_LINES=null, BASE_CHANGES=null;  // untransposed source (build step 16) — tr applies on top, never bakes in
+function jumpTo(p){
+  const sy=window.scrollY;
+  jumpSnap=true; pos=p;
+  if(window.__realSeek) __realSeek(p);
+  curLine=-1; renderRibbon(); syncStage();
+  window.scrollTo({top:sy});
+}
+function buildStageAndSheet(){
+  stageEl.innerHTML='';
+  LINES.forEach((seg,li)=>{
+    const dv=document.createElement('div'); dv.className='line';
+    seg.forEach(([ch,words,wp])=>{
+      String(words).split(' ').forEach((w,i)=>{
+        const s=document.createElement('span'); s.className='seg';
+        if(ch&&i===0){ const c=document.createElement('span'); c.className='ich'; c.textContent=ch; s.appendChild(c); }
+        else { const sp=document.createElement('span'); sp.className='spacer'; s.appendChild(sp); }
+        const wd=document.createElement('span'); wd.className='w wds'; wd.textContent=w;
+        // tap THE WORD → play from that word (Brooks: 4th word = 4th word, not the line)
+        if(wp!=null){ wd.style.cursor='pointer';
+          wd.onclick=(e)=>{ e.stopPropagation(); e.preventDefault(); jumpTo(wp); }; }
+        s.appendChild(wd); dv.appendChild(s);
+      });
+    });
+    dv.style.cursor='pointer';
+    dv.onclick=()=>jumpTo(LINE_STARTS?LINE_STARTS[li]:li*(100/Math.max(LINES.length,1)));
+    stageEl.appendChild(dv);
+  });
+  const sheet=document.getElementById('chartSheet');
+  sheet.innerHTML='';
+  LINES.forEach((seg,li)=>{
+    const dv=document.createElement('div'); dv.className='line';
+    seg.forEach(([ch,words,wp])=>{
+      String(words).split(' ').forEach((w,i)=>{
+        const s=document.createElement('span'); s.className='seg';
+        if(ch&&i===0){ const c=document.createElement('span'); c.className='ich'; c.textContent=ch; s.appendChild(c); }
+        else { const sp=document.createElement('span'); sp.className='spacer'; s.appendChild(sp); }
+        const wd=document.createElement('span'); wd.className='wds'; wd.textContent=w;
+        if(wp!=null){ wd.style.cursor='pointer';
+          wd.onclick=(e)=>{ e.stopPropagation(); e.preventDefault();
+            const st=document.querySelector('.tab[data-pane="stage"]'); if(st) pane(st);
+            jumpTo(wp); }; }
+        s.appendChild(wd); dv.appendChild(s);
+      });
+    });
+    dv.onclick=()=>{ const st=document.querySelector('.tab[data-pane="stage"]'); if(st) pane(st);
+      jumpTo(LINE_STARTS?LINE_STARTS[li]:li*(100/LINES.length)); };
+    sheet.appendChild(dv);
+  });
+}
 function lineAt(p){
   if(!LINE_STARTS) return Math.min(LINES.length-1,Math.floor(p/LINE_SPAN));
   let i=0; while(i+1<LINE_STARTS.length&&LINE_STARTS[i+1]<=p) i++; return i;
@@ -1276,7 +1326,8 @@ function stamp(){
 }
 let tr=0;
 function trAdj(d){ tr+=d; document.getElementById('trVal').textContent=(tr>0?'+':'')+tr+' st';
-  toast('mock: every chord shifts '+(tr>0?'+':'')+tr+' semitone'+(Math.abs(tr)===1?'':'s')); }
+  if(applyTranspose(tr)) toast(tr===0?'back to the original key':'shifted '+(tr>0?'+':'')+tr+' semitone'+(Math.abs(tr)===1?'':'s')+' · chart updated');
+  else toast('mock: every chord shifts '+(tr>0?'+':'')+tr+' semitone'+(Math.abs(tr)===1?'':'s')); }
 const STRUMS=[
   ['AUTO · SMART','↓ · ↓↑ · ↑↓↑ ·','detected from the song\'s feel (133 BPM, driving)'],
   ['FOLK','↓ ↓↑ ·↑ ↓↑','the campfire standard'],
@@ -1338,62 +1389,17 @@ function loadRealSong(d){
   LINES.length=0; d.lines.forEach(l=>LINES.push(l));
   LINE_STARTS=d.starts;
   CHANGES.length=0; d.changes.forEach(c=>CHANGES.push(c));
+  BASE_LINES=d.lines.map(seg=>seg.map(entry=>entry.slice()));
+  BASE_CHANGES=d.changes.map(c=>c.slice());
+  tr=0; const trValEl=document.getElementById('trVal'); if(trValEl) trValEl.textContent='0 st';
   SONG_DISPLAY_S=d.durationS||230;
   loopA=null; loopB=null; region(); stamp(); curLine=-1; pos=0;
   document.getElementById('mph').style.left='0%';
-  // jumpTo: the ONE way every tap navigates — word-exact when the word has a
-  // time, instant scroll (no smooth-animation bounce), page scroll preserved
-  const jumpTo=(p)=>{
-    const sy=window.scrollY;
-    jumpSnap=true; pos=p;
-    if(window.__realSeek) __realSeek(p);
-    curLine=-1; renderRibbon(); syncStage();
-    window.scrollTo({top:sy});
-  };
-  // stage + study sheet rebuilt from the same data
-  stageEl.innerHTML='';
-  LINES.forEach((seg,li)=>{
-    const dv=document.createElement('div'); dv.className='line';
-    seg.forEach(([ch,words,wp])=>{
-      String(words).split(' ').forEach((w,i)=>{
-        const s=document.createElement('span'); s.className='seg';
-        if(ch&&i===0){ const c=document.createElement('span'); c.className='ich'; c.textContent=ch; s.appendChild(c); }
-        else { const sp=document.createElement('span'); sp.className='spacer'; s.appendChild(sp); }
-        const wd=document.createElement('span'); wd.className='w wds'; wd.textContent=w;
-        // tap THE WORD → play from that word (Brooks: 4th word = 4th word, not the line)
-        if(wp!=null){ wd.style.cursor='pointer';
-          wd.onclick=(e)=>{ e.stopPropagation(); e.preventDefault(); jumpTo(wp); }; }
-        s.appendChild(wd); dv.appendChild(s);
-      });
-    });
-    dv.style.cursor='pointer';
-    dv.onclick=()=>jumpTo(LINE_STARTS?LINE_STARTS[li]:li*(100/Math.max(LINES.length,1)));
-    stageEl.appendChild(dv);
-  });
-  const sheet=document.getElementById('chartSheet');
-  sheet.innerHTML='';
-  LINES.forEach((seg,li)=>{
-    const dv=document.createElement('div'); dv.className='line';
-    seg.forEach(([ch,words,wp])=>{
-      String(words).split(' ').forEach((w,i)=>{
-        const s=document.createElement('span'); s.className='seg';
-        if(ch&&i===0){ const c=document.createElement('span'); c.className='ich'; c.textContent=ch; s.appendChild(c); }
-        else { const sp=document.createElement('span'); sp.className='spacer'; s.appendChild(sp); }
-        const wd=document.createElement('span'); wd.className='wds'; wd.textContent=w;
-        if(wp!=null){ wd.style.cursor='pointer';
-          wd.onclick=(e)=>{ e.stopPropagation(); e.preventDefault();
-            const st=document.querySelector('.tab[data-pane="stage"]'); if(st) pane(st);
-            jumpTo(wp); }; }
-        s.appendChild(wd); dv.appendChild(s);
-      });
-    });
-    dv.onclick=()=>{ const st=document.querySelector('.tab[data-pane="stage"]'); if(st) pane(st);
-      jumpTo(LINE_STARTS?LINE_STARTS[li]:li*(100/LINES.length)); };
-    sheet.appendChild(dv);
-  });
+  buildStageAndSheet();
   // the shapes row: TAP a chord → LEARN opens on that key (Brooks 2026-07-18)
+  // always the chart's ORIGINAL key — practice transpose doesn't change what LEARN teaches
   const cc=document.getElementById('chartChords');
-  const uniq=[...new Set(CHANGES.map(([,n])=>n))];
+  const uniq=[...new Set(BASE_CHANGES.map(([,n])=>n))];
   cc.innerHTML=uniq.map(n=>'<div class="vfb" onclick="chordToLearn(\''+String(n).replace(/[^A-Ga-g#b♯♭majdimsu0-9/]/g,'')+'\')" style="text-align:center;padding:10px 4px;cursor:pointer"><b style="font-size:1rem;color:#a5f3fc">'+n+'</b><div style="font-size:.5rem;color:var(--dim);margin-top:4px">tap → 🎼 LEARN</div></div>').join('');
   // envelope → waveform (46 bars, normalized)
   if(d.envelope&&d.envelope.v&&d.envelope.v.length){
@@ -1404,6 +1410,16 @@ function loadRealSong(d){
     buildMapBars(out);
   }
   renderRibbon(); syncStage();
+}
+// build step 16: transpose stepper wired to chart-model.transposeChord — always recomputed
+// from the untransposed BASE_* arrays so repeated +/- clicks never compound drift
+function applyTranspose(semis){
+  if(!BASE_LINES||!window.LD||!window.LD.chart) return false;
+  const tx=(name)=>window.LD.chart.transposeChord(name,semis);
+  LINES.length=0; BASE_LINES.forEach(seg=>LINES.push(seg.map(([ch,words,wp])=>[ch?tx(ch):ch,words,wp])));
+  CHANGES.length=0; BASE_CHANGES.forEach(([p,n])=>CHANGES.push([p,tx(n)]));
+  buildStageAndSheet(); renderRibbon(); syncStage();
+  return true;
 }
 // clock → mock globals: the module calls this every frame with real song %
 // a chord chip in FULL CHART → LEARN with that chord's key selected
