@@ -4,12 +4,12 @@
      The inline prototype logic below is placeholder UI that steps 10+ replace
      view-by-view with the certified modules imported here. Bump BUILD on every
      deploy — it cache-busts the whole module graph (GH Pages caches 10 min). -->
-<link rel="modulepreload" href="js/clock.js?v=b8">
-<link rel="modulepreload" href="js/engine-api.js?v=b8">
-<link rel="modulepreload" href="js/chart-model.js?v=b8">
-<link rel="modulepreload" href="js/store.js?v=b8">
+<link rel="modulepreload" href="js/clock.js?v=b9">
+<link rel="modulepreload" href="js/engine-api.js?v=b9">
+<link rel="modulepreload" href="js/chart-model.js?v=b9">
+<link rel="modulepreload" href="js/store.js?v=b9">
 <script type="module">
-const BUILD = 'b8';
+const BUILD = 'b9';
 const mod = (p) => import(`${p}?v=${BUILD}`);
 (async () => {
   try {
@@ -211,8 +211,13 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
     };
 
     // ——— step 12: the certified clock drives the mock renderers with real time ———
+    // click ANYWHERE navigable (lyric, waveform, sheet line) = "play from exactly
+    // here" — seek AND ensure playing, never leave the user to unpause (Brooks)
     window.__realSeek = (pct) => {
-      if (LD.song && LD.player && LD.song.durationS) LD.player.seek(pct / 100 * LD.song.durationS);
+      if (LD.song && LD.player && LD.song.durationS) {
+        LD.player.seek(pct / 100 * LD.song.durationS);
+        if (LD.player.state() !== 'playing') LD.player.play();
+      }
     };
     window.__realRate = async (r) => {
       if (!LD.song || !LD.player) return;
@@ -234,7 +239,7 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
       const on = s === 'playing';
       if (bp) bp.textContent = on ? '❚❚' : '▶';
       if (pb) pb.textContent = on ? '⏸ PAUSE' : '▶ PLAY';
-      if (fab) fab.textContent = on ? '❚❚' : '▶';
+      if (fab) { fab.textContent = on ? '❚❚' : '▶'; fab.classList.toggle('showplay', !on); }
     };
     const armStateUI = () => { if (LD.player && !LD.player.__uiArmed) { LD.player.__uiArmed = true; LD.player.onState(bigPlayUI); } };
     // arm the state mirror after the first player exists
@@ -320,21 +325,21 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
   .map{height:64px}
   #searchResults{top:96px}
   .stage{max-height:44vh}
-  /* tour bottom-RIGHT, raised clear of the nav bar (Brooks) */
+  /* play/pause: bottom-right just above the bar (Brooks: "good spot for it");
+     tour stacks above it when a song is loaded, takes its place when not */
   #tourBtn{bottom:80px;right:10px;left:auto;z-index:53}
+  body.songloaded #tourBtn{bottom:148px}
   .toast{bottom:112px}
   .bar input{flex:1 1 calc(100% - 58px);order:9}
   #searchGo{order:10;flex:0 0 auto}
-  /* play/pause lives IN the bottom bar: raised center button, always on screen */
   body.songloaded #playFab{display:flex}
-  body.songloaded #navSpacer{display:block}
-  #playFab{left:50%;transform:translateX(-50%);bottom:9px;right:auto}
 }
-#navSpacer{display:none;width:54px;flex:0 0 auto}
-#playFab{display:none;position:fixed;bottom:78px;right:10px;z-index:53;width:54px;height:54px;
-  border-radius:50%;background:linear-gradient(135deg,#7c3aed,#0e7490);border:2px solid #0b0b14;
-  color:#fff;font-size:1.25rem;align-items:center;justify-content:center;cursor:pointer;
+#navSpacer{display:none}
+#playFab{display:none;position:fixed;bottom:80px;right:10px;z-index:53;width:56px;height:56px;
+  border-radius:50%;background:linear-gradient(135deg,#7c3aed,#0e7490);border:1px solid var(--purple);
+  color:#fff;font-size:1.3rem;line-height:1;align-items:center;justify-content:center;cursor:pointer;
   box-shadow:0 4px 18px rgba(124,58,237,.55)}
+#playFab.showplay{padding-left:5px} /* ▶'s visual mass sits left — nudge to optical center */
 @media(max-width:900px){#btnPlay{font-size:.78rem;padding:11px 20px;box-shadow:0 0 16px rgba(124,58,237,.5)}}  /* phone: play is unmissable up top */
 .grid{display:grid;grid-template-columns:1.3fr 1fr;gap:12px;flex:1;min-height:0}
 @media(max-width:900px){.grid{grid-template-columns:1fr}
@@ -586,8 +591,7 @@ body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
     <div class="nav on" id="nav-play" onclick="nav('play')">🎸 <span class="lbl">PLAY</span></div>
     <div class="nav" id="nav-metro" onclick="nav('metro')">⏱ <span class="lbl">PRACTICE</span></div>
     <div class="nav" id="nav-learn" onclick="nav('learn')">🎼 <span class="lbl">LEARN</span></div>
-    <div id="navSpacer"></div>
-    <div class="nav" id="nav-coach" onclick="nav('coach')">🤖 <span class="lbl">COACH</span></div>
+        <div class="nav" id="nav-coach" onclick="nav('coach')">🤖 <span class="lbl">COACH</span></div>
     <div class="nav" id="nav-stuff" onclick="nav('stuff')">📁 <span class="lbl">MY STUFF</span></div>
     <div class="nav" onclick="document.getElementById('helpOv').classList.add('on')">⭐ <span class="lbl">FEATURES</span></div>
     <div class="nav" id="nav-settings" onclick="nav('settings')">⚙ <span class="lbl">SETTINGS</span></div>
@@ -866,7 +870,7 @@ body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
           <div class="card"><b>😌 CALM MODE</b>Keeps the chord pops, quiets the word-sweep glow — easier on the eyes for long sessions.<br>
             <label style="display:inline-flex;align-items:center;gap:6px;margin-top:8px;cursor:pointer">
             <input type="checkbox" style="accent-color:#a855f7" onchange="document.body.classList.toggle('calm',this.checked);toast(this.checked?'calm mode on — glow quieted':'full glow back on')"> ENABLE</label></div>
-          <div class="card"><b>ACCOUNT</b>★ELITE · Spotify ✓ connected · Terms · Privacy</div>
+          <div class="card"><b>ACCOUNT</b>★ELITE · Spotify ✓ connected · <a href="terms.html" style="color:var(--cyan)">Terms</a> · <a href="privacy.html" style="color:var(--cyan)">Privacy</a><div style="margin-top:6px;font-size:.56rem;color:var(--dim)">BPM &amp; key data cross-checked via <a href="https://getsongbpm.com/" target="_blank" rel="noopener" style="color:var(--cyan)">GetSongBPM</a> · lyrics via LRCLIB · playback by the official YouTube player</div></div>
         </div></div>
     </div>
   </div>
