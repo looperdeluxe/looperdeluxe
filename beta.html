@@ -20,7 +20,115 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
     storeMod.syncFromClassic(); // adopt + merge classic-site data on every load
     // the app namespace steps 10+ build against
     window.LD = { BUILD, clock: clock.createClock(), engine: api.engine,
-                  chart, lyrics, store: storeMod.store, sync: storeMod.syncFromClassic };
+                  chart, lyrics, store: storeMod.store, sync: storeMod.syncFromClassic,
+                  song: null, player: null };
+    const LD = window.LD, $ = (id) => document.getElementById(id);
+    const playerYT = await mod('./js/player-youtube.js');
+
+    // "Creedence Clearwater Revival - Topic" → artist; else try "Artist - Title"
+    function resolveArtistTitle(r) {
+      const ch = r.channel || '';
+      if (/ - Topic$/.test(ch)) return { artist: ch.replace(/ - Topic$/, ''), title: r.title };
+      const m = /^(.+?)\s*[-–]\s*(.+)$/.exec(r.title || '');
+      if (m) return { artist: m[1], title: m[2].replace(/\(.*?\)|\[.*?\]/g, '').trim() };
+      return { artist: ch.replace(/VEVO$/i, ''), title: r.title };
+    }
+
+    window.ldSearch = async () => {
+      const q = $('searchIn').value.trim();
+      if (!q) return;
+      const box = $('searchResults');
+      box.style.display = 'block';
+      box.innerHTML = '<div style="padding:12px;font-size:.7rem;color:#a1a1aa">searching…</div>';
+      try {
+        const rs = await LD.engine.search(q, { n: 6 });
+        box.innerHTML = rs.map((r, i) =>
+          `<div class="srow" data-i="${i}" style="display:flex;gap:10px;align-items:center;padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)">
+             <img src="${r.thumb}" style="width:64px;height:36px;object-fit:cover;border-radius:6px">
+             <div style="min-width:0"><div style="font-size:.72rem;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.title.replace(/</g,'&lt;')}</div>
+             <div style="font-size:.6rem;color:#a1a1aa">${(r.channel||'').replace(/</g,'&lt;')}</div></div></div>`).join('')
+          || '<div style="padding:12px;font-size:.7rem">no results</div>';
+        box.querySelectorAll('.srow').forEach((el) => {
+          el.onclick = () => { box.style.display = 'none'; ldPick(rs[+el.dataset.i]); };
+        });
+      } catch (e) {
+        box.innerHTML = `<div style="padding:12px;font-size:.7rem;color:#fca5a5">⚠ ${e.message} — engine unreachable? try again</div>`;
+      }
+    };
+
+    async function ldPick(r) {
+      const { artist, title } = resolveArtistTitle(r);
+      await ldLoadSong(artist, title, r.id);
+    }
+
+    async function ldLoadSong(artist, title, vid) {
+      $('npTitle').innerHTML = `${title.replace(/</g,'&lt;')} <span style="color:var(--dim);font-weight:400">— ${artist.replace(/</g,'&lt;')}</span>`;
+      $('npStatus').textContent = '⏳ loading chords…';
+      $('npSave').style.display = '';
+      LD.song = { artist, title, vid, chart: null };
+      history.replaceState(null, '', '?song=' + encodeURIComponent(artist + '|' + title));
+      try {
+        const payload = await LD.engine.chords(artist, title);
+        const c = LD.chart.parseChart(payload);
+        LD.song.chart = c;
+        if (c.key) $('kKey').textContent = 'KEY ' + c.key.replace(/ major| minor/, (m2) => m2 === ' minor' ? 'm' : '');
+        $('kCapo').textContent = 'CAPO ' + (c.capo || 0);
+        if (c.bpm) $('kBpm').textContent = Math.round(c.bpm) + ' BPM';
+        if (c.state === 'full') {
+          $('npStatus').style.color = 'var(--green)';
+          $('npStatus').textContent = `✅ FULL SONG · ${c.songChords.length} chords` + (vid ? ' · 🎬 video loaded' : '');
+        } else {
+          $('npStatus').style.color = '#fbbf24';
+          $('npStatus').textContent = '🚀 REQUESTED — full-song chart coming soon · preview chords only for now';
+          LD.engine.requestChart(artist, title).catch(() => {});
+        }
+      } catch (e) {
+        if (e && e.status === 404) {
+          $('npStatus').style.color = '#fbbf24';
+          $('npStatus').textContent = '🚀 REQUESTED — this song joins the charting queue now';
+          LD.engine.requestChart(artist, title).catch(() => {});
+        } else {
+          $('npStatus').style.color = '#fca5a5';
+          $('npStatus').textContent = '⚠ engine unreachable — chords will load when it is back';
+        }
+      }
+      if (vid) {
+        $('ytHost').style.display = '';
+        if (!LD.player) {
+          LD.player = playerYT.createYouTubeSource('ytHost');
+          LD.clock.setSource(LD.player);
+        }
+        try { await LD.player.load(vid); LD.clock.start(); } catch (e) {
+          $('npStatus').textContent += ' · ⚠ video would not embed';
+        }
+      }
+    }
+    window.ldLoadSong = ldLoadSong;
+
+    window.ldGetChords = () => {
+      if (LD.song) ldLoadSong(LD.song.artist, LD.song.title, LD.song.vid);
+      else window.toast && toast('search a song first — chords load with it');
+    };
+    window.ldSaveSong = () => {
+      if (!LD.song) return;
+      LD.store.add('songs', { ytId: LD.song.vid || null, ytTitle: LD.song.title, artist: LD.song.artist, title: LD.song.title });
+      window.toast && toast('⭐ saved to MY STUFF');
+    };
+
+    // real playback takes over the big play button once a song is loaded
+    const mockToggle = window.togglePlay;
+    window.togglePlay = () => {
+      if (LD.song && LD.player) {
+        (LD.player.state() === 'playing' ? LD.player.pause() : LD.player.play());
+      } else if (mockToggle) mockToggle();
+    };
+
+    // deep link: ?song=artist|title (new capability — classic site has no song URLs)
+    const dl = new URLSearchParams(location.search).get('song');
+    if (dl && dl.includes('|')) {
+      const [a, t] = dl.split('|');
+      ldLoadSong(a, t, null).catch(() => {});
+    }
     console.log('[LD] beta shell booted', BUILD);
   } catch (e) {
     console.error('[LD] module boot failed', e);
@@ -259,10 +367,10 @@ body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
 
 <div class="bar">
   <h1 onclick="nav('play')">LOOPER DELUXE</h1>
-  <input placeholder="🔍 Search a song…" onkeydown="if(event.key==='Enter')toast('mock: would search + auto-load chords')">
+  <input id="searchIn" placeholder="🔍 Search a song…" autocomplete="off" onkeydown="if(event.key==='Enter')ldSearch()">
   <button class="btn primary" id="btnPlay" onclick="togglePlay()">▶ PLAY</button>
-  <button class="btn chords" onclick="toast('mock: chords re-fetched from library')">🎸 GET CHORDS</button>
-  <span class="kchip">KEY F</span><span class="kchip capo">CAPO 3</span><span class="kchip">133 BPM</span>
+  <button class="btn chords" onclick="ldGetChords()">🎸 GET CHORDS</button>
+  <span class="kchip" id="kKey">KEY F</span><span class="kchip capo" id="kCapo">CAPO 3</span><span class="kchip" id="kBpm">133 BPM</span>
   <button class="btn" style="padding:6px 9px" onclick="toast('mock: BPM halved')">÷2</button>
   <button class="btn" style="padding:6px 9px" onclick="toast('mock: BPM doubled')">×2</button>
   <span style="flex:1"></span>
@@ -328,11 +436,13 @@ body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
           <div class="mediarow" id="mediarow">
             <div id="bigPlay" onclick="togglePlay()" title="the obvious button">▶</div>
             <div style="flex:1;display:flex;flex-direction:column;gap:5px;justify-content:center">
-              <div class="ptitle" style="margin:0">NOW PLAYING</div>
-              <div style="font-size:.95rem;color:#fff;font-weight:700">Turmoil &amp; Tinfoil <span style="color:var(--dim);font-weight:400">— Billy Strings</span></div>
-              <div style="font-size:.62rem;color:var(--green)">✅ FULL SONG · verified from a real play-through · 🎬 video in VIDEO STUDIO</div>
+              <div class="ptitle" style="margin:0">NOW PLAYING <span id="npSave" onclick="ldSaveSong()" title="save to MY STUFF" style="cursor:pointer;display:none">⭐</span></div>
+              <div id="npTitle" style="font-size:.95rem;color:#fff;font-weight:700">Turmoil &amp; Tinfoil <span style="color:var(--dim);font-weight:400">— Billy Strings</span></div>
+              <div id="npStatus" style="font-size:.62rem;color:var(--green)">✅ FULL SONG · verified from a real play-through · 🎬 video in VIDEO STUDIO</div>
             </div>
+            <div id="ytHost" style="display:none;width:214px;height:120px;border-radius:10px;overflow:hidden;flex:0 0 auto"></div>
           </div>
+          <div id="searchResults" style="display:none;position:fixed;z-index:57;top:56px;left:50%;transform:translateX(-50%);width:min(680px,92vw);background:#14141f;border:1px solid var(--purple);border-radius:12px;max-height:300px;overflow:auto;box-shadow:0 10px 40px rgba(0,0,0,.6)"></div>
           <div class="ribbon"><div class="lane" id="lane"></div><div class="now-line"></div></div>
           <div class="cap">WAVEFORM · the whole song · CLICK TO JUMP · loop region in cyan</div>
           <div class="map" id="map"><span class="region" id="region"></span><span class="ph" id="mph"></span><div id="gapCount">1.5</div></div>
