@@ -4,12 +4,12 @@
      The inline prototype logic below is placeholder UI that steps 10+ replace
      view-by-view with the certified modules imported here. Bump BUILD on every
      deploy — it cache-busts the whole module graph (GH Pages caches 10 min). -->
-<link rel="modulepreload" href="js/clock.js?v=b10">
-<link rel="modulepreload" href="js/engine-api.js?v=b10">
-<link rel="modulepreload" href="js/chart-model.js?v=b10">
-<link rel="modulepreload" href="js/store.js?v=b10">
+<link rel="modulepreload" href="js/clock.js?v=b11">
+<link rel="modulepreload" href="js/engine-api.js?v=b11">
+<link rel="modulepreload" href="js/chart-model.js?v=b11">
+<link rel="modulepreload" href="js/store.js?v=b11">
 <script type="module">
-const BUILD = 'b10';
+const BUILD = 'b11';
 const mod = (p) => import(`${p}?v=${BUILD}`);
 (async () => {
   try {
@@ -240,7 +240,9 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
       const on = s === 'playing';
       if (bp) bp.textContent = on ? '❚❚' : '▶';
       if (pb) pb.textContent = on ? '⏸ PAUSE' : '▶ PLAY';
-      if (fab) { fab.textContent = on ? '❚❚' : '▶'; fab.classList.toggle('showplay', !on); }
+      if (fab) fab.innerHTML = on
+        ? '<svg width="28" height="28" viewBox="0 0 24 24" style="display:block"><rect x="6.2" y="5" width="3.6" height="14" rx="1" fill="#fff"/><rect x="14.2" y="5" width="3.6" height="14" rx="1" fill="#fff"/></svg>'
+        : '<svg width="28" height="28" viewBox="0 0 24 24" style="display:block"><path fill="#fff" d="M8.5 5.2v13.6L20 12z"/></svg>';
     };
     const armStateUI = () => { if (LD.player && !LD.player.__uiArmed) { LD.player.__uiArmed = true; LD.player.onState(bigPlayUI); } };
     // arm the state mirror after the first player exists
@@ -328,8 +330,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
   .stage{max-height:44vh}
   /* play/pause: bottom-right just above the bar (Brooks: "good spot for it");
      tour stacks above it when a song is loaded, takes its place when not */
-  #tourBtn{bottom:80px;right:10px;left:auto;z-index:53}
-  body.songloaded #tourBtn{bottom:148px}
+  #tourBtn{bottom:80px;left:10px;right:auto;z-index:53}
   .toast{bottom:112px}
   .bar input{flex:1 1 calc(100% - 58px);order:9}
   #searchGo{order:10;flex:0 0 auto}
@@ -340,7 +341,7 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
   border-radius:50%;background:linear-gradient(135deg,#7c3aed,#0e7490);border:1px solid var(--purple);
   color:#fff;font-size:1.3rem;line-height:1;align-items:center;justify-content:center;cursor:pointer;
   box-shadow:0 4px 18px rgba(124,58,237,.55)}
-#playFab.showplay{padding-left:5px} /* ▶'s visual mass sits left — nudge to optical center */
+
 @media(max-width:900px){#btnPlay{font-size:.78rem;padding:11px 20px;box-shadow:0 0 16px rgba(124,58,237,.5)}}  /* phone: play is unmissable up top */
 .grid{display:grid;grid-template-columns:1.3fr 1fr;gap:12px;flex:1;min-height:0}
 @media(max-width:900px){.grid{grid-template-columns:1fr}
@@ -553,6 +554,7 @@ body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
     <div style="font-family:Orbitron;font-weight:900;font-size:1.25rem;letter-spacing:3px;margin-bottom:4px;background:linear-gradient(100deg,#6d28d9 0%,#a855f7 33%,#22d3ee 66%,#a5f3fc 100%);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 12px rgba(168,85,247,.5))">⭐ EVERYTHING LOOPER CAN DO</div>
     <div style="font-size:.68rem;color:#a1a1aa;margin-bottom:16px">tap any card to <b style="color:var(--cyan)">try it live</b> — it takes you there and lights it up · tap anywhere else to close</div>
     <div class="cardgrid">
+      <div class="card" onclick="event.stopPropagation();document.getElementById('helpOv').classList.remove('on');startTour()"><b>🎸 60-SECOND TOUR</b>The guided lap — 12 quick stops through everything. Replay it as often as you like.</div>
       <div class="card" onclick="event.stopPropagation();helpGo('play',null,'.bar input')"><b>🔍 SEARCH → PLAY</b>Type any song. Chords, key, capo and lyrics load themselves — no buttons.</div>
       <div class="card" onclick="event.stopPropagation();helpGo('play','stage','#stagePanel')"><b>🎭 STAGE</b>Lyrics with the chords above the exact word they change on. Pink build-up = change coming, pop = now.</div>
       <div class="card" onclick="event.stopPropagation();helpGo('play',null,'#loopRowMain')"><b>🔁 LOOP</b>IN and OUT mark a section on the waveform. It repeats until you own it. 💾 saves it forever.</div>
@@ -900,7 +902,7 @@ body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
   <div id="loopLyric"></div>
 </div>
 <div id="tourBtn" onclick="startTour()" title="12 quick stops — arrows or space to move">🎸 NEW HERE? <b style="color:#a5f3fc">60-SECOND TOUR</b><span class="tx" title="hide this — the tour lives on in ⚙ SETTINGS" onclick="event.stopPropagation();tourDismiss()">✕</span></div>
-<div id="playFab" onclick="togglePlay()" title="play / pause">▶</div>
+<div id="playFab" onclick="togglePlay()" title="play / pause"><svg id="playFabIco" width="28" height="28" viewBox="0 0 24 24" style="display:block"><path fill="#fff" d="M8.5 5.2v13.6L20 12z"/></svg></div>
 <div id="tourDim" onclick="endTour()"></div>
 <div id="tourTip"><div id="tourText"></div>
   <div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end;align-items:center">
@@ -930,7 +932,7 @@ function startTour(){ nav('play'); tourI=-1; document.getElementById('tourDim').
 function tourNext(){
   document.querySelectorAll('.spot').forEach(e=>e.classList.remove('spot'));
   tourI++;
-  if(tourI>=TOUR.length){ endTour(); tourDismiss('you’re toured up 🎸 — replay anytime in ⚙ SETTINGS'); return; }
+  if(tourI>=TOUR.length){ endTour(); tourDismiss('you’re toured up 🎸 — replay anytime from ⭐ FEATURES'); return; }
   const [sel,txt,view]=TOUR[tourI];
   if(view) nav(view);
   const el=document.querySelector(sel);
@@ -963,7 +965,7 @@ function endTour(){
 function tourDismiss(msg){
   try{localStorage.setItem('ld_tourdone','1')}catch(e){}
   document.getElementById('tourBtn').classList.add('gone');
-  toast(msg||'tour tucked away — find it anytime in ⚙ SETTINGS');
+  toast(msg||'no problem — replay it anytime from the ⭐ FEATURES tab');
 }
 try{if(localStorage.getItem('ld_tourdone'))document.getElementById('tourBtn').classList.add('gone')}catch(e){}
 function helpGo(view, tabPane, sel){
