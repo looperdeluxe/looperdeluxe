@@ -4,12 +4,12 @@
      The inline prototype logic below is placeholder UI that steps 10+ replace
      view-by-view with the certified modules imported here. Bump BUILD on every
      deploy — it cache-busts the whole module graph (GH Pages caches 10 min). -->
-<link rel="modulepreload" href="js/clock.js?v=b7">
-<link rel="modulepreload" href="js/engine-api.js?v=b7">
-<link rel="modulepreload" href="js/chart-model.js?v=b7">
-<link rel="modulepreload" href="js/store.js?v=b7">
+<link rel="modulepreload" href="js/clock.js?v=b8">
+<link rel="modulepreload" href="js/engine-api.js?v=b8">
+<link rel="modulepreload" href="js/chart-model.js?v=b8">
+<link rel="modulepreload" href="js/store.js?v=b8">
 <script type="module">
-const BUILD = 'b7';
+const BUILD = 'b8';
 const mod = (p) => import(`${p}?v=${BUILD}`);
 (async () => {
   try {
@@ -320,15 +320,19 @@ h1{font-family:Orbitron;font-weight:900;font-size:1.35rem;letter-spacing:4px;mar
   .map{height:64px}
   #searchResults{top:96px}
   .stage{max-height:44vh}
-  /* tour bottom-LEFT above the nav bar (was hidden behind it); play FAB bottom-RIGHT */
-  #tourBtn{bottom:78px;left:10px;right:auto;z-index:53}
+  /* tour bottom-RIGHT, raised clear of the nav bar (Brooks) */
+  #tourBtn{bottom:80px;right:10px;left:auto;z-index:53}
   .toast{bottom:112px}
   .bar input{flex:1 1 calc(100% - 58px);order:9}
   #searchGo{order:10;flex:0 0 auto}
+  /* play/pause lives IN the bottom bar: raised center button, always on screen */
   body.songloaded #playFab{display:flex}
+  body.songloaded #navSpacer{display:block}
+  #playFab{left:50%;transform:translateX(-50%);bottom:9px;right:auto}
 }
-#playFab{display:none;position:fixed;bottom:78px;right:10px;z-index:53;width:52px;height:52px;
-  border-radius:50%;background:linear-gradient(135deg,#7c3aed,#0e7490);border:1px solid var(--purple);
+#navSpacer{display:none;width:54px;flex:0 0 auto}
+#playFab{display:none;position:fixed;bottom:78px;right:10px;z-index:53;width:54px;height:54px;
+  border-radius:50%;background:linear-gradient(135deg,#7c3aed,#0e7490);border:2px solid #0b0b14;
   color:#fff;font-size:1.25rem;align-items:center;justify-content:center;cursor:pointer;
   box-shadow:0 4px 18px rgba(124,58,237,.55)}
 @media(max-width:900px){#btnPlay{font-size:.78rem;padding:11px 20px;box-shadow:0 0 16px rgba(124,58,237,.5)}}  /* phone: play is unmissable up top */
@@ -582,6 +586,7 @@ body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
     <div class="nav on" id="nav-play" onclick="nav('play')">🎸 <span class="lbl">PLAY</span></div>
     <div class="nav" id="nav-metro" onclick="nav('metro')">⏱ <span class="lbl">PRACTICE</span></div>
     <div class="nav" id="nav-learn" onclick="nav('learn')">🎼 <span class="lbl">LEARN</span></div>
+    <div id="navSpacer"></div>
     <div class="nav" id="nav-coach" onclick="nav('coach')">🤖 <span class="lbl">COACH</span></div>
     <div class="nav" id="nav-stuff" onclick="nav('stuff')">📁 <span class="lbl">MY STUFF</span></div>
     <div class="nav" onclick="document.getElementById('helpOv').classList.add('on')">⭐ <span class="lbl">FEATURES</span></div>
