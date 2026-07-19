@@ -4,12 +4,12 @@
      The inline prototype logic below is placeholder UI that steps 10+ replace
      view-by-view with the certified modules imported here. Bump BUILD on every
      deploy — it cache-busts the whole module graph (GH Pages caches 10 min). -->
-<link rel="modulepreload" href="js/clock.js?v=b14">
-<link rel="modulepreload" href="js/engine-api.js?v=b14">
-<link rel="modulepreload" href="js/chart-model.js?v=b14">
-<link rel="modulepreload" href="js/store.js?v=b14">
+<link rel="modulepreload" href="js/clock.js?v=b15">
+<link rel="modulepreload" href="js/engine-api.js?v=b15">
+<link rel="modulepreload" href="js/chart-model.js?v=b15">
+<link rel="modulepreload" href="js/store.js?v=b15">
 <script type="module">
-const BUILD = 'b14';
+const BUILD = 'b15';
 const mod = (p) => import(`${p}?v=${BUILD}`);
 (async () => {
   try {
@@ -140,7 +140,7 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
             }
             changes = c.songChords.map((ch) => [Math.min(99.9, ch.t / dur * 100), ch.n]);
           }
-          window.loadRealSong({ lines, starts, changes, durationS: dur, envelope: c.envelope, title });
+          window.loadRealSong({ lines, starts, changes, durationS: dur, envelope: c.envelope, title, bpm: c.bpm });
           LD.song.durationS = dur;
         } else if (c.songChords.length) {
           // preview-only / unanchored: show the REAL progression as a study chart —
@@ -153,7 +153,7 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
             starts.push(i / c.songChords.length * 100);
           }
           const changes = c.songChords.map((ch, i) => [i / c.songChords.length * 100, ch.n]);
-          window.loadRealSong({ lines, starts, changes, durationS: null, envelope: null, title });
+          window.loadRealSong({ lines, starts, changes, durationS: null, envelope: null, title, bpm: c.bpm });
           LD.song.durationS = null;
         }
         // phone flow: search → song → STRAIGHT to the stage (Brooks 2026-07-18)
@@ -1335,11 +1335,29 @@ const STRUMS=[
   ['ROCK 8THS','↓↑ ↓↑ ↓↑ ↓↑','straight drive'],
   ['REGGAE','· ↑ · ↑','upstroke skank']];
 let strumIdx=0;
+let songBpm=null;
+// build step 17: AUTO picks by the song's REAL bpm (c.bpm, already fetched per-song) instead of
+// always showing the hardcoded 133/driving text. Full audio-feel detection stays engine work,
+// later — this is an honest tempo-bucket heuristic, not a claim of real strum-pattern detection.
+function autoStrumFor(bpm){
+  const b=bpm?Math.round(bpm):null;
+  if(!b) return {pat:STRUMS[0][1],sub:STRUMS[0][2]};
+  if(b<90) return {pat:STRUMS[1][1],sub:'auto: '+STRUMS[1][0]+' feel — '+b+' BPM, relaxed'};
+  if(b>150) return {pat:STRUMS[3][1],sub:'auto: '+STRUMS[3][0]+' feel — '+b+' BPM, fast'};
+  return {pat:STRUMS[0][1],sub:'detected from the song\'s feel ('+b+' BPM, driving)'};
+}
 function applyStrum(){
+  if(strumIdx===0){
+    const a=autoStrumFor(songBpm);
+    document.getElementById('strumPat').textContent=a.pat;
+    document.getElementById('strumName').textContent=a.sub;
+    document.getElementById('strumAuto').classList.add('on');
+    return;
+  }
   const [nm,pat,sub]=STRUMS[strumIdx];
   document.getElementById('strumPat').textContent=pat;
-  document.getElementById('strumName').textContent=(strumIdx===0?sub:nm+' — '+sub);
-  document.getElementById('strumAuto').classList.toggle('on',strumIdx===0);
+  document.getElementById('strumName').textContent=nm+' — '+sub;
+  document.getElementById('strumAuto').classList.remove('on');
 }
 function setStrum(i){ strumIdx=i; applyStrum(); toast('smart strum re-detected for this song'); }
 function cycleStrum(d){ strumIdx=(strumIdx+d+STRUMS.length)%STRUMS.length; applyStrum();
@@ -1392,6 +1410,7 @@ function loadRealSong(d){
   BASE_LINES=d.lines.map(seg=>seg.map(entry=>entry.slice()));
   BASE_CHANGES=d.changes.map(c=>c.slice());
   tr=0; const trValEl=document.getElementById('trVal'); if(trValEl) trValEl.textContent='0 st';
+  songBpm=d.bpm||null; strumIdx=0; applyStrum();
   SONG_DISPLAY_S=d.durationS||230;
   loopA=null; loopB=null; region(); stamp(); curLine=-1; pos=0;
   document.getElementById('mph').style.left='0%';
