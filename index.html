@@ -14,7 +14,7 @@
 <link rel="modulepreload" href="js/chart-model.js?v=b15">
 <link rel="modulepreload" href="js/store.js?v=b15">
 <script type="module">
-const BUILD = 'b16';
+const BUILD = 'b17';
 const mod = (p) => import(`${p}?v=${BUILD}`);
 (async () => {
   try {
@@ -104,6 +104,7 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
       $('npSave').style.display = '';
       document.body.classList.add('songloaded'); // phone: shows the floating play/pause
       LD.song = { artist, title, vid, chart: null };
+      { const fb = document.getElementById('npFull'); if (fb && !LD.__capturing) fb.style.display = 'none'; }
       history.replaceState(null, '', '?song=' + encodeURIComponent(artist + '|' + title));
       try {
         const payload = await LD.engine.chords(artist, title);
@@ -115,9 +116,11 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
         if (c.state === 'full') {
           $('npStatus').style.color = 'var(--green)';
           $('npStatus').textContent = `✅ FULL SONG · ${c.songChords.length} chords` + (vid ? ' · 🎬 video loaded' : '');
+          LD.showFullCapture && LD.showFullCapture(false);
         } else {
           $('npStatus').style.color = '#fbbf24';
           $('npStatus').textContent = '🚀 REQUESTED — full-song chart coming soon · preview chords only for now';
+          LD.showFullCapture && LD.showFullCapture(true);
           LD.engine.requestChart(artist, title).catch(() => {});
         }
         // ——— step 12: the loaded song takes over stage/chart/ribbon/waveform ———
@@ -172,6 +175,7 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
         if (e && e.status === 404) {
           $('npStatus').style.color = '#fbbf24';
           $('npStatus').textContent = '🚀 REQUESTED — this song joins the charting queue now';
+          LD.showFullCapture && LD.showFullCapture(true);
           LD.engine.requestChart(artist, title).catch(() => {});
         } else {
           $('npStatus').style.color = '#fca5a5';
@@ -206,6 +210,48 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
       if (!LD.song) return;
       LD.store.add('songs', { ytId: LD.song.vid || null, ytTitle: LD.song.title, artist: LD.song.artist, title: LD.song.title });
       window.toast && toast('⭐ saved to MY STUFF');
+    };
+    const canCapture = () => !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia && window.MediaRecorder)
+      && !/Mobi|iPhone|iPad|Android/i.test(navigator.userAgent);
+    LD.showFullCapture = (on) => {
+      const box = $('npFull'); if (!box) return;
+      box.style.display = (on && canCapture() && LD.song && LD.song.vid) ? '' : 'none';
+    };
+    window.ldCaptureFull = async () => {
+      const s = LD.song, btn = $('npFullBtn'), note = $('npFullNote');
+      if (!s || !LD.player || LD.__capturing) return;
+      let stream;
+      try { stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true, preferCurrentTab: true }); }
+      catch (e) { note.textContent = 'capture cancelled'; return; }
+      stream.getVideoTracks().forEach(t => t.stop());
+      const aud = stream.getAudioTracks();
+      if (!aud.length) { note.textContent = '⚠ tick "Share tab audio" in the popup, then try again'; return; }
+      const rec = new MediaRecorder(new MediaStream(aud)), chunks = [];
+      let timer = null;
+      const stop = () => { clearTimeout(timer); try { if (rec.state === 'recording') rec.stop(); } catch (e) {} };
+      rec.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
+      rec.onstop = async () => {
+        aud.forEach(t => t.stop());
+        LD.__capturing = false;
+        btn.textContent = '🎧 CHART THE FULL SONG'; btn.onclick = window.ldCaptureFull;
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        if (blob.size < 200000) { note.textContent = '⚠ too short to chart — let the song play longer'; return; }
+        if (blob.size > 12000000) { note.textContent = '⚠ capture too large to send'; return; }
+        note.textContent = '⏳ sending to the chord engine…';
+        try {
+          const j = await LD.engine.playthrough({ artist: s.artist, title: s.title, vid: s.vid || '' }, blob);
+          note.textContent = (j && j.queued) ? '✅ queued — full-song chords land in about 15 min (reload the song then)' : '⚠ not queued — try again';
+        } catch (e) {
+          note.textContent = e && e.status === 429 ? '⚠ capture limit reached for this hour — try later' : '⚠ upload failed — try again';
+        }
+      };
+      LD.__capturing = true;
+      LD.player.seek(0); LD.player.play();
+      rec.start(1000);
+      btn.textContent = '⏹ STOP & SEND'; btn.onclick = stop;
+      note.textContent = '🎧 listening — let it play to the end and keep this tab open';
+      const dur = s.durationS || (LD.player.duration && LD.player.duration()) || 0;
+      if (dur > 5) timer = setTimeout(stop, (dur + 2) * 1000);
     };
 
     // real playback takes over the big play button once a song is loaded
@@ -632,6 +678,7 @@ body:has(#tourDim.on) #tourBtn,body:has(#helpOv.on) #tourBtn{display:none}
               <div class="ptitle" style="margin:0">NOW PLAYING <span id="npSave" onclick="ldSaveSong()" title="save to MY STUFF" style="cursor:pointer;display:none">⭐</span></div>
               <div id="npTitle" style="font-size:.95rem;color:#fff;font-weight:700">Turmoil &amp; Tinfoil <span style="color:var(--dim);font-weight:400">— Billy Strings</span></div>
               <div id="npStatus" style="font-size:.62rem;color:var(--green)">✅ FULL SONG · verified from a real play-through · 🎬 video in VIDEO STUDIO</div>
+              <div id="npFull" style="display:none;margin-top:5px;font-size:.6rem"><span id="npFullBtn" class="kc" onclick="ldCaptureFull()" style="padding:3px 9px;cursor:pointer">🎧 CHART THE FULL SONG</span> <span id="npFullNote" style="color:var(--dim)">plays it once from the start, then charts every section</span></div>
               <div class="kchipRow-m">
                 <span class="kchip" id="kKeyM" title="the song's key — from the audio itself, web-checked">KEY F</span><span class="kchip capo" id="kCapoM" title="suggested capo for the easiest open shapes">CAPO 3</span><span class="kchip" id="kBpmM" title="tempo — beats per minute">133 BPM</span>
               </div>
