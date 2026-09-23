@@ -9,7 +9,7 @@
 <link rel="modulepreload" href="js/chart-model.js?v=b15">
 <link rel="modulepreload" href="js/store.js?v=b15">
 <script type="module">
-const BUILD = 'b15';
+const BUILD = 'b16';
 const mod = (p) => import(`${p}?v=${BUILD}`);
 (async () => {
   try {
@@ -73,7 +73,7 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
         engineDown(false);
         box.innerHTML = rs.map((r, i) =>
           `<div class="srow" data-i="${i}" style="display:flex;gap:10px;align-items:center;padding:8px 12px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05)">
-             <img src="${r.thumb}" style="width:64px;height:36px;object-fit:cover;border-radius:6px">
+             <img src="${String(r.thumb||'').replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';')}" style="width:64px;height:36px;object-fit:cover;border-radius:6px">
              <div style="min-width:0"><div style="font-size:.72rem;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.title.replace(/</g,'&lt;')}</div>
              <div style="font-size:.6rem;color:#a1a1aa">${(r.channel||'').replace(/</g,'&lt;')}</div></div></div>`).join('')
           || '<div style="padding:12px;font-size:.7rem">no results</div>';
@@ -83,7 +83,7 @@ const mod = (p) => import(`${p}?v=${BUILD}`);
         });
       } catch (e) {
         if (e && e.status === 0) engineDown(true);
-        box.innerHTML = `<div style="padding:12px;font-size:.7rem;color:#fca5a5">⚠ ${e.message} — try again in a moment</div>`;
+        box.innerHTML = `<div style="padding:12px;font-size:.7rem;color:#fca5a5">⚠ ${String(e && e.message).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';')} — try again in a moment</div>`;
       }
     };
 
@@ -1091,7 +1091,7 @@ function drawChartChords(){
         rows+='<td>'+(d?'<span class="dot"></span>':'')+'</td>'; } rows+='</tr>'; }
     div.innerHTML='<div class="nm" style="display:flex;align-items:center;justify-content:center;gap:7px">'
       +'<span class="kc" style="padding:1px 7px" onclick="chartCycle('+i+',-1)">‹</span>'
-      +'<span>'+nm+'</span>'
+      +'<span>'+String(nm).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';')+'</span>'
       +'<span class="kc" style="padding:1px 7px" onclick="chartCycle('+i+',1)">›</span></div>'
       +'<table>'+rows+'</table><div class="cap2">'+sub+' · '+(chartSel[i]+1)+'/3</div>';
     cc.appendChild(div);
@@ -1576,7 +1576,7 @@ function drawChordBoards(){
       } rows+='</tr>'; }
     div.innerHTML='<div class="nm" style="display:flex;align-items:center;justify-content:center;gap:8px">'
       +'<span class="kc" style="padding:2px 7px" onclick="cycleV('+i+',-1)">‹</span>'
-      +'<span>'+nm+'</span>'
+      +'<span>'+String(nm).replace(/[&<>"']/g,c=>'&#'+c.charCodeAt(0)+';')+'</span>'
       +'<span class="kc" style="padding:2px 7px" onclick="cycleV('+i+',1)">›</span></div>'
       +'<table>'+rows+'</table><div class="cap2">'+sub+' · '+(vSel[i]+1)+'/3</div>';
     fbrow.appendChild(div);
