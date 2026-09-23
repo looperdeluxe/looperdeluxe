@@ -4291,7 +4291,7 @@ async function separateStems() {
   const muteSel = document.getElementById('stem-mute-select');
   const mutedStem = (muteSel && muteSel.value) || 'Guitar';
   const songKey = _stemSongKey();
-  const licenseKey = localStorage.getItem('looperLicense') || (localStorage.getItem('looperOwner') === '1' ? 'brooks-956bd142342d' : '');
+  const licenseKey = localStorage.getItem('looperLicense') || '';
 
   // Quota check (quota is also enforced server-side; client check is just UX)
   if (!_stemCheckQuota(songKey, false)) {
@@ -5731,8 +5731,8 @@ async function verifyChords() {
 
   try {
     const wavBlob = await _bufToWavBlob(decoded);
-    const licKey = localStorage.getItem('looperLicense') || (localStorage.getItem('looperOwner') === '1' ? 'brooks-956bd142342d' : '');
-    const params = new URLSearchParams({ license_key: licKey || 'brooks-956bd142342d', song_key: info.key });
+    const licKey = localStorage.getItem('looperLicense') || '';
+    const params = new URLSearchParams({ license_key: licKey, song_key: info.key });
 
     if (st) st.textContent = '⏳ Sending to verification server (~30s)…';
     const resp = await fetch(MODAL_VERIFY_URL + '?' + params.toString(), {
@@ -6372,7 +6372,7 @@ function exitYouTubeMode() {
 function isVideoStudio() { const v = document.getElementById('opt-video'); return !!(v && v.classList.contains('active')); }
 // Configurable Phase-2 analysis-server base (set once live: localStorage.looperApi = 'https://your-box'). Empty = not live yet.
 // On the tailnet preview, auto-connect to the dev engine so search/audio just work; public domain stays clean (set localStorage.looperApi to override either way).
-const LOOPER_API = (localStorage.getItem('looperApi') || (location.hostname.endsWith('.ts.net') ? 'http://hermes-vps.tail2f597b.ts.net:8097' : 'https://engine.looperdeluxe.com')).replace(/\/$/, '');
+const LOOPER_API = (localStorage.getItem('looperApi') || 'https://engine.looperdeluxe.com').replace(/\/$/, '');
 // AUDIO mode: the server pulls the song's audio → we load it into the SAME MP3 pipeline (real waveform,
 // auto-BPM, auto-chords, sample-precise loop). No YouTube player → no embedding restriction at all.
 function ytPlayVideo(id) {
@@ -7601,7 +7601,7 @@ async function askCoach() {
 
   try {
     const tier = isPro() ? 'elite' : 'premium';
-    const licKey = localStorage.getItem('looperLicense') || (localStorage.getItem('looperOwner') ? 'brooks-956bd142342d' : '');
+    const licKey = localStorage.getItem('looperLicense') || '';
     const r = await fetch(COACH_API, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -7723,7 +7723,8 @@ async function activateLicenseFromSettings() {
   const key = (inp ? inp.value.trim() : '');
   if (!key) { if (st) st.textContent = 'Paste a license key first.'; return; }
   // Owner bypass
-  if (key === 'brooks-956bd142342d') {
+  if (key.startsWith('owner-')) {
+    localStorage.setItem('looperLicense', key);
     localStorage.setItem('looperOwner', '1');
     setPremium(true); setPro(true);
     if (st) st.textContent = '✅ Owner key — all tiers unlocked.';
